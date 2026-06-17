@@ -1,104 +1,103 @@
-// lib/zones.js
+// lib/gemini.js
 // ---------------------------------------------------------------------------
-// INTELIGENCIA DE ZONA — este es tu diferenciador. El bot habla como experto
-// local porque conoce precios, tendencias y perfil de comprador por colonia.
+// Conexión con Gemini. Construye el "cerebro" del bot: personalidad de la
+// agencia + datos de zona + historial de la conversación.
 //
-// IMPORTANTE: estos números son referencias de ejemplo para CDMX. Antes de
-// vender a un cliente, actualízalos con datos reales de SU zona (Inmuebles24,
-// Lamudi, Propiedades.com). Eso es justo lo que hace al bot irremplazable:
-// nadie más tiene la data calibrada de tu cliente.
+// Usa fetch nativo de Node 20+ (no necesitas instalar nada).
+// El modelo es configurable por variable de entorno para que lo actualices
+// sin tocar código cuando Google saque uno nuevo.
 // ---------------------------------------------------------------------------
 
-export const ZONAS = {
-  polanco: {
-    nombre: "Polanco",
-    precioM2: 95000,            // MXN por m² (referencia)
-    rentaPromedio: 45000,        // renta mensual depto 2 rec
-    tendencia: "estable-alta",   // subiendo | estable-alta | estable | bajando
-    diasCierrePromedio: 75,
-    perfilComprador: "ejecutivos, inversionistas, extranjeros; busca lujo y ubicación",
-    tipico: "departamentos de lujo, 2-3 recámaras, amenidades premium",
-  },
-  chapultepec: {
-    nombre: "Bosques de Chapultepec / Lomas",
-    precioM2: 78000,
-    rentaPromedio: 38000,
-    tendencia: "subiendo",
-    diasCierrePromedio: 80,
-    perfilComprador: "familias de alto poder adquisitivo, busca espacio y seguridad",
-    tipico: "casas y departamentos amplios, jardín, seguridad privada",
-  },
-  reforma: {
-    nombre: "Paseo de la Reforma / Cuauhtémoc",
-    precioM2: 72000,
-    rentaPromedio: 32000,
-    tendencia: "subiendo",
-    diasCierrePromedio: 65,
-    perfilComprador: "jóvenes profesionistas, inversionistas en renta, corporativos",
-    tipico: "departamentos modernos en torre, 1-2 recámaras, vista a la ciudad",
-  },
-  condesa: {
-    nombre: "Condesa / Roma",
-    precioM2: 68000,
-    rentaPromedio: 28000,
-    tendencia: "estable-alta",
-    diasCierrePromedio: 60,
-    perfilComprador: "creativos, expats, inversionistas en renta corta (Airbnb)",
-    tipico: "departamentos con estilo, edificios art déco, lofts",
-  },
-  delvalle: {
-    nombre: "Del Valle / Nápoles",
-    precioM2: 58000,
-    rentaPromedio: 24000,
-    tendencia: "estable",
-    diasCierrePromedio: 55,
-    perfilComprador: "familias clase media-alta, primer comprador con buen ingreso",
-    tipico: "departamentos familiares, buena conectividad, escuelas cerca",
-  },
-  santafe: {
-    nombre: "Santa Fe",
-    precioM2: 52000,
-    rentaPromedio: 26000,
-    tendencia: "estable",
-    diasCierrePromedio: 70,
-    perfilComprador: "ejecutivos que trabajan en corporativos de la zona",
-    tipico: "departamentos en torre, plusvalía corporativa, amenidades",
-  },
-};
+import { contextoZona } from "./zones.js";
 
-// Normaliza texto del cliente a una llave de zona conocida
-export function detectarZona(texto) {
-  if (!texto) return null;
-  const t = texto.toLowerCase();
-  if (t.includes("polanco")) return "polanco";
-  if (t.includes("chapultepec") || t.includes("lomas")) return "chapultepec";
-  if (t.includes("reforma") || t.includes("cuauhtemoc") || t.includes("cuauhtémoc")) return "reforma";
-  if (t.includes("condesa") || t.includes("roma")) return "condesa";
-  if (t.includes("del valle") || t.includes("napoles") || t.includes("nápoles")) return "delvalle";
-  if (t.includes("santa fe") || t.includes("santafe")) return "santafe";
-  return null;
+const MODELO = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const API_KEY = process.env.GEMINI_API_KEY;
+
+function construirSystemPrompt({ config, lead }) {
+  const p = lead.perfil || {};
+  const zonaCtx = p.zona ? contextoZona(p.zona) : "";
+  const idioma = p.idioma === "en" ? "inglés" : "español";
+
+  // Qué datos faltan por preguntar (calificación natural, no interrogatorio)
+  const faltantes = [];
+  if (!p.presupuesto) faltantes.push("presupuesto aproximado");
+  if (!p.zona) faltantes.push("zona de interés");
+  if (!p.recamaras) faltantes.push("número de recámaras");
+  if (!p.proposito) faltantes.push("si es para vivir o invertir");
+
+  return `Eres el asistente virtual de "${config.nombreAgencia}", una agencia inmobiliaria.
+Tu tono es ${config.tono}. Respondes SIEMPRE en ${idioma}.
+
+TU MISIÓN:
+1. Atender al cliente de forma cálida y profesional, como un asesor experto.
+2. Calificar al cliente de forma NATURAL (sin parecer formulario). Datos que aún
+   no conoces y conviene averiguar con el tiempo: ${faltantes.length ? faltantes.join(", ") : "ya tienes lo principal"}.
+3. Generar confianza y avanzar hacia agendar una visita o llamada con un asesor.
+
+REGLAS:
+- Mensajes cortos, naturales, estilo WhatsApp. Nada de párrafos enormes.
+- NO inventes propiedades, precios exactos ni direcciones que no te den.
+- Si no sabes algo puntual, di que un asesor lo confirmará.
+- Una pregunta a la vez. No interrogues.
+- Si el cliente da un dato (presupuesto, zona, etc.), reconócelo y sigue.
+- Usa los datos de zona de abajo para sonar como experto local, sin presumir.
+
+${zonaCtx ? "CONTEXTO DE ZONA:\n" + zonaCtx : ""}
+
+DATOS QUE YA SABES DEL CLIENTE:
+- Nombre: ${lead.nombre || "aún no lo sabes"}
+- Presupuesto: ${p.presupuesto ? "$" + p.presupuesto.toLocaleString("es-MX") + " MXN" : "desconocido"}
+- Zona: ${p.zona || "desconocida"}
+- Recámaras: ${p.recamaras || "desconocidas"}
+- Propósito: ${p.proposito || "desconocido"}`;
 }
 
-// Devuelve un resumen de texto para inyectar al prompt de Gemini
-export function contextoZona(zonaKey) {
-  const z = ZONAS[zonaKey];
-  if (!z) return "";
-  return `DATOS DE ${z.nombre.toUpperCase()} (úsalos para sonar como experto local):
-- Precio aprox: $${z.precioM2.toLocaleString("es-MX")} MXN/m²
-- Renta promedio: $${z.rentaPromedio.toLocaleString("es-MX")} MXN/mes
-- Tendencia del mercado: ${z.tendencia}
-- Tiempo promedio de cierre: ${z.diasCierrePromedio} días
-- Perfil de comprador típico: ${z.perfilComprador}
-- Inventario típico: ${z.tipico}`;
+// Convierte tu historial interno al formato que espera Gemini
+function historialAContents(historial) {
+  return historial.map((h) => ({
+    role: h.rol === "bot" ? "model" : "user",
+    parts: [{ text: h.texto }],
+  }));
 }
 
-// Valida si el presupuesto cuadra con la zona (en MXN, precio de compra)
-export function presupuestoCuadra(zonaKey, presupuesto, recamaras = 2) {
-  const z = ZONAS[zonaKey];
-  if (!z || !presupuesto) return null;
-  const m2Estimado = recamaras === 1 ? 55 : recamaras === 2 ? 80 : 120;
-  const precioEstimado = z.precioM2 * m2Estimado;
-  if (presupuesto >= precioEstimado * 0.9) return "ok";
-  if (presupuesto >= precioEstimado * 0.6) return "ajustado";
-  return "insuficiente";
+export async function generarRespuesta({ config, lead }) {
+  if (!API_KEY) {
+    console.warn("[gemini] Falta GEMINI_API_KEY. Devuelvo respuesta de respaldo.");
+    return "¡Hola! Gracias por escribir. En un momento te atiendo. 🙂";
+  }
+
+  const systemPrompt = construirSystemPrompt({ config, lead });
+  const contents = historialAContents(lead.historial || []);
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${API_KEY}`;
+
+  const body = {
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 350,
+    },
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errTxt = await res.text();
+      console.error("[gemini] Error API:", res.status, errTxt);
+      return "Disculpa, tuve un detalle técnico. ¿Me repites por favor? 🙏";
+    }
+
+    const data = await res.json();
+    const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return texto?.trim() || "¿Me puedes dar un poco más de detalle? 🙂";
+  } catch (err) {
+    console.error("[gemini] Excepción:", err.message);
+    return "Disculpa, tuve un problema de conexión. ¿Me escribes de nuevo? 🙏";
+  }
 }

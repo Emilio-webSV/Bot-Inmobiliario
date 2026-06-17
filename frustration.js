@@ -1,57 +1,42 @@
-// lib/agents.js
+// lib/frustration.js
 // ---------------------------------------------------------------------------
-// Asigna el lead al agente correcto según la zona de interés.
-// Si nadie cubre la zona, reparte de forma rotativa (round-robin) para que
-// ningún agente acapare ni se quede sin leads.
+// Detección de frustración. Si el cliente está molesto, NO insistas con el bot:
+// escala a un humano. Un cliente enojado que se siente atendido por una persona
+// se recupera; uno que sigue peleando con un bot se pierde.
 // ---------------------------------------------------------------------------
 
-import { getAgents, loadDB, saveDB } from "./store.js";
+const SENALES_FRUSTRACION = [
+  "no me entiendes", "no entiendes", "ya te dije", "estás mal", "estas mal",
+  "no sirve", "no funciona", "pésimo", "pesimo", "horrible", "estúpido", "estupido",
+  "eres un bot", "quiero hablar con una persona", "quiero un humano", "agente real",
+  "asesor real", "déjame hablar", "dejame hablar", "esto no me ayuda", "no me ayudas",
+  "ya basta", "qué mal", "que mal", "no me estás", "no me estas",
+];
 
-let rrIndex = 0; // round-robin
+const SENALES_PEDIR_HUMANO = [
+  "hablar con una persona", "hablar con alguien", "un asesor", "un agente",
+  "una persona real", "un humano", "que me llamen", "que me marquen",
+];
 
-export function asignarAgente(zonaKey) {
-  const agentes = getAgents().filter((a) => a.activo !== false);
-  if (agentes.length === 0) return null;
+export function analizarFrustracion(texto) {
+  if (!texto) return { frustrado: false, pideHumano: false, nivel: 0 };
+  const t = texto.toLowerCase();
 
-  // 1) Buscar especialista de la zona
-  if (zonaKey) {
-    const especialistas = agentes.filter(
-      (a) => Array.isArray(a.zonas) && a.zonas.includes(zonaKey)
-    );
-    if (especialistas.length === 1) return especialistas[0];
-    if (especialistas.length > 1) {
-      // entre especialistas, el que tenga menos leads asignados
-      return menosCargado(especialistas);
-    }
-  }
+  let nivel = 0;
+  for (const s of SENALES_FRUSTRACION) if (t.includes(s)) nivel++;
 
-  // 2) Sin especialista -> round-robin
-  const agente = agentes[rrIndex % agentes.length];
-  rrIndex++;
-  return agente;
-}
+  // Mayúsculas sostenidas = gritando
+  const letras = texto.replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ]/g, "");
+  if (letras.length > 6 && letras === letras.toUpperCase()) nivel++;
 
-function menosCargado(agentes) {
-  const db = loadDB();
-  const conteo = {};
-  for (const a of agentes) conteo[a.id] = 0;
-  for (const lead of Object.values(db.leads)) {
-    if (lead.agenteAsignado && conteo[lead.agenteAsignado] !== undefined) {
-      conteo[lead.agenteAsignado]++;
-    }
-  }
-  return agentes.sort((a, b) => conteo[a.id] - conteo[b.id])[0];
-}
+  // Signos de exclamación múltiples
+  if ((texto.match(/!/g) || []).length >= 3) nivel++;
 
-// Crea agentes de ejemplo si no hay ninguno (para que el demo funcione solo)
-export function seedAgentesDemo() {
-  const db = loadDB();
-  if (db.agents.length > 0) return;
-  db.agents = [
-    { id: "a1", nombre: "María López", telefono: "521555000001", zonas: ["polanco", "chapultepec"], activo: true },
-    { id: "a2", nombre: "Carlos Ruiz", telefono: "521555000002", zonas: ["reforma", "condesa"], activo: true },
-    { id: "a3", nombre: "Ana Torres", telefono: "521555000003", zonas: ["delvalle", "santafe"], activo: true },
-  ];
-  saveDB(db);
-  console.log("[agents] Agentes demo creados.");
+  const pideHumano = SENALES_PEDIR_HUMANO.some((s) => t.includes(s));
+
+  return {
+    frustrado: nivel >= 1 || pideHumano,
+    pideHumano,
+    nivel, // 0 = tranquilo, 1 = molesto, 2+ = muy molesto
+  };
 }

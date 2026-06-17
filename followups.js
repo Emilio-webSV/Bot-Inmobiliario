@@ -1,112 +1,156 @@
-// lib/scoring.js
+// lib/followups.js
 // ---------------------------------------------------------------------------
-// Calificación de leads. Extrae datos del mensaje (presupuesto, zona, recámaras,
-// propósito) y calcula un score 0-100 que define la temperatura del lead.
-//
-// La extracción es por reglas (gratis e instantánea). Gemini ayuda a entender
-// el lenguaje natural, pero el scoring final lo controlamos nosotros para que
-// sea consistente y explicable al dueño de la agencia.
+// Seguimientos automáticos (cron). Esto es lo que NO hace un agente humano por
+// flojera y es justo donde se pierden las ventas:
+//   - Follow-up si el cliente no responde (24h y 72h)
+//   - Recordatorio de cita 24h antes
+//   - Reactivación de leads fríos a los 30, 60 y 90 días
+//   - Alerta al DUEÑO si un lead caliente lleva +2h sin atención humana
+//   - Reporte semanal cada lunes
 // ---------------------------------------------------------------------------
 
-import { detectarZona } from "./zones.js";
+import cron from "node-cron";
+import { loadDB, upsertLead, pushHistorial, getConfig } from "./store.js";
+import { enviarTexto } from "./whatsapp.js";
 
-// Extrae un monto en pesos de un texto. Maneja "2 millones", "2.5 mdp",
-// "1,500,000", "800 mil", etc.
-export function extraerPresupuesto(texto) {
-  if (!texto) return null;
-  const t = texto.toLowerCase().replace(/,/g, "");
+const HORA = 60 * 60 * 1000;
+const DIA = 24 * HORA;
 
-  // "2 millones", "2.5 mdp", "3 mdp"
-  let m = t.match(/(\d+(?:\.\d+)?)\s*(?:millones|millon|millón|mdp|mill)/);
-  if (m) return Math.round(parseFloat(m[1]) * 1_000_000);
-
-  // "800 mil", "500mil"
-  m = t.match(/(\d+(?:\.\d+)?)\s*mil/);
-  if (m) return Math.round(parseFloat(m[1]) * 1_000);
-
-  // Número grande directo: 1500000, 2000000
-  m = t.match(/\b(\d{6,9})\b/);
-  if (m) return parseInt(m[1], 10);
-
-  return null;
+function horasDesde(iso) {
+  return (Date.now() - new Date(iso).getTime()) / HORA;
+}
+function diasDesde(iso) {
+  return (Date.now() - new Date(iso).getTime()) / DIA;
 }
 
-export function extraerRecamaras(texto) {
-  if (!texto) return null;
-  const t = texto.toLowerCase();
-  const m = t.match(/(\d+)\s*(?:rec|recamara|recámara|recamaras|recámaras|cuarto|cuartos|habitacion|habitación|habitaciones)/);
-  if (m) return parseInt(m[1], 10);
-  if (t.includes("una recamara") || t.includes("una recámara")) return 1;
-  if (t.includes("dos recamaras") || t.includes("dos recámaras")) return 2;
-  if (t.includes("tres recamaras") || t.includes("tres recámaras")) return 3;
-  return null;
-}
+// --- Follow-ups por inactividad + reactivación de fríos --------------------
+async function revisarSeguimientos() {
+  const db = loadDB();
+  const config = getConfig();
 
-export function extraerProposito(texto) {
-  if (!texto) return null;
-  const t = texto.toLowerCase();
-  if (t.includes("invert") || t.includes("inversión") || t.includes("inversion") || t.includes("rentar") || t.includes("plusvalía") || t.includes("plusvalia")) return "invertir";
-  if (t.includes("vivir") || t.includes("habitar") || t.includes("mudar") || t.includes("para mi familia") || t.includes("para mí")) return "vivir";
-  return null;
-}
+  for (const lead of Object.values(db.leads)) {
+    if (lead.humanoEnControl) continue; // si un agente lo tomó, el bot no molesta
 
-const SENALES_URGENCIA = [
-  "este mes", "lo antes posible", "urge", "ya", "cuanto antes", "esta semana",
-  "necesito mudarme", "tengo que", "pronto", "inmediato",
-];
-const SENALES_CURIOSEO = [
-  "solo pregunto", "solo veo", "nada más viendo", "curiosidad", "tal vez",
-  "quizá", "quiza", "algún día", "algun dia", "más adelante", "mas adelante",
-  "no por ahora", "solo cotizando",
-];
+    const ultimo = lead.historial?.[lead.historial.length - 1];
+    if (!ultimo) continue;
 
-// Actualiza el perfil del lead con lo nuevo que encontró en el mensaje
-export function extraerPerfil(texto, perfilActual = {}) {
-  const nuevo = { ...perfilActual };
-  const presupuesto = extraerPresupuesto(texto);
-  const zona = detectarZona(texto);
-  const recamaras = extraerRecamaras(texto);
-  const proposito = extraerProposito(texto);
+    // Solo seguimos si el ÚLTIMO mensaje fue del bot (cliente no contestó)
+    const esperandoRespuesta = ultimo.rol === "bot";
+    const h = horasDesde(lead.ultimoMensaje);
+    const d = diasDesde(lead.ultimoMensaje);
 
-  if (presupuesto) nuevo.presupuesto = presupuesto;
-  if (zona) nuevo.zona = zona;
-  if (recamaras) nuevo.recamaras = recamaras;
-  if (proposito) nuevo.proposito = proposito;
+    // 24h sin responder
+    if (esperandoRespuesta && h >= 24 && h < 72 && !lead.seguimientos.f24) {
+      const msg = `Hola${lead.nombre ? " " + lead.nombre : ""} 👋 ¿Sigues interesado en encontrar tu propiedad? Con gusto te ayudo a dar el siguiente paso cuando quieras.`;
+      await enviarTexto(lead.telefono, msg);
+      pushHistorial(lead.telefono, "bot", msg);
+      upsertLead(lead.telefono, { seguimientos: { f24: true } });
+      continue;
+    }
 
-  return nuevo;
-}
+    // 72h sin responder
+    if (esperandoRespuesta && h >= 72 && h < 24 * 30 && !lead.seguimientos.f72) {
+      const msg = `${lead.nombre ? lead.nombre + ", t" : "T"}e cuento que el mercado se mueve rápido y tengo opciones que quizá te encanten. ¿Retomamos? 🏡`;
+      await enviarTexto(lead.telefono, msg);
+      pushHistorial(lead.telefono, "bot", msg);
+      upsertLead(lead.telefono, { seguimientos: { f72: true } });
+      continue;
+    }
 
-// Calcula score 0-100 y temperatura a partir del perfil + señales de la conversación
-export function calcularScore(lead) {
-  const p = lead.perfil || {};
-  let score = 0;
+    // Reactivación de leads fríos
+    const reactivar = async (mensaje, flag) => {
+      await enviarTexto(lead.telefono, mensaje);
+      pushHistorial(lead.telefono, "bot", mensaje);
+      upsertLead(lead.telefono, { seguimientos: { [flag]: true } });
+    };
 
-  // Datos completos del perfil suman (lead que comparte info = lead serio)
-  if (p.presupuesto) score += 25;
-  if (p.zona) score += 15;
-  if (p.recamaras) score += 10;
-  if (p.proposito) score += 10;
-
-  // Interacción: mientras más conversa, más interesado
-  const mensajesCliente = (lead.historial || []).filter((h) => h.rol === "user").length;
-  score += Math.min(mensajesCliente * 3, 20); // hasta 20 pts
-
-  // Señales en el último texto del cliente
-  const ultimo = [...(lead.historial || [])].reverse().find((h) => h.rol === "user");
-  const t = (ultimo?.texto || "").toLowerCase();
-  if (SENALES_URGENCIA.some((s) => t.includes(s))) score += 20;
-  if (SENALES_CURIOSEO.some((s) => t.includes(s))) score -= 15;
-
-  // Pidió cita o quiere ver propiedad = muy caliente
-  if (t.includes("cita") || t.includes("agendar") || t.includes("visitar") || t.includes("ver la propiedad") || t.includes("cuando puedo ver")) {
-    score += 25;
+    if (d >= 30 && d < 60 && !lead.seguimientos.frio30) {
+      await reactivar(`Hola${lead.nombre ? " " + lead.nombre : ""} 🙌 Pasó un mes desde que platicamos. Han salido propiedades nuevas en tu zona de interés. ¿Te muestro?`, "frio30");
+    } else if (d >= 60 && d < 90 && !lead.seguimientos.frio60) {
+      await reactivar(`¡Hola de nuevo! Los precios en tu zona han tenido movimiento. Si todavía buscas, es buen momento para revisar opciones. ¿Lo vemos?`, "frio60");
+    } else if (d >= 90 && !lead.seguimientos.frio90) {
+      await reactivar(`Hola${lead.nombre ? " " + lead.nombre : ""}, soy de ${config.nombreAgencia}. Sé que pasó tiempo, pero si aún te interesa una propiedad, me encantaría apoyarte sin compromiso. 🙂`, "frio90");
+    }
   }
+}
 
-  score = Math.max(0, Math.min(100, score));
+// --- Recordatorio de cita 24h antes ----------------------------------------
+async function revisarCitas() {
+  const db = loadDB();
+  for (const lead of Object.values(db.leads)) {
+    if (!lead.citaProgramada) continue;
+    const h = (new Date(lead.citaProgramada).getTime() - Date.now()) / HORA;
+    if (h <= 24 && h > 23 && !lead.seguimientos.recordatorioCita) {
+      const fecha = new Date(lead.citaProgramada).toLocaleString("es-MX", {
+        weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+      });
+      const msg = `Recordatorio 📅 Tienes tu cita el ${fecha}. ¿Confirmas asistencia? Aquí estaré para lo que necesites.`;
+      await enviarTexto(lead.telefono, msg);
+      pushHistorial(lead.telefono, "bot", msg);
+      upsertLead(lead.telefono, { seguimientos: { recordatorioCita: true } });
+    }
+  }
+}
 
-  let temperatura = "frio";
-  if (score >= 65) temperatura = "caliente";
-  else if (score >= 35) temperatura = "tibio";
+// --- Alerta al dueño: lead caliente sin atender +2h ------------------------
+async function revisarLeadsCalientes() {
+  const db = loadDB();
+  const dueno = process.env.OWNER_PHONE;
+  if (!dueno) return;
 
-  return { score, temperatura, serio: score >= 35, mensajesCliente };
+  for (const lead of Object.values(db.leads)) {
+    if (lead.temperatura !== "caliente") continue;
+    if (lead.humanoEnControl) continue;
+    if (lead.seguimientos.alertaCaliente) continue;
+
+    if (horasDesde(lead.ultimoMensaje) >= 2) {
+      const msg = `🔴 LEAD CALIENTE SIN ATENDER\nCliente: ${lead.nombre || lead.telefono}\nZona: ${lead.perfil.zona || "?"}\nPresupuesto: ${lead.perfil.presupuesto ? "$" + lead.perfil.presupuesto.toLocaleString("es-MX") : "?"}\nScore: ${lead.score}/100\nLleva +2h sin respuesta humana. ¡Contáctalo ya!`;
+      await enviarTexto(dueno, msg);
+      upsertLead(lead.telefono, { seguimientos: { alertaCaliente: true } });
+    }
+  }
+}
+
+// --- Reporte semanal (lunes 9am) -------------------------------------------
+async function reporteSemanal() {
+  const db = loadDB();
+  const dueno = process.env.OWNER_PHONE;
+  if (!dueno) return;
+
+  const leads = Object.values(db.leads);
+  const nuevos = leads.filter((l) => diasDesde(l.creado) <= 7);
+  const calientes = leads.filter((l) => l.temperatura === "caliente");
+  const tibios = leads.filter((l) => l.temperatura === "tibio");
+  const pipeline = leads
+    .filter((l) => l.perfil.presupuesto)
+    .reduce((sum, l) => sum + l.perfil.presupuesto, 0);
+
+  const msg = `📊 REPORTE SEMANAL — ${getConfig().nombreAgencia}
+Leads nuevos (7 días): ${nuevos.length}
+🔴 Calientes: ${calientes.length}
+🟡 Tibios: ${tibios.length}
+Total en base: ${leads.length}
+💰 Pipeline potencial: $${pipeline.toLocaleString("es-MX")} MXN
+
+¡Buena semana! Entra al dashboard para el detalle.`;
+  await enviarTexto(dueno, msg);
+}
+
+// --- Registrar todos los cron jobs -----------------------------------------
+export function iniciarCronJobs() {
+  // Cada 30 minutos: seguimientos, citas, leads calientes
+  cron.schedule("*/30 * * * *", async () => {
+    try {
+      await revisarSeguimientos();
+      await revisarCitas();
+      await revisarLeadsCalientes();
+    } catch (e) {
+      console.error("[cron] Error en revisión periódica:", e.message);
+    }
+  });
+
+  // Lunes 9:00 AM hora de México
+  cron.schedule("0 9 * * 1", reporteSemanal, { timezone: "America/Mexico_City" });
+
+  console.log("[cron] Seguimientos automáticos activos.");
 }
