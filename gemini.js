@@ -1,12 +1,9 @@
 // gemini.js
 // ---------------------------------------------------------------------------
-// Cerebro del bot — ahora corriendo sobre GROQ (gratis, sin tarjeta, rapidísimo).
+// Cerebro del bot — corriendo sobre GROQ (gratis, sin tarjeta, rapidísimo).
+// El archivo se sigue llamando "gemini.js" a propósito (no toques server.js).
 //
-// Nota: el archivo se sigue llamando "gemini.js" a propósito, para que NO tengas
-// que tocar server.js. Por dentro ahora llama a Groq, que es compatible con el
-// formato de OpenAI. La función exportada sigue siendo generarRespuesta().
-//
-// Variables que necesita (en Railway -> Variables):
+// Variables (Railway -> Variables):
 //   GROQ_API_KEY  -> tu clave de https://console.groq.com/keys
 //   GROQ_MODEL    -> opcional. Por defecto: llama-3.3-70b-versatile
 // ---------------------------------------------------------------------------
@@ -17,7 +14,7 @@ const MODELO = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const API_KEY = process.env.GROQ_API_KEY;
 const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
-function construirSystemPrompt({ config, lead }) {
+function construirSystemPrompt({ config, lead, propiedadesCtx }) {
   const p = lead.perfil || {};
   const zonaCtx = p.zona ? contextoZona(p.zona) : "";
   const idioma = p.idioma === "en" ? "inglés" : "español";
@@ -31,21 +28,36 @@ function construirSystemPrompt({ config, lead }) {
   return `Eres el asistente virtual de "${config.nombreAgencia}", una agencia inmobiliaria.
 Tu tono es ${config.tono}. Respondes SIEMPRE en ${idioma}.
 
+ALCANCE (MUY IMPORTANTE):
+- SOLO ayudas con temas de bienes raíces y de la agencia: propiedades, zonas,
+  precios, rentas, compra, inversión, citas y dudas relacionadas.
+- Si te preguntan algo FUERA de tema (matemáticas, cultura general, chistes,
+  política, lo que sea), NO lo respondas. Con amabilidad regresa al tema. Ej:
+  "Jeje, en eso no te puedo ayudar 🙂 pero con gusto te ayudo a encontrar tu
+  propiedad ideal. ¿Qué estás buscando?"
+
+ESTILO:
+- Mensajes MUY cortos: 1 a 3 frases máximo, estilo WhatsApp. Nada de párrafos largos.
+- UNA sola pregunta a la vez. No interrogues.
+
 TU MISIÓN:
-1. Atender al cliente de forma cálida y profesional, como un asesor experto.
-2. Calificar al cliente de forma NATURAL (sin parecer formulario). Datos que aún
-   no conoces y conviene averiguar con el tiempo: ${faltantes.length ? faltantes.join(", ") : "ya tienes lo principal"}.
-3. Generar confianza y avanzar hacia agendar una visita o llamada con un asesor.
+1. Atender cálido y profesional, como un asesor experto local.
+2. Calificar de forma NATURAL (sin parecer formulario). Datos que aún no
+   conoces y conviene averiguar con el tiempo: ${faltantes.length ? faltantes.join(", ") : "ya tienes lo principal"}.
+3. Generar confianza. SOLO cuando el cliente ya esté interesado y calificado,
+   invítalo a agendar una visita o llamada con un asesor. NO ofrezcas pasar con
+   un asesor en los primeros mensajes.
 
 REGLAS:
-- Mensajes cortos, naturales, estilo WhatsApp. Nada de párrafos enormes.
 - NO inventes propiedades, precios exactos ni direcciones que no te den.
 - Si no sabes algo puntual, di que un asesor lo confirmará.
-- Una pregunta a la vez. No interrogues.
-- Si el cliente da un dato (presupuesto, zona, etc.), reconócelo y sigue.
-- Usa los datos de zona de abajo para sonar como experto local, sin presumir.
+- Si el cliente da un dato (presupuesto, zona, etc.), reconócelo breve y sigue.
+- Usa los datos de zona para sonar como experto local, sin presumir ni soltar
+  todo de golpe.
 
 ${zonaCtx ? "CONTEXTO DE ZONA:\n" + zonaCtx : ""}
+
+${propiedadesCtx || ""}
 
 DATOS QUE YA SABES DEL CLIENTE:
 - Nombre: ${lead.nombre || "aún no lo sabes"}
@@ -55,9 +67,9 @@ DATOS QUE YA SABES DEL CLIENTE:
 - Propósito: ${p.proposito || "desconocido"}`;
 }
 
-function construirMensajes({ config, lead }) {
+function construirMensajes({ config, lead, propiedadesCtx }) {
   const mensajes = [
-    { role: "system", content: construirSystemPrompt({ config, lead }) },
+    { role: "system", content: construirSystemPrompt({ config, lead, propiedadesCtx }) },
   ];
   for (const h of lead.historial || []) {
     mensajes.push({
@@ -68,7 +80,7 @@ function construirMensajes({ config, lead }) {
   return mensajes;
 }
 
-export async function generarRespuesta({ config, lead }) {
+export async function generarRespuesta({ config, lead, propiedadesCtx }) {
   if (!API_KEY) {
     console.warn("[groq] Falta GROQ_API_KEY. Devuelvo respuesta de respaldo.");
     return "¡Hola! Gracias por escribir. En un momento te atiendo. 🙂";
@@ -76,9 +88,9 @@ export async function generarRespuesta({ config, lead }) {
 
   const body = {
     model: MODELO,
-    messages: construirMensajes({ config, lead }),
-    temperature: 0.7,
-    max_tokens: 350,
+    messages: construirMensajes({ config, lead, propiedadesCtx }),
+    temperature: 0.6,
+    max_tokens: 220,
   };
 
   try {

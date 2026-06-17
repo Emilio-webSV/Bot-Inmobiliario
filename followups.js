@@ -154,3 +154,35 @@ export function iniciarCronJobs() {
 
   console.log("[cron] Seguimientos automáticos activos.");
 }
+
+// ---------------------------------------------------------------------------
+// FUNCIONES DE PRUEBA — para dispararlas a mano desde /api/test/...
+// ---------------------------------------------------------------------------
+
+// Manda el reporte AHORA (sin esperar al lunes)
+export async function enviarReporteAhora() {
+  const dueno = process.env.OWNER_PHONE;
+  if (!dueno) return "Falta OWNER_PHONE en las variables.";
+  await reporteSemanal();
+  return `Reporte enviado al dueño (${dueno}).`;
+}
+
+// Revisa leads calientes AHORA. Si force=true, ignora el "+2h" y el flag previo
+// para que puedas ver la alerta al instante durante una prueba o demo.
+export async function revisarLeadsCalientesAhora(force = false) {
+  const dueno = process.env.OWNER_PHONE;
+  if (!dueno) return "Falta OWNER_PHONE en las variables.";
+  if (!force) {
+    await revisarLeadsCalientes();
+    return "Revisión normal hecha.";
+  }
+  const db = loadDB();
+  let enviadas = 0;
+  for (const lead of Object.values(db.leads)) {
+    if (lead.temperatura !== "caliente") continue;
+    const msg = `🔴 LEAD CALIENTE SIN ATENDER (prueba)\nCliente: ${lead.nombre || lead.telefono}\nZona: ${lead.perfil.zona || "?"}\nPresupuesto: ${lead.perfil.presupuesto ? "$" + lead.perfil.presupuesto.toLocaleString("es-MX") : "?"}\nScore: ${lead.score}/100\n¡Contáctalo ya!`;
+    await enviarTexto(dueno, msg);
+    enviadas++;
+  }
+  return `Alertas enviadas: ${enviadas} (de leads calientes).`;
+}

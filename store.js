@@ -17,6 +17,7 @@ const DB_FILE = path.join(DATA_DIR, "db.json");
 const DEFAULT_DB = {
   leads: {},        // { telefono: { ...datosDelLead } }
   agents: [],       // [ { id, nombre, telefono, zonas: [], activo } ]
+  properties: [],   // [ { id, titulo, zona, tipo, operacion, precio, ... } ]
   config: {
     nombreAgencia: "Inmobiliaria Demo",
     tono: "profesional y cálido", // formal | relajado | lujoso
@@ -91,6 +92,7 @@ export function upsertLead(telefono, patch) {
         f24: false, f72: false, frio30: false, frio60: false, frio90: false,
       },
       citaProgramada: null,   // ISO string si hay cita
+      propiedadesEnviadas: [], // ids de propiedades cuya foto ya se mandó
       ...patch,
     };
   } else {
@@ -125,4 +127,67 @@ export function getAgents() {
 
 export function getConfig() {
   return loadDB().config;
+}
+
+// ---- Helpers de propiedades -----------------------------------------------
+
+export function getProperties() {
+  return loadDB().properties || [];
+}
+
+export function getProperty(id) {
+  return (loadDB().properties || []).find((p) => p.id === id) || null;
+}
+
+export function createProperty(data) {
+  const db = loadDB();
+  const prop = {
+    id: "p" + Date.now() + Math.floor(Math.random() * 1000),
+    titulo: data.titulo || "Propiedad sin título",
+    zona: data.zona || null,            // llave de zona (polanco, reforma, etc.)
+    tipo: data.tipo || "departamento",  // departamento | casa | terreno | oficina
+    operacion: data.operacion || "venta", // venta | renta
+    precio: Number(data.precio) || 0,
+    recamaras: Number(data.recamaras) || 0,
+    banos: Number(data.banos) || 0,
+    m2: Number(data.m2) || 0,
+    descripcion: data.descripcion || "",
+    imagenes: Array.isArray(data.imagenes) ? data.imagenes.filter(Boolean) : [],
+    disponible: data.disponible !== false,
+    creado: new Date().toISOString(),
+  };
+  db.properties = db.properties || [];
+  db.properties.push(prop);
+  saveDB(db);
+  return prop;
+}
+
+export function updateProperty(id, data) {
+  const db = loadDB();
+  const i = (db.properties || []).findIndex((p) => p.id === id);
+  if (i === -1) return null;
+  const actual = db.properties[i];
+  db.properties[i] = {
+    ...actual,
+    ...data,
+    precio: data.precio !== undefined ? Number(data.precio) : actual.precio,
+    recamaras: data.recamaras !== undefined ? Number(data.recamaras) : actual.recamaras,
+    banos: data.banos !== undefined ? Number(data.banos) : actual.banos,
+    m2: data.m2 !== undefined ? Number(data.m2) : actual.m2,
+    imagenes: data.imagenes !== undefined
+      ? (Array.isArray(data.imagenes) ? data.imagenes.filter(Boolean) : actual.imagenes)
+      : actual.imagenes,
+    id: actual.id,
+    creado: actual.creado,
+  };
+  saveDB(db);
+  return db.properties[i];
+}
+
+export function deleteProperty(id) {
+  const db = loadDB();
+  const antes = (db.properties || []).length;
+  db.properties = (db.properties || []).filter((p) => p.id !== id);
+  saveDB(db);
+  return db.properties.length < antes;
 }

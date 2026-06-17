@@ -13,13 +13,15 @@ import { fileURLToPath } from "url";
 
 import {
   loadDB, upsertLead, pushHistorial, getLead, getAllLeads, getConfig, saveDB,
+  getProperties, getProperty, createProperty, updateProperty, deleteProperty,
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
-import { enviarTexto } from "./whatsapp.js";
+import { enviarTexto, enviarImagen } from "./whatsapp.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
-import { iniciarCronJobs } from "./followups.js";
+import { buscarPropiedades, contextoPropiedades, marcarEnviada, seedPropiedadesDemo } from "./properties.js";
+import { iniciarCronJobs, enviarReporteAhora, revisarLeadsCalientesAhora } from "./followups.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -27,6 +29,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "cambia_esto";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123"; // protección básica del panel
 
 // ---------------------------------------------------------------------------
 // 1) VERIFICACIÓN DEL WEBHOOK (Meta toca la puerta una vez al conectar)
@@ -115,12 +118,30 @@ async function procesarMensaje(telefono, texto, nombrePerfil) {
   const perfilNuevo = extraerPerfil(texto, lead.perfil);
   lead = upsertLead(telefono, { perfil: perfilNuevo });
 
-  // 4) Genera respuesta con Gemini
-  const respuesta = await generarRespuesta({ config, lead });
+  // 4) Busca propiedades reales que le queden y se las da al bot como contexto
+  const matches = buscarPropiedades(lead, 3);
+  const propiedadesCtx = contextoPropiedades(matches);
+
+  // 5) Genera respuesta con el bot (ya conoce las propiedades reales)
+  const respuesta = await generarRespuesta({ config, lead, propiedadesCtx });
   await enviarTexto(telefono, respuesta);
   pushHistorial(telefono, "bot", respuesta);
 
-  // 5) Recalcula score y temperatura, asigna agente si subió a tibio/caliente
+  // 6) Si el cliente ya está calificado (zona + presupuesto) y hay match nuevo,
+  //    le manda la foto de la mejor propiedad que no le hayamos enviado antes.
+  if (lead.perfil.zona && lead.perfil.presupuesto && matches.length) {
+    const yaEnviadas = lead.propiedadesEnviadas || [];
+    const nueva = matches.find((m) => !yaEnviadas.includes(m.id) && m.imagenes.length);
+    if (nueva) {
+      const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
+      const caption = `🏡 ${nueva.titulo}\n${fmt(nueva.precio)}${nueva.operacion === "renta" ? "/mes" : ""} · ${nueva.recamaras} rec · ${nueva.banos} baños · ${nueva.m2} m²`;
+      await enviarImagen(telefono, nueva.imagenes[0], caption);
+      pushHistorial(telefono, "bot", `[foto enviada] ${nueva.titulo}`);
+      marcarEnviada(telefono, nueva.id);
+    }
+  }
+
+  // 7) Recalcula score y temperatura, asigna agente si subió a tibio/caliente
   lead = getLead(telefono);
   const { score, temperatura } = calcularScore(lead);
   const patch = { score, temperatura };
@@ -185,20 +206,83 @@ app.post("/api/leads/:telefono/devolver-control", (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------------------------------------------------------------------------
+// 4) API DE PROPIEDADES (la usa el panel de admin)
+// ---------------------------------------------------------------------------
+
+// Revisa la contraseña de admin (protección básica para escrituras)
+function checarAdmin(req, res) {
+  const pass = req.headers["x-admin-password"] || req.query.pass;
+  if (pass !== ADMIN_PASSWORD) {
+    res.status(401).json({ error: "Contraseña incorrecta" });
+    return false;
+  }
+  return true;
+}
+
+// Listar propiedades (lectura libre, la usa el panel)
+app.get("/api/properties", (req, res) => {
+  res.json({ properties: getProperties() });
+});
+
+// Crear propiedad
+app.post("/api/properties", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const prop = createProperty(req.body || {});
+  res.json({ ok: true, property: prop });
+});
+
+// Actualizar propiedad
+app.put("/api/properties/:id", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const prop = updateProperty(req.params.id, req.body || {});
+  if (!prop) return res.status(404).json({ error: "No encontrada" });
+  res.json({ ok: true, property: prop });
+});
+
+// Borrar propiedad
+app.delete("/api/properties/:id", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const ok = deleteProperty(req.params.id);
+  res.json({ ok });
+});
+
+// ---------------------------------------------------------------------------
+// 5) ENDPOINTS DE PRUEBA (para disparar alertas/reportes cuando quieras)
+// ---------------------------------------------------------------------------
+app.get("/api/test/reporte", async (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const r = await enviarReporteAhora();
+  res.json({ ok: true, detalle: r });
+});
+
+app.get("/api/test/alerta-calientes", async (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const r = await revisarLeadsCalientesAhora(true);
+  res.json({ ok: true, detalle: r });
+});
+
+// Panel de administración
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "admin.html"));
+});
+
 // Dashboard
 app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "dashboard.html"));
 });
 
 // Salud del servidor
-app.get("/", (req, res) => res.send("Bot inmobiliario activo ✅. Ve a /dashboard"));
+app.get("/", (req, res) => res.send("Bot inmobiliario activo ✅. Ve a /dashboard o /admin"));
 
 // ---------------------------------------------------------------------------
 // Arranque
 // ---------------------------------------------------------------------------
 app.listen(PORT, () => {
   seedAgentesDemo();       // crea agentes de ejemplo si no hay
+  seedPropiedadesDemo();   // crea propiedades de ejemplo si no hay
   iniciarCronJobs();       // activa seguimientos automáticos
   console.log(`🚀 Bot inmobiliario corriendo en puerto ${PORT}`);
   console.log(`   Dashboard: http://localhost:${PORT}/dashboard`);
+  console.log(`   Admin:     http://localhost:${PORT}/admin`);
 });
