@@ -1,24 +1,27 @@
-// lib/gemini.js
+// gemini.js
 // ---------------------------------------------------------------------------
-// Conexión con Gemini. Construye el "cerebro" del bot: personalidad de la
-// agencia + datos de zona + historial de la conversación.
+// Cerebro del bot — ahora corriendo sobre GROQ (gratis, sin tarjeta, rapidísimo).
 //
-// Usa fetch nativo de Node 20+ (no necesitas instalar nada).
-// El modelo es configurable por variable de entorno para que lo actualices
-// sin tocar código cuando Google saque uno nuevo.
+// Nota: el archivo se sigue llamando "gemini.js" a propósito, para que NO tengas
+// que tocar server.js. Por dentro ahora llama a Groq, que es compatible con el
+// formato de OpenAI. La función exportada sigue siendo generarRespuesta().
+//
+// Variables que necesita (en Railway -> Variables):
+//   GROQ_API_KEY  -> tu clave de https://console.groq.com/keys
+//   GROQ_MODEL    -> opcional. Por defecto: llama-3.3-70b-versatile
 // ---------------------------------------------------------------------------
 
 import { contextoZona } from "./zones.js";
 
-const MODELO = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-const API_KEY = process.env.GEMINI_API_KEY;
+const MODELO = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+const API_KEY = process.env.GROQ_API_KEY;
+const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 function construirSystemPrompt({ config, lead }) {
   const p = lead.perfil || {};
   const zonaCtx = p.zona ? contextoZona(p.zona) : "";
   const idioma = p.idioma === "en" ? "inglés" : "español";
 
-  // Qué datos faltan por preguntar (calificación natural, no interrogatorio)
   const faltantes = [];
   if (!p.presupuesto) faltantes.push("presupuesto aproximado");
   if (!p.zona) faltantes.push("zona de interés");
@@ -52,52 +55,53 @@ DATOS QUE YA SABES DEL CLIENTE:
 - Propósito: ${p.proposito || "desconocido"}`;
 }
 
-// Convierte tu historial interno al formato que espera Gemini
-function historialAContents(historial) {
-  return historial.map((h) => ({
-    role: h.rol === "bot" ? "model" : "user",
-    parts: [{ text: h.texto }],
-  }));
+function construirMensajes({ config, lead }) {
+  const mensajes = [
+    { role: "system", content: construirSystemPrompt({ config, lead }) },
+  ];
+  for (const h of lead.historial || []) {
+    mensajes.push({
+      role: h.rol === "bot" ? "assistant" : "user",
+      content: h.texto,
+    });
+  }
+  return mensajes;
 }
 
 export async function generarRespuesta({ config, lead }) {
   if (!API_KEY) {
-    console.warn("[gemini] Falta GEMINI_API_KEY. Devuelvo respuesta de respaldo.");
+    console.warn("[groq] Falta GROQ_API_KEY. Devuelvo respuesta de respaldo.");
     return "¡Hola! Gracias por escribir. En un momento te atiendo. 🙂";
   }
 
-  const systemPrompt = construirSystemPrompt({ config, lead });
-  const contents = historialAContents(lead.historial || []);
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${API_KEY}`;
-
   const body = {
-    systemInstruction: { parts: [{ text: systemPrompt }] },
-    contents,
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 350,
-    },
+    model: MODELO,
+    messages: construirMensajes({ config, lead }),
+    temperature: 0.7,
+    max_tokens: 350,
   };
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(body),
     });
 
     if (!res.ok) {
       const errTxt = await res.text();
-      console.error("[gemini] Error API:", res.status, errTxt);
+      console.error("[groq] Error API:", res.status, errTxt);
       return "Disculpa, tuve un detalle técnico. ¿Me repites por favor? 🙏";
     }
 
     const data = await res.json();
-    const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const texto = data?.choices?.[0]?.message?.content;
     return texto?.trim() || "¿Me puedes dar un poco más de detalle? 🙂";
   } catch (err) {
-    console.error("[gemini] Excepción:", err.message);
+    console.error("[groq] Excepción:", err.message);
     return "Disculpa, tuve un problema de conexión. ¿Me escribes de nuevo? 🙏";
   }
 }
