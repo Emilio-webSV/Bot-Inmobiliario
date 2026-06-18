@@ -10,10 +10,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// La carpeta de datos es configurable. En Railway apuntará a un "Volume"
-// (disco persistente) vía la variable DATA_DIR, para que NADA se borre al
-// redesplegar. En local, si no defines DATA_DIR, usa la carpeta ./data.
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+const DATA_DIR = path.join(__dirname, "data");
 const DB_FILE = path.join(DATA_DIR, "db.json");
 
 // Estructura inicial de la base de datos
