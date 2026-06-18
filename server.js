@@ -185,6 +185,36 @@ app.get("/api/leads", (req, res) => {
   res.json({ leads, agentes: db.agents, agentesById, metricas, config: db.config });
 });
 
+// Exportar todos los leads a CSV (se abre en Excel). Va ANTES de /:telefono
+// para que "export" no se interprete como un número de teléfono.
+app.get("/api/leads/export", (req, res) => {
+  const db = loadDB();
+  const agentesById = Object.fromEntries(db.agents.map((a) => [a.id, a.nombre]));
+  const estadoLabel = { sin_atender: "Sin atender", en_atencion: "En atención", cerrado: "Cerrado", perdido: "Perdido" };
+  const cols = ["Nombre", "Teléfono", "Estado", "Temperatura", "Score", "Zona", "Presupuesto", "Recámaras", "Propósito", "Asesor", "Etiquetas", "Notas", "Creado"];
+
+  const esc = (v) => {
+    const s = String(v ?? "");
+    return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+
+  const filas = Object.values(db.leads).map((l) => {
+    const p = l.perfil || {};
+    return [
+      l.nombre || "", l.telefono, estadoLabel[l.estado] || l.estado || "", l.temperatura || "", l.score || 0,
+      p.zona || "", p.presupuesto || "", p.recamaras || "", p.proposito || "",
+      l.agenteAsignado ? (agentesById[l.agenteAsignado] || "") : "",
+      (l.etiquetas || []).join(" | "), (l.notas || "").replace(/\n/g, " "),
+      l.creado ? new Date(l.creado).toLocaleString("es-MX") : "",
+    ].map(esc).join(",");
+  });
+
+  const csv = "\uFEFF" + cols.join(",") + "\n" + filas.join("\n");
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", 'attachment; filename="leads.csv"');
+  res.send(csv);
+});
+
 // Detalle de un lead (incluye historial completo de la conversación)
 app.get("/api/leads/:telefono", (req, res) => {
   const lead = getLead(req.params.telefono);
@@ -231,8 +261,21 @@ app.post("/api/leads/:telefono/estado", (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------------------------------------------------------------------------
-// 4) API DE PROPIEDADES (la usa el panel de admin)
+// Guardar notas y etiquetas del lead
+app.post("/api/leads/:telefono/notas", (req, res) => {
+  const lead = getLead(req.params.telefono);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  const patch = {};
+  if (req.body?.notas !== undefined) patch.notas = String(req.body.notas);
+  if (req.body?.etiquetas !== undefined) {
+    patch.etiquetas = Array.isArray(req.body.etiquetas)
+      ? req.body.etiquetas.map((e) => String(e).trim()).filter(Boolean)
+      : [];
+  }
+  upsertLead(req.params.telefono, patch);
+  res.json({ ok: true });
+});
+
 // ---------------------------------------------------------------------------
 
 // Revisa la contraseña de admin (protección básica para escrituras)

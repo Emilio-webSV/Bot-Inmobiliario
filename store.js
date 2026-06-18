@@ -98,6 +98,8 @@ export function upsertLead(telefono, patch) {
       },
       citaProgramada: null,   // ISO string si hay cita
       propiedadesEnviadas: [], // ids de propiedades cuya foto ya se mandó
+      notas: "",              // notas internas del asesor
+      etiquetas: [],          // etiquetas/tags del lead
       ...patch,
     };
   } else {

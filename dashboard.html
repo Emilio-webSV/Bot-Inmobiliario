@@ -108,6 +108,18 @@
   .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink-soft)}
   .btn:active{transform:translateY(1px)}
 
+  .phead{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .phead h2{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;padding:0;border:none}
+  .exportbtn{font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:8px 13px;border:1px solid var(--line);border-radius:9px;background:#fff}
+  .exportbtn:hover{background:#faf8f3}
+  .notesbox{padding:14px 22px;border-bottom:1px solid var(--line)}
+  .notesbox label{font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px}
+  .notesbox textarea,.notesbox input{font-family:inherit;font-size:13px;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;color:var(--ink)}
+  .notesbox textarea:focus,.notesbox input:focus{outline:none;border-color:var(--gold)}
+  .savenote{font-size:12px;font-weight:600;padding:8px 14px;border-radius:9px;border:none;background:var(--ink);color:#fff;cursor:pointer}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+  .chip{font-size:10.5px;font-weight:600;background:#fbf3dd;color:var(--gold-deep);padding:2px 8px;border-radius:99px}
+
   @media (max-width:860px){.metrics{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}}
 </style>
 </head>
@@ -130,7 +142,10 @@
   <section class="metrics" id="metrics"></section>
 
   <div class="panel">
-    <h2>Leads por prioridad</h2>
+    <div class="phead">
+      <h2>Leads por prioridad</h2>
+      <a class="exportbtn" href="/api/leads/export">⬇ Exportar a Excel</a>
+    </div>
     <div id="tableHost"><div class="empty"><p>Cargando…</p></div></div>
   </div>
 </div>
@@ -143,6 +158,7 @@
     </div>
     <div class="profile" id="mProfile"></div>
     <div class="manage" id="mManage"></div>
+    <div class="notesbox" id="mNotes"></div>
     <div class="chat" id="mChat"></div>
     <div class="actions" id="mActions"></div>
   </div>
@@ -187,7 +203,7 @@
       const pres=l.perfil?.presupuesto?fmtMXN(l.perfil.presupuesto):"—";
       const est=l.estado||"sin_atender";
       return `<tr onclick='abrirModal("${l.telefono}")'>
-        <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div></td>
+        <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div>${(l.etiquetas&&l.etiquetas.length)?`<div class="chips">${l.etiquetas.slice(0,3).map(t=>`<span class="chip">${t}</span>`).join("")}</div>`:""}</td>
         <td><span class="estado ${est}">${estadoLabel[est]}</span></td>
         <td><span class="temp ${l.temperatura}"><span class="pip"></span>${l.temperatura}</span></td>
         <td><div class="score"><div class="gauge"><i style="width:${l.score}%;background:${tempColor[l.temperatura]}"></i></div><b>${l.score}</b></div></td>
@@ -230,6 +246,15 @@
         </div>
       </div>`;
 
+    document.getElementById("mNotes").innerHTML=`
+      <label>Etiquetas <span style="font-weight:400;color:var(--muted)">(separadas por coma)</span></label>
+      <input id="leadTags" placeholder="comprador serio, urgente, inversionista" />
+      <label>Notas internas</label>
+      <textarea id="leadNotes" rows="2" placeholder="Apuntes del asesor sobre este cliente..."></textarea>
+      <button class="savenote" onclick="guardarNotas('${l.telefono}')">Guardar notas</button>`;
+    document.getElementById("leadTags").value=(l.etiquetas||[]).join(", ");
+    document.getElementById("leadNotes").value=l.notas||"";
+
     document.getElementById("mChat").innerHTML=(l.historial||[]).map(h=>{
       const hora=new Date(h.ts).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
       return `<div class="msg ${h.rol}">${h.texto}<span class="t">${hora}</span></div>`;
@@ -245,6 +270,12 @@
 
   async function asignar(tel,agenteId){
     await fetch(`/api/leads/${tel}/asignar`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({agenteId})});
+    cargar();
+  }
+  async function guardarNotas(tel){
+    const etiquetas=document.getElementById("leadTags").value.split(",").map(s=>s.trim()).filter(Boolean);
+    const notas=document.getElementById("leadNotes").value;
+    await fetch(`/api/leads/${tel}/notas`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({notas,etiquetas})});
     cargar();
   }
   async function setEstado(tel,estado){
