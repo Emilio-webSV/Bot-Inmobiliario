@@ -25,6 +25,7 @@ const DEFAULT_DB = {
     nombreAgencia: "Inmobiliaria Demo",
     tono: "profesional y cálido", // formal | relajado | lujoso
     idiomaDefault: "es",
+    brandColor: "#d9a526", // color de acento del CRM (personalizable)
   },
 };
 
@@ -88,6 +89,7 @@ export function upsertLead(telefono, patch) {
       },
       score: 0,               // 0-100
       temperatura: "frio",    // caliente | tibio | frio
+      estado: "sin_atender",  // sin_atender | en_atencion | cerrado | perdido
       agenteAsignado: null,
       humanoEnControl: false, // si un agente tomó el control
       escalado: false,        // si se escaló por frustración

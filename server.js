@@ -173,6 +173,7 @@ app.get("/api/leads", (req, res) => {
 
   const metricas = {
     total: leads.length,
+    sinAtender: leads.filter((l) => (l.estado || "sin_atender") === "sin_atender").length,
     calientes: leads.filter((l) => l.temperatura === "caliente").length,
     tibios: leads.filter((l) => l.temperatura === "tibio").length,
     frios: leads.filter((l) => l.temperatura === "frio").length,
@@ -204,6 +205,29 @@ app.post("/api/leads/:telefono/devolver-control", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
   upsertLead(req.params.telefono, { humanoEnControl: false });
+  res.json({ ok: true });
+});
+
+// Asignar (o reasignar) el lead a un asesor
+app.post("/api/leads/:telefono/asignar", (req, res) => {
+  const lead = getLead(req.params.telefono);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  const agenteId = req.body?.agenteId || null;
+  upsertLead(req.params.telefono, { agenteAsignado: agenteId });
+  res.json({ ok: true });
+});
+
+// Cambiar el estado del lead (sin_atender | en_atencion | cerrado | perdido)
+app.post("/api/leads/:telefono/estado", (req, res) => {
+  const lead = getLead(req.params.telefono);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  const estado = req.body?.estado;
+  const validos = ["sin_atender", "en_atencion", "cerrado", "perdido"];
+  if (!validos.includes(estado)) return res.status(400).json({ error: "Estado inválido" });
+  const patch = { estado };
+  // Si un asesor lo va a atender, el bot deja de responder automáticamente
+  if (estado === "en_atencion") patch.humanoEnControl = true;
+  upsertLead(req.params.telefono, patch);
   res.json({ ok: true });
 });
 

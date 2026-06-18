@@ -22,7 +22,9 @@
   .brand .dot{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));display:grid;place-items:center;color:#fff;font-size:18px;box-shadow:var(--shadow)}
   .brand h1{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.02em}
   .brand p{font-size:12px;color:var(--muted)}
-  .nav a{font-size:13px;color:var(--ink-soft);text-decoration:none;font-weight:600;padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:#fff}
+  .nav{display:flex;gap:8px;margin-bottom:24px}
+  .nav a{font-size:13px;color:var(--ink-soft);text-decoration:none;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--line);background:#fff}
+  .nav a.active{background:var(--ink);color:#fff;border-color:var(--ink)}
 
   .tabs{display:flex;gap:8px;margin-bottom:22px;border-bottom:1px solid var(--line)}
   .tab{font-family:inherit;font-size:14px;font-weight:600;color:var(--muted);background:none;border:none;padding:10px 4px;margin-right:18px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
@@ -110,13 +112,14 @@
       <div class="dot">◆</div>
       <div><h1 id="agencyName">Panel</h1><p>Administración del bot</p></div>
     </div>
-    <div class="nav"><a href="/dashboard">← Ver Dashboard</a></div>
+    <div class="nav-right"></div>
   </header>
 
-  <div class="tabs">
-    <button class="tab active" id="tabProps" onclick="switchTab('props')">Propiedades</button>
-    <button class="tab" id="tabSettings" onclick="switchTab('settings')">Ajustes</button>
-  </div>
+  <nav class="nav">
+    <a href="/dashboard">Leads</a>
+    <a id="navProps" class="active" href="javascript:void(0)" onclick="switchTab('props')">Propiedades</a>
+    <a id="navSettings" href="javascript:void(0)" onclick="switchTab('settings')">Ajustes</a>
+  </nav>
 
   <!-- VISTA PROPIEDADES -->
   <div id="viewProps">
@@ -141,6 +144,9 @@
             <option value="relajado y amigable">Relajado y amigable</option>
             <option value="lujoso y exclusivo">Lujoso y exclusivo</option>
           </select>
+        </div>
+        <div><label>Color de marca <span style="font-weight:400;color:var(--muted)">(personaliza el CRM)</span></label>
+          <input id="s_color" type="color" value="#d9a526" style="height:42px;padding:4px;cursor:pointer" />
         </div>
       </div>
       <button class="btn primary" onclick="guardarConfig()">Guardar datos</button>
@@ -221,18 +227,21 @@
   const zonaNombre={polanco:"Polanco",chapultepec:"Lomas/Chapultepec",reforma:"Reforma",condesa:"Condesa/Roma",delvalle:"Del Valle",santafe:"Santa Fe"};
   function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200)}
 
+  function aplicarMarca(c){if(!c)return;document.documentElement.style.setProperty('--gold',c);document.documentElement.style.setProperty('--gold-deep',c)}
+
   function entrar(){
     PASS=document.getElementById("passInput").value.trim();
     if(!PASS)return;
     document.getElementById("gate").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     cargar(); cargarAjustes();
+    if(location.hash==='#ajustes') switchTab('settings');
   }
 
   function switchTab(t){
     const props=t==='props';
-    document.getElementById("tabProps").classList.toggle("active",props);
-    document.getElementById("tabSettings").classList.toggle("active",!props);
+    document.getElementById("navProps").classList.toggle("active",props);
+    document.getElementById("navSettings").classList.toggle("active",!props);
     document.getElementById("viewProps").classList.toggle("hidden",!props);
     document.getElementById("viewSettings").classList.toggle("hidden",props);
   }
@@ -301,6 +310,7 @@
       const c=(await(await fetch("/api/config")).json()).config||{};
       document.getElementById("s_nombre").value=c.nombreAgencia||"";
       if(c.tono)document.getElementById("s_tono").value=c.tono;
+      if(c.brandColor){document.getElementById("s_color").value=c.brandColor;aplicarMarca(c.brandColor);}
       document.getElementById("agencyName").textContent=c.nombreAgencia||"Panel";
       const ags=(await(await fetch("/api/agents")).json()).agents||[];
       const list=document.getElementById("agentList");
@@ -315,11 +325,11 @@
     }catch(e){toast("Error al cargar ajustes")}
   }
   async function guardarConfig(){
-    const body={nombreAgencia:val("s_nombre"),tono:document.getElementById("s_tono").value};
+    const body={nombreAgencia:val("s_nombre"),tono:document.getElementById("s_tono").value,brandColor:document.getElementById("s_color").value};
     if(!body.nombreAgencia){toast("Pon el nombre de la agencia");return}
     try{const r=await fetch("/api/config",{method:"PUT",headers:{"Content-Type":"application/json","x-admin-password":PASS},body:JSON.stringify(body)});
       if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}
-      toast("Datos guardados ✓");cargarAjustes();
+      aplicarMarca(body.brandColor);toast("Datos guardados ✓");cargarAjustes();
     }catch(e){toast("Error de conexión")}
   }
   function setZonasChecks(zonas){document.querySelectorAll("#a_zonas input").forEach(c=>c.checked=(zonas||[]).includes(c.value))}
