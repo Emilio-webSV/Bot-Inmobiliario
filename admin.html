@@ -3,27 +3,30 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Admin · Propiedades</title>
+<title>Admin · Bot Inmobiliario</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --ink:#14151a; --ink-soft:#3a3d47; --muted:#8a8f9c; --line:#e7e4dc;
-    --canvas:#f6f4ee; --card:#fff; --gold:#d9a526; --gold-deep:#b9851a;
-    --green:#2e9e4f; --red:#e0483b;
+  :root{
+    --ink:#14151a;--ink-soft:#3a3d47;--muted:#8a8f9c;--line:#e7e4dc;
+    --canvas:#f6f4ee;--card:#fff;--gold:#d9a526;--gold-deep:#b9851a;
+    --green:#2e9e4f;--red:#e0483b;
     --shadow:0 1px 2px rgba(20,21,26,.04),0 6px 20px rgba(20,21,26,.06);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
   .wrap{max-width:1100px;margin:0 auto;padding:28px 24px 64px}
-  header.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:26px}
+  header.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px}
   .brand{display:flex;align-items:center;gap:12px}
   .brand .dot{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));display:grid;place-items:center;color:#fff;font-size:18px;box-shadow:var(--shadow)}
   .brand h1{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.02em}
   .brand p{font-size:12px;color:var(--muted)}
   .nav a{font-size:13px;color:var(--ink-soft);text-decoration:none;font-weight:600;padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:#fff}
-  .nav a+a{margin-left:8px}
+
+  .tabs{display:flex;gap:8px;margin-bottom:22px;border-bottom:1px solid var(--line)}
+  .tab{font-family:inherit;font-size:14px;font-weight:600;color:var(--muted);background:none;border:none;padding:10px 4px;margin-right:18px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab.active{color:var(--ink);border-bottom-color:var(--gold)}
 
   .btn{font-family:inherit;font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px;border:none;cursor:pointer}
   .btn.primary{background:var(--ink);color:#fff}
@@ -32,7 +35,6 @@
   .btn.danger{background:#fff;border:1px solid #f0c9c4;color:var(--red)}
   .btn:active{transform:translateY(1px)}
 
-  /* Gate de contraseña */
   .gate{max-width:380px;margin:80px auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:var(--shadow);text-align:center}
   .gate h2{font-family:'Space Grotesk',sans-serif;font-size:18px;margin-bottom:8px}
   .gate p{font-size:13px;color:var(--muted);margin-bottom:18px}
@@ -56,7 +58,22 @@
   .prop .acts .btn{flex:1;padding:8px;font-size:12px}
   .empty{padding:50px;text-align:center;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:14px}
 
-  /* Modal form */
+  /* Ajustes */
+  .scard{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-bottom:20px}
+  .scard h2{font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:4px}
+  .scard .sub{font-size:13px;color:var(--muted);margin-bottom:18px}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+  .frow .full{grid-column:1/3}
+  label{font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px}
+  .agent{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .agent:last-child{border-bottom:none}
+  .agent .ainfo b{font-size:14px}
+  .agent .ainfo .meta{font-size:12px;color:var(--muted)}
+  .agent .pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:#eef3ee;color:var(--green)}
+  .agent .pill.off{background:#f3eeee;color:var(--muted)}
+  .agent .aacts{display:flex;gap:8px}
+  .agent .aacts .btn{padding:7px 12px;font-size:12px}
+
   .overlay{position:fixed;inset:0;background:rgba(20,21,26,.45);display:none;align-items:flex-start;justify-content:center;padding:30px 16px;z-index:50;overflow-y:auto}
   .overlay.show{display:flex}
   .modal{background:#fff;border-radius:18px;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.25)}
@@ -65,20 +82,21 @@
   .close{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer}
   .form{padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .form .full{grid-column:1/3}
-  .form label{font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px}
-  .form .row label .hint{font-weight:400;color:var(--muted)}
   .checkrow{display:flex;align-items:center;gap:8px}
   .checkrow input{width:auto}
+  .zonechecks{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+  .zonechecks label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-soft);font-weight:500;margin:0}
+  .zonechecks input{width:auto}
   .factions{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;z-index:100}
   .toast.show{opacity:1}
+  .hidden{display:none}
 </style>
 </head>
 <body>
 
-<!-- Gate -->
 <div id="gate" class="gate">
-  <h2>Panel de propiedades 🔑</h2>
+  <h2>Panel de administración 🔑</h2>
   <p>Escribe la contraseña de administrador para entrar.</p>
   <input id="passInput" type="password" placeholder="Contraseña" onkeydown="if(event.key==='Enter')entrar()" />
   <div style="height:12px"></div>
@@ -86,27 +104,57 @@
   <p id="gateErr" style="color:var(--red);margin-top:10px;display:none">Contraseña incorrecta</p>
 </div>
 
-<!-- App -->
-<div id="app" class="wrap" style="display:none">
+<div id="app" class="wrap hidden">
   <header class="top">
     <div class="brand">
       <div class="dot">◆</div>
-      <div><h1 id="agencyName">Propiedades</h1><p>Panel de administración</p></div>
+      <div><h1 id="agencyName">Panel</h1><p>Administración del bot</p></div>
     </div>
-    <div class="nav">
-      <a href="/dashboard">← Dashboard</a>
-    </div>
+    <div class="nav"><a href="/dashboard">← Ver Dashboard</a></div>
   </header>
 
-  <div class="toolbar">
-    <h2 id="count">Propiedades</h2>
-    <button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button>
+  <div class="tabs">
+    <button class="tab active" id="tabProps" onclick="switchTab('props')">Propiedades</button>
+    <button class="tab" id="tabSettings" onclick="switchTab('settings')">Ajustes</button>
   </div>
 
-  <div id="grid" class="grid"></div>
+  <!-- VISTA PROPIEDADES -->
+  <div id="viewProps">
+    <div class="toolbar">
+      <h2 id="count">Propiedades</h2>
+      <button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button>
+    </div>
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <!-- VISTA AJUSTES -->
+  <div id="viewSettings" class="hidden">
+    <div class="scard">
+      <h2>Datos de la agencia</h2>
+      <p class="sub">Cómo se presenta el bot con los clientes.</p>
+      <div class="frow">
+        <div><label>Nombre de la agencia</label><input id="s_nombre" placeholder="Inmobiliaria del Valle" /></div>
+        <div><label>Tono del bot</label>
+          <select id="s_tono">
+            <option value="profesional y cálido">Profesional y cálido</option>
+            <option value="formal y serio">Formal y serio</option>
+            <option value="relajado y amigable">Relajado y amigable</option>
+            <option value="lujoso y exclusivo">Lujoso y exclusivo</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn primary" onclick="guardarConfig()">Guardar datos</button>
+    </div>
+
+    <div class="scard">
+      <div class="toolbar"><h2>Agentes</h2><button class="btn gold" onclick="abrirAgente()">+ Agregar agente</button></div>
+      <p class="sub" style="margin-top:-10px">El bot asigna los leads al agente según la zona. Cuando cae un lead calificado, le llega por WhatsApp a su número.</p>
+      <div id="agentList"></div>
+    </div>
+  </div>
 </div>
 
-<!-- Modal -->
+<!-- Modal propiedad -->
 <div class="overlay" id="overlay">
   <div class="modal">
     <div class="mhead"><h3 id="modalTitle">Nueva propiedad</h3><button class="close" onclick="cerrar()">×</button></div>
@@ -114,31 +162,21 @@
       <div class="full"><label>Título</label><input id="f_titulo" placeholder="Ej. Depto de lujo en Polanco" /></div>
       <div><label>Zona</label>
         <select id="f_zona">
-          <option value="polanco">Polanco</option>
-          <option value="chapultepec">Lomas / Chapultepec</option>
-          <option value="reforma">Reforma</option>
-          <option value="condesa">Condesa / Roma</option>
-          <option value="delvalle">Del Valle</option>
-          <option value="santafe">Santa Fe</option>
+          <option value="polanco">Polanco</option><option value="chapultepec">Lomas / Chapultepec</option>
+          <option value="reforma">Reforma</option><option value="condesa">Condesa / Roma</option>
+          <option value="delvalle">Del Valle</option><option value="santafe">Santa Fe</option>
         </select>
       </div>
       <div><label>Tipo</label>
-        <select id="f_tipo">
-          <option value="departamento">Departamento</option>
-          <option value="casa">Casa</option>
-          <option value="terreno">Terreno</option>
-          <option value="oficina">Oficina</option>
-        </select>
+        <select id="f_tipo"><option value="departamento">Departamento</option><option value="casa">Casa</option><option value="terreno">Terreno</option><option value="oficina">Oficina</option></select>
       </div>
-      <div><label>Operación</label>
-        <select id="f_operacion"><option value="venta">Venta</option><option value="renta">Renta</option></select>
-      </div>
+      <div><label>Operación</label><select id="f_operacion"><option value="venta">Venta</option><option value="renta">Renta</option></select></div>
       <div><label>Precio (MXN)</label><input id="f_precio" type="number" placeholder="5200000" /></div>
       <div><label>Recámaras</label><input id="f_recamaras" type="number" placeholder="2" /></div>
       <div><label>Baños</label><input id="f_banos" type="number" placeholder="2" /></div>
       <div class="full"><label>Metros cuadrados (m²)</label><input id="f_m2" type="number" placeholder="95" /></div>
       <div class="full"><label>Descripción</label><textarea id="f_descripcion" rows="2" placeholder="Edificio con amenidades, listo para habitar..."></textarea></div>
-      <div class="full"><label>Imágenes <span class="hint">(una URL por línea)</span></label><textarea id="f_imagenes" rows="2" placeholder="https://...jpg"></textarea></div>
+      <div class="full"><label>Imágenes <span style="font-weight:400;color:var(--muted)">(una URL por línea)</span></label><textarea id="f_imagenes" rows="2" placeholder="https://...jpg"></textarea></div>
       <div class="full checkrow"><input id="f_disponible" type="checkbox" checked /><label style="margin:0">Disponible</label></div>
     </div>
     <div class="factions">
@@ -148,122 +186,176 @@
   </div>
 </div>
 
+<!-- Modal agente -->
+<div class="overlay" id="agentOverlay">
+  <div class="modal">
+    <div class="mhead"><h3 id="agentModalTitle">Nuevo agente</h3><button class="close" onclick="cerrarAgente()">×</button></div>
+    <div class="form">
+      <div class="full"><label>Nombre</label><input id="a_nombre" placeholder="María López" /></div>
+      <div class="full"><label>WhatsApp <span style="font-weight:400;color:var(--muted)">(con código de país, ej. 5215512345678)</span></label><input id="a_telefono" placeholder="5215512345678" /></div>
+      <div class="full"><label>Zonas que cubre</label>
+        <div class="zonechecks" id="a_zonas">
+          <label><input type="checkbox" value="polanco" />Polanco</label>
+          <label><input type="checkbox" value="chapultepec" />Lomas/Chapultepec</label>
+          <label><input type="checkbox" value="reforma" />Reforma</label>
+          <label><input type="checkbox" value="condesa" />Condesa/Roma</label>
+          <label><input type="checkbox" value="delvalle" />Del Valle</label>
+          <label><input type="checkbox" value="santafe" />Santa Fe</label>
+        </div>
+      </div>
+      <div class="full checkrow"><input id="a_activo" type="checkbox" checked /><label style="margin:0">Activo (recibe leads)</label></div>
+    </div>
+    <div class="factions">
+      <button class="btn ghost" onclick="cerrarAgente()">Cancelar</button>
+      <button class="btn primary" onclick="guardarAgente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-  let PASS = "";
-  let editandoId = null;
-  const fmt = (n) => "$" + (Number(n)||0).toLocaleString("es-MX");
-  const zonaNombre = {polanco:"Polanco",chapultepec:"Lomas/Chapultepec",reforma:"Reforma",condesa:"Condesa/Roma",delvalle:"Del Valle",santafe:"Santa Fe"};
+  let PASS="";
+  let editandoId=null, editandoAgenteId=null;
+  const fmt=(n)=>"$"+(Number(n)||0).toLocaleString("es-MX");
+  const zonaNombre={polanco:"Polanco",chapultepec:"Lomas/Chapultepec",reforma:"Reforma",condesa:"Condesa/Roma",delvalle:"Del Valle",santafe:"Santa Fe"};
+  function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200)}
 
-  function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200)}
-
-  async function entrar(){
-    PASS = document.getElementById("passInput").value.trim();
-    // Probar la contraseña creando una request de validación inocua (listar es libre, así que probamos con un PUT falso no; mejor validamos al guardar). Validamos con un ping a crear/borrar no. Simplemente entramos y validará al guardar.
-    if(!PASS){return}
-    document.getElementById("gate").style.display="none";
-    document.getElementById("app").style.display="block";
-    cargar();
+  function entrar(){
+    PASS=document.getElementById("passInput").value.trim();
+    if(!PASS)return;
+    document.getElementById("gate").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    cargar(); cargarAjustes();
   }
 
+  function switchTab(t){
+    const props=t==='props';
+    document.getElementById("tabProps").classList.toggle("active",props);
+    document.getElementById("tabSettings").classList.toggle("active",!props);
+    document.getElementById("viewProps").classList.toggle("hidden",!props);
+    document.getElementById("viewSettings").classList.toggle("hidden",props);
+  }
+
+  // ---------- PROPIEDADES ----------
   async function cargar(){
     try{
-      const r = await fetch("/api/properties");
-      const data = await r.json();
-      const props = data.properties || [];
-      document.getElementById("count").textContent = `Propiedades (${props.length})`;
-      // nombre agencia
-      try{const lr=await fetch("/api/leads");const ld=await lr.json();if(ld.config?.nombreAgencia)document.getElementById("agencyName").textContent=ld.config.nombreAgencia;}catch(e){}
-      const grid = document.getElementById("grid");
-      if(!props.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">Aún no hay propiedades. Dale a «+ Agregar propiedad» para registrar la primera.</div>';return}
-      grid.innerHTML = props.map(p=>{
-        const img = (p.imagenes&&p.imagenes[0])||"";
-        return `<div class="prop">
-          <div class="img" style="background-image:url('${img}')">
-            <span class="badge">${p.operacion==='renta'?'Renta':'Venta'}</span>
-            ${p.disponible===false?'<span class="nodisp">No disponible</span>':''}
-          </div>
-          <div class="body">
-            <h3>${p.titulo}</h3>
-            <div class="price">${fmt(p.precio)}${p.operacion==='renta'?'/mes':''}</div>
-            <div class="specs">${zonaNombre[p.zona]||p.zona||'—'} · ${p.recamaras} rec · ${p.banos} baños · ${p.m2} m²</div>
-            <div class="desc">${p.descripcion||''}</div>
-          </div>
-          <div class="acts">
-            <button class="btn ghost" onclick='editar(${JSON.stringify(p)})'>Editar</button>
-            <button class="btn danger" onclick="borrar('${p.id}')">Borrar</button>
-          </div>
-        </div>`;
+      const r=await fetch("/api/properties");const props=(await r.json()).properties||[];
+      document.getElementById("count").textContent=`Propiedades (${props.length})`;
+      const grid=document.getElementById("grid");
+      if(!props.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">Aún no hay propiedades. Dale a «+ Agregar propiedad».</div>';return}
+      grid.innerHTML=props.map(p=>{
+        const img=(p.imagenes&&p.imagenes[0])||"";
+        return `<div class="prop"><div class="img" style="background-image:url('${img}')">
+          <span class="badge">${p.operacion==='renta'?'Renta':'Venta'}</span>
+          ${p.disponible===false?'<span class="nodisp">No disponible</span>':''}</div>
+          <div class="body"><h3>${p.titulo}</h3>
+          <div class="price">${fmt(p.precio)}${p.operacion==='renta'?'/mes':''}</div>
+          <div class="specs">${zonaNombre[p.zona]||p.zona||'—'} · ${p.recamaras} rec · ${p.banos} baños · ${p.m2} m²</div>
+          <div class="desc">${p.descripcion||''}</div></div>
+          <div class="acts"><button class="btn ghost" onclick='editar(${JSON.stringify(p)})'>Editar</button>
+          <button class="btn danger" onclick="borrar('${p.id}')">Borrar</button></div></div>`;
       }).join("");
     }catch(e){toast("Error al cargar")}
   }
-
   function abrirNueva(){
-    editandoId=null;
-    document.getElementById("modalTitle").textContent="Nueva propiedad";
+    editandoId=null;document.getElementById("modalTitle").textContent="Nueva propiedad";
     ["titulo","precio","recamaras","banos","m2","descripcion","imagenes"].forEach(k=>document.getElementById("f_"+k).value="");
-    document.getElementById("f_zona").value="polanco";
-    document.getElementById("f_tipo").value="departamento";
-    document.getElementById("f_operacion").value="venta";
-    document.getElementById("f_disponible").checked=true;
+    document.getElementById("f_zona").value="polanco";document.getElementById("f_tipo").value="departamento";
+    document.getElementById("f_operacion").value="venta";document.getElementById("f_disponible").checked=true;
     document.getElementById("overlay").classList.add("show");
   }
-
   function editar(p){
-    editandoId=p.id;
-    document.getElementById("modalTitle").textContent="Editar propiedad";
-    document.getElementById("f_titulo").value=p.titulo||"";
-    document.getElementById("f_zona").value=p.zona||"polanco";
-    document.getElementById("f_tipo").value=p.tipo||"departamento";
-    document.getElementById("f_operacion").value=p.operacion||"venta";
-    document.getElementById("f_precio").value=p.precio||"";
-    document.getElementById("f_recamaras").value=p.recamaras||"";
-    document.getElementById("f_banos").value=p.banos||"";
-    document.getElementById("f_m2").value=p.m2||"";
-    document.getElementById("f_descripcion").value=p.descripcion||"";
-    document.getElementById("f_imagenes").value=(p.imagenes||[]).join("\n");
+    editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";
+    document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").value=p.zona||"polanco";
+    document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";
+    document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";
+    document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";
+    document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_imagenes").value=(p.imagenes||[]).join("\n");
     document.getElementById("f_disponible").checked=p.disponible!==false;
     document.getElementById("overlay").classList.add("show");
   }
-
   function cerrar(){document.getElementById("overlay").classList.remove("show")}
-
   async function guardar(){
-    const body = {
-      titulo: document.getElementById("f_titulo").value.trim(),
-      zona: document.getElementById("f_zona").value,
-      tipo: document.getElementById("f_tipo").value,
-      operacion: document.getElementById("f_operacion").value,
-      precio: document.getElementById("f_precio").value,
-      recamaras: document.getElementById("f_recamaras").value,
-      banos: document.getElementById("f_banos").value,
-      m2: document.getElementById("f_m2").value,
-      descripcion: document.getElementById("f_descripcion").value.trim(),
-      imagenes: document.getElementById("f_imagenes").value.split("\n").map(s=>s.trim()).filter(Boolean),
-      disponible: document.getElementById("f_disponible").checked,
-    };
+    const body={titulo:val("f_titulo"),zona:document.getElementById("f_zona").value,tipo:document.getElementById("f_tipo").value,
+      operacion:document.getElementById("f_operacion").value,precio:val("f_precio"),recamaras:val("f_recamaras"),
+      banos:val("f_banos"),m2:val("f_m2"),descripcion:val("f_descripcion"),
+      imagenes:val("f_imagenes").split("\n").map(s=>s.trim()).filter(Boolean),disponible:document.getElementById("f_disponible").checked};
     if(!body.titulo){toast("Ponle un título");return}
-    const url = editandoId ? "/api/properties/"+editandoId : "/api/properties";
-    const method = editandoId ? "PUT" : "POST";
-    try{
-      const r = await fetch(url,{method,headers:{"Content-Type":"application/json","x-admin-password":PASS},body:JSON.stringify(body)});
-      if(r.status===401){toast("Contraseña incorrecta");return}
-      if(!r.ok){toast("Error al guardar");return}
+    const url=editandoId?"/api/properties/"+editandoId:"/api/properties";
+    try{const r=await fetch(url,{method:editandoId?"PUT":"POST",headers:{"Content-Type":"application/json","x-admin-password":PASS},body:JSON.stringify(body)});
+      if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}
       cerrar();toast(editandoId?"Propiedad actualizada":"Propiedad agregada");cargar();
     }catch(e){toast("Error de conexión")}
   }
-
   async function borrar(id){
     if(!confirm("¿Borrar esta propiedad?"))return;
-    try{
-      const r = await fetch("/api/properties/"+id,{method:"DELETE",headers:{"x-admin-password":PASS}});
-      if(r.status===401){toast("Contraseña incorrecta");return}
-      toast("Propiedad borrada");cargar();
+    try{const r=await fetch("/api/properties/"+id,{method:"DELETE",headers:{"x-admin-password":PASS}});
+      if(r.status===401){toast("Contraseña incorrecta");return}toast("Propiedad borrada");cargar();
     }catch(e){toast("Error de conexión")}
   }
 
+  // ---------- AJUSTES ----------
+  async function cargarAjustes(){
+    try{
+      const c=(await(await fetch("/api/config")).json()).config||{};
+      document.getElementById("s_nombre").value=c.nombreAgencia||"";
+      if(c.tono)document.getElementById("s_tono").value=c.tono;
+      document.getElementById("agencyName").textContent=c.nombreAgencia||"Panel";
+      const ags=(await(await fetch("/api/agents")).json()).agents||[];
+      const list=document.getElementById("agentList");
+      if(!ags.length){list.innerHTML='<div class="empty">Aún no hay agentes. Agrega el primero.</div>';return}
+      list.innerHTML=ags.map(a=>{
+        const zonas=(a.zonas||[]).map(z=>zonaNombre[z]||z).join(", ")||"sin zonas";
+        return `<div class="agent"><div class="ainfo"><b>${a.nombre}</b> <span class="pill ${a.activo===false?'off':''}">${a.activo===false?'inactivo':'activo'}</span>
+          <div class="meta">${a.telefono||'sin teléfono'} · ${zonas}</div></div>
+          <div class="aacts"><button class="btn ghost" onclick='editarAgente(${JSON.stringify(a)})'>Editar</button>
+          <button class="btn danger" onclick="borrarAgente('${a.id}')">Borrar</button></div></div>`;
+      }).join("");
+    }catch(e){toast("Error al cargar ajustes")}
+  }
+  async function guardarConfig(){
+    const body={nombreAgencia:val("s_nombre"),tono:document.getElementById("s_tono").value};
+    if(!body.nombreAgencia){toast("Pon el nombre de la agencia");return}
+    try{const r=await fetch("/api/config",{method:"PUT",headers:{"Content-Type":"application/json","x-admin-password":PASS},body:JSON.stringify(body)});
+      if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}
+      toast("Datos guardados ✓");cargarAjustes();
+    }catch(e){toast("Error de conexión")}
+  }
+  function setZonasChecks(zonas){document.querySelectorAll("#a_zonas input").forEach(c=>c.checked=(zonas||[]).includes(c.value))}
+  function getZonasChecks(){return [...document.querySelectorAll("#a_zonas input:checked")].map(c=>c.value)}
+  function abrirAgente(){
+    editandoAgenteId=null;document.getElementById("agentModalTitle").textContent="Nuevo agente";
+    document.getElementById("a_nombre").value="";document.getElementById("a_telefono").value="";
+    setZonasChecks([]);document.getElementById("a_activo").checked=true;
+    document.getElementById("agentOverlay").classList.add("show");
+  }
+  function editarAgente(a){
+    editandoAgenteId=a.id;document.getElementById("agentModalTitle").textContent="Editar agente";
+    document.getElementById("a_nombre").value=a.nombre||"";document.getElementById("a_telefono").value=a.telefono||"";
+    setZonasChecks(a.zonas||[]);document.getElementById("a_activo").checked=a.activo!==false;
+    document.getElementById("agentOverlay").classList.add("show");
+  }
+  function cerrarAgente(){document.getElementById("agentOverlay").classList.remove("show")}
+  async function guardarAgente(){
+    const body={nombre:val("a_nombre"),telefono:val("a_telefono"),zonas:getZonasChecks(),activo:document.getElementById("a_activo").checked};
+    if(!body.nombre){toast("Ponle nombre al agente");return}
+    const url=editandoAgenteId?"/api/agents/"+editandoAgenteId:"/api/agents";
+    try{const r=await fetch(url,{method:editandoAgenteId?"PUT":"POST",headers:{"Content-Type":"application/json","x-admin-password":PASS},body:JSON.stringify(body)});
+      if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}
+      cerrarAgente();toast(editandoAgenteId?"Agente actualizado":"Agente agregado");cargarAjustes();
+    }catch(e){toast("Error de conexión")}
+  }
+  async function borrarAgente(id){
+    if(!confirm("¿Borrar este agente?"))return;
+    try{const r=await fetch("/api/agents/"+id,{method:"DELETE",headers:{"x-admin-password":PASS}});
+      if(r.status===401){toast("Contraseña incorrecta");return}toast("Agente borrado");cargarAjustes();
+    }catch(e){toast("Error de conexión")}
+  }
+
+  function val(id){return document.getElementById(id).value.trim()}
   document.getElementById("overlay").addEventListener("click",e=>{if(e.target.id==="overlay")cerrar()});
+  document.getElementById("agentOverlay").addEventListener("click",e=>{if(e.target.id==="agentOverlay")cerrarAgente()});
 </script>
 </body>
 </html>

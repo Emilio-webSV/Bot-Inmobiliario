@@ -14,6 +14,7 @@ import { fileURLToPath } from "url";
 import {
   loadDB, upsertLead, pushHistorial, getLead, getAllLeads, getConfig, saveDB,
   getProperties, getProperty, createProperty, updateProperty, deleteProperty,
+  getAgents, updateConfig, createAgent, updateAgent, deleteAgent,
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
 import { enviarTexto, enviarImagen } from "./whatsapp.js";
@@ -245,6 +246,39 @@ app.delete("/api/properties/:id", (req, res) => {
   if (!checarAdmin(req, res)) return;
   const ok = deleteProperty(req.params.id);
   res.json({ ok });
+});
+
+// ---------------------------------------------------------------------------
+// 4b) API DE AJUSTES (datos de la agencia + agentes) — la usa el panel
+// ---------------------------------------------------------------------------
+
+// Configuración de la agencia
+app.get("/api/config", (req, res) => {
+  res.json({ config: getConfig() });
+});
+app.put("/api/config", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const c = updateConfig(req.body || {});
+  res.json({ ok: true, config: c });
+});
+
+// Agentes
+app.get("/api/agents", (req, res) => {
+  res.json({ agents: getAgents() });
+});
+app.post("/api/agents", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  res.json({ ok: true, agent: createAgent(req.body || {}) });
+});
+app.put("/api/agents/:id", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const a = updateAgent(req.params.id, req.body || {});
+  if (!a) return res.status(404).json({ error: "No encontrado" });
+  res.json({ ok: true, agent: a });
+});
+app.delete("/api/agents/:id", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  res.json({ ok: deleteAgent(req.params.id) });
 });
 
 // ---------------------------------------------------------------------------

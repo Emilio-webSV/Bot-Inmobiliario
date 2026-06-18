@@ -129,6 +129,52 @@ export function getConfig() {
   return loadDB().config;
 }
 
+export function updateConfig(patch) {
+  const db = loadDB();
+  db.config = { ...db.config, ...patch };
+  saveDB(db);
+  return db.config;
+}
+
+export function createAgent(data) {
+  const db = loadDB();
+  const agent = {
+    id: "a" + Date.now() + Math.floor(Math.random() * 1000),
+    nombre: data.nombre || "Agente",
+    telefono: String(data.telefono || "").replace(/\D/g, ""),
+    zonas: Array.isArray(data.zonas) ? data.zonas : [],
+    activo: data.activo !== false,
+  };
+  db.agents = db.agents || [];
+  db.agents.push(agent);
+  saveDB(db);
+  return agent;
+}
+
+export function updateAgent(id, data) {
+  const db = loadDB();
+  const i = (db.agents || []).findIndex((a) => a.id === id);
+  if (i === -1) return null;
+  const a = db.agents[i];
+  db.agents[i] = {
+    ...a,
+    ...data,
+    telefono: data.telefono !== undefined ? String(data.telefono).replace(/\D/g, "") : a.telefono,
+    zonas: data.zonas !== undefined ? (Array.isArray(data.zonas) ? data.zonas : a.zonas) : a.zonas,
+    id: a.id,
+  };
+  saveDB(db);
+  return db.agents[i];
+}
+
+export function deleteAgent(id) {
+  const db = loadDB();
+  const antes = (db.agents || []).length;
+  db.agents = (db.agents || []).filter((a) => a.id !== id);
+  saveDB(db);
+  return db.agents.length < antes;
+}
+
 // ---- Helpers de propiedades -----------------------------------------------
 
 export function getProperties() {
