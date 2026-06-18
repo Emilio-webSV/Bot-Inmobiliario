@@ -33,6 +33,19 @@ const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "cambia_esto";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123"; // protección básica del panel
 
 // ---------------------------------------------------------------------------
+// CANDADO: TODA la información del CRM (rutas /api) exige contraseña.
+// El webhook (/webhook) NO pasa por aquí (lo llama Meta, va aparte).
+// Las páginas /dashboard y /admin se sirven, pero sin contraseña no muestran datos.
+// ---------------------------------------------------------------------------
+app.use("/api", (req, res, next) => {
+  const pass = req.headers["x-admin-password"] || req.query.pass;
+  if (pass !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: "No autorizado" });
+  }
+  next();
+});
+
+// ---------------------------------------------------------------------------
 // 1) VERIFICACIÓN DEL WEBHOOK (Meta toca la puerta una vez al conectar)
 // ---------------------------------------------------------------------------
 app.get("/webhook", (req, res) => {

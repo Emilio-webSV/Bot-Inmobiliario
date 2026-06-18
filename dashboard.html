@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Leads · CRM Inmobiliario</title>
+<title>CRM Inmobiliario · Leads</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -18,6 +18,17 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
   .wrap{max-width:1180px;margin:0 auto;padding:24px 24px 64px}
+  .hidden{display:none}
+
+  /* Gate de acceso */
+  .gate{max-width:380px;margin:90px auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px;box-shadow:var(--shadow);text-align:center}
+  .gate .dot{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));display:grid;place-items:center;color:#fff;font-size:22px;margin:0 auto 16px}
+  .gate h2{font-family:'Space Grotesk',sans-serif;font-size:19px;margin-bottom:8px}
+  .gate p{font-size:13px;color:var(--muted);margin-bottom:18px}
+  .gate input{font-family:inherit;font-size:14px;width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px}
+  .gate input:focus{outline:none;border-color:var(--gold)}
+  .gate button{font-family:inherit;font-size:14px;font-weight:600;width:100%;margin-top:12px;padding:12px;border-radius:10px;border:none;background:var(--ink);color:#fff;cursor:pointer}
+
   header.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:18px}
   .brand{display:flex;align-items:center;gap:12px}
   .brand .dot{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));display:grid;place-items:center;color:#fff;font-size:18px;box-shadow:var(--shadow)}
@@ -35,18 +46,18 @@
   .metric .label{font-size:11.5px;color:var(--muted);font-weight:500}
   .metric .num{font-family:'Space Grotesk',sans-serif;font-size:27px;font-weight:700;letter-spacing:-.03em;margin-top:6px}
   .metric .num.small{font-size:18px}
-  .metric.alert .num{color:var(--hot)}
-  .metric.hot .num{color:var(--hot)}
-  .metric.warm .num{color:var(--warm)}
-  .metric.cold .num{color:var(--cold)}
+  .metric.alert .num,.metric.hot .num{color:var(--hot)}
+  .metric.warm .num{color:var(--warm)}.metric.cold .num{color:var(--cold)}
   .metric .bar{height:3px;border-radius:2px;margin-top:11px;background:var(--line);overflow:hidden}
   .metric .bar i{display:block;height:100%}
-  .metric.alert .bar i{background:var(--hot)}
-  .metric.hot .bar i{background:var(--hot)}.metric.warm .bar i{background:var(--warm)}
-  .metric.cold .bar i{background:var(--cold)}.metric.pipe .bar i{background:var(--gold)}
+  .metric.alert .bar i,.metric.hot .bar i{background:var(--hot)}
+  .metric.warm .bar i{background:var(--warm)}.metric.cold .bar i{background:var(--cold)}.metric.pipe .bar i{background:var(--gold)}
 
   .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
-  .panel h2{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .phead{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .phead h2{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600}
+  .exportbtn{font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:8px 13px;border:1px solid var(--line);border-radius:9px;background:#fff}
+  .exportbtn:hover{background:#faf8f3}
   table{width:100%;border-collapse:collapse}
   thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:11px 20px;background:#faf8f3;border-bottom:1px solid var(--line)}
   tbody td{padding:13px 20px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle}
@@ -71,23 +82,31 @@
   .gauge{width:50px;height:6px;border-radius:4px;background:var(--line);overflow:hidden}
   .gauge i{display:block;height:100%;border-radius:4px}
   .score b{font-family:'Space Grotesk',sans-serif;font-size:13px;min-width:22px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+  .chip{font-size:10.5px;font-weight:600;background:#fbf3dd;color:var(--gold-deep);padding:2px 8px;border-radius:99px}
 
   .empty{padding:50px 20px;text-align:center;color:var(--muted)}
   .empty p:first-child{font-family:'Space Grotesk',sans-serif;font-size:16px;color:var(--ink-soft);margin-bottom:6px}
 
+  /* Modal */
   .overlay{position:fixed;inset:0;background:rgba(20,21,26,.45);display:none;align-items:flex-start;justify-content:center;padding:40px 20px;z-index:50}
   .overlay.show{display:flex}
   .modal{background:var(--card);border-radius:18px;width:100%;max-width:580px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.25)}
-  .modal .mhead{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start}
-  .modal .mhead h3{font-family:'Space Grotesk',sans-serif;font-size:18px}
-  .modal .mhead .sub{margin-top:3px}
+  .mhead{padding:18px 22px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start}
+  .mhead h3{font-family:'Space Grotesk',sans-serif;font-size:18px}
+  .mhead .sub{margin-top:3px}
   .close{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;line-height:1}
+  .mtabs{display:flex;border-bottom:1px solid var(--line);padding:0 22px}
+  .mtab{font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;padding:12px 0;margin-right:22px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .mtab.active{color:var(--ink);border-bottom-color:var(--gold)}
+  .mscroll{flex:1;overflow-y:auto;min-height:0}
+
   .profile{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 18px;padding:16px 22px;border-bottom:1px solid var(--line)}
   .profile div span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block}
   .profile div b{font-size:14px;font-weight:600}
-
   .manage{padding:14px 22px;border-bottom:1px solid var(--line);background:#faf8f3}
   .manage .mrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .manage .mrow:last-child{margin-bottom:0}
   .manage label{font-size:12px;color:var(--muted);font-weight:600;min-width:92px}
   .manage select{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);flex:1}
   .estbtns{display:flex;gap:7px;flex-wrap:wrap}
@@ -96,35 +115,40 @@
   .estbtns button.atender.on{background:var(--cold);border-color:var(--cold)}
   .estbtns button.cerrar.on{background:var(--green);border-color:var(--green)}
   .estbtns button.perder.on{background:var(--muted);border-color:var(--muted)}
+  .notesbox{padding:14px 22px}
+  .notesbox label{font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px}
+  .notesbox textarea,.notesbox input{font-family:inherit;font-size:13px;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;color:var(--ink)}
+  .notesbox textarea:focus,.notesbox input:focus{outline:none;border-color:var(--gold)}
+  .savenote{font-size:12px;font-weight:600;padding:8px 14px;border-radius:9px;border:none;background:var(--ink);color:#fff;cursor:pointer}
 
-  .chat{padding:16px 22px;overflow-y:auto;flex:1;background:#faf8f3}
+  .chat{padding:16px 22px;background:#faf8f3;min-height:240px}
   .msg{max-width:80%;padding:9px 13px;border-radius:13px;font-size:13.5px;margin-bottom:10px}
   .msg.user{background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
   .msg.bot{background:var(--ink);color:#fff;margin-left:auto;border-bottom-right-radius:4px}
   .msg .t{display:block;font-size:10px;opacity:.55;margin-top:4px}
+
   .actions{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px}
   .btn{font-family:inherit;font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px;border:none;cursor:pointer;flex:1}
   .btn.primary{background:var(--ink);color:#fff}
   .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink-soft)}
   .btn:active{transform:translateY(1px)}
 
-  .phead{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
-  .phead h2{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;padding:0;border:none}
-  .exportbtn{font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:8px 13px;border:1px solid var(--line);border-radius:9px;background:#fff}
-  .exportbtn:hover{background:#faf8f3}
-  .notesbox{padding:14px 22px;border-bottom:1px solid var(--line)}
-  .notesbox label{font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px}
-  .notesbox textarea,.notesbox input{font-family:inherit;font-size:13px;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;color:var(--ink)}
-  .notesbox textarea:focus,.notesbox input:focus{outline:none;border-color:var(--gold)}
-  .savenote{font-size:12px;font-weight:600;padding:8px 14px;border-radius:9px;border:none;background:var(--ink);color:#fff;cursor:pointer}
-  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
-  .chip{font-size:10.5px;font-weight:600;background:#fbf3dd;color:var(--gold-deep);padding:2px 8px;border-radius:99px}
-
   @media (max-width:860px){.metrics{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}}
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<!-- CANDADO DE ACCESO -->
+<div id="gate" class="gate">
+  <div class="dot">◆</div>
+  <h2>CRM Inmobiliario</h2>
+  <p>Acceso privado. Escribe la contraseña para entrar.</p>
+  <input id="passInput" type="password" placeholder="Contraseña" onkeydown="if(event.key==='Enter')entrar()" />
+  <button onclick="entrar()">Entrar</button>
+  <p id="gateErr" style="color:var(--hot);margin-top:10px;display:none">Contraseña incorrecta</p>
+</div>
+
+<div id="app" class="wrap hidden">
   <header class="top">
     <div class="brand">
       <div class="dot">◆</div>
@@ -144,44 +168,79 @@
   <div class="panel">
     <div class="phead">
       <h2>Leads por prioridad</h2>
-      <a class="exportbtn" href="/api/leads/export">⬇ Exportar a Excel</a>
+      <a class="exportbtn" id="exportLink" href="#">⬇ Exportar a Excel</a>
     </div>
     <div id="tableHost"><div class="empty"><p>Cargando…</p></div></div>
   </div>
 </div>
 
+<!-- Modal de lead -->
 <div class="overlay" id="overlay">
   <div class="modal">
     <div class="mhead">
       <div><h3 id="mName">—</h3><p class="sub" id="mPhone">—</p></div>
       <button class="close" onclick="cerrarModal()">×</button>
     </div>
-    <div class="profile" id="mProfile"></div>
-    <div class="manage" id="mManage"></div>
-    <div class="notesbox" id="mNotes"></div>
-    <div class="chat" id="mChat"></div>
+    <div class="mtabs">
+      <button class="mtab active" id="mtabChat" onclick="modalTab('chat')">💬 Conversación</button>
+      <button class="mtab" id="mtabGest" onclick="modalTab('gest')">⚙️ Gestión</button>
+    </div>
+    <div class="mscroll">
+      <div id="viewChat"><div class="chat" id="mChat"></div></div>
+      <div id="viewGest" class="hidden">
+        <div class="profile" id="mProfile"></div>
+        <div class="manage" id="mManage"></div>
+        <div class="notesbox" id="mNotes"></div>
+      </div>
+    </div>
     <div class="actions" id="mActions"></div>
   </div>
 </div>
 
 <script>
+  let PASS="",agentesById={},agentesList=[];
+  const AH=()=>({"x-admin-password":PASS});
+  const JH=()=>({"x-admin-password":PASS,"Content-Type":"application/json"});
   const fmtMXN=(n)=>"$"+(n||0).toLocaleString("es-MX");
   const zonaNombre={polanco:"Polanco",chapultepec:"Lomas/Chapultepec",reforma:"Reforma",condesa:"Condesa/Roma",delvalle:"Del Valle",santafe:"Santa Fe"};
   const tempColor={caliente:"var(--hot)",tibio:"var(--warm)",frio:"var(--cold)"};
   const estadoLabel={sin_atender:"Sin atender",en_atencion:"En atención",cerrado:"Cerrado",perdido:"Perdido"};
-  let agentesById={},agentesList=[];
+  let intervalo=null;
 
   function aplicarMarca(c){if(!c)return;document.documentElement.style.setProperty('--gold',c);document.documentElement.style.setProperty('--gold-deep',c)}
 
+  async function entrar(){
+    PASS=document.getElementById("passInput").value.trim();
+    if(!PASS)return;
+    const r=await fetch("/api/leads",{headers:AH()});
+    if(r.status===401){document.getElementById("gateErr").style.display="block";return;}
+    document.getElementById("gate").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    document.getElementById("exportLink").href="/api/leads/export?pass="+encodeURIComponent(PASS);
+    render(await r.json());
+    if(!intervalo)intervalo=setInterval(cargar,15000);
+  }
+
   async function cargar(){
     try{
-      const data=await(await fetch("/api/leads")).json();
-      agentesById=data.agentesById||{};agentesList=data.agentes||[];
-      if(data.config?.nombreAgencia)document.getElementById("agencyName").textContent=data.config.nombreAgencia;
-      aplicarMarca(data.config?.brandColor);
-      pintarMetricas(data.metricas);pintarTabla(data.leads);
-      document.getElementById("clock").textContent=new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-    }catch(e){document.getElementById("tableHost").innerHTML='<div class="empty"><p>No pude conectar con el servidor</p><p class="sub">Revisa que el bot esté corriendo.</p></div>'}
+      const r=await fetch("/api/leads",{headers:AH()});
+      if(r.status===401){volverAlGate();return;}
+      render(await r.json());
+    }catch(e){document.getElementById("tableHost").innerHTML='<div class="empty"><p>No pude conectar con el servidor</p></div>'}
+  }
+  function volverAlGate(){
+    if(intervalo){clearInterval(intervalo);intervalo=null;}
+    document.getElementById("app").classList.add("hidden");
+    document.getElementById("gate").classList.remove("hidden");
+    document.getElementById("gateErr").style.display="block";
+  }
+
+  function render(data){
+    agentesById=data.agentesById||{};agentesList=data.agentes||[];
+    if(data.config?.nombreAgencia)document.getElementById("agencyName").textContent=data.config.nombreAgencia;
+    aplicarMarca(data.config?.brandColor);
+    pintarMetricas(data.metricas);pintarTabla(data.leads);
+    document.getElementById("clock").textContent=new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   }
 
   function pintarMetricas(m){
@@ -202,8 +261,9 @@
       const zona=l.perfil?.zona?(zonaNombre[l.perfil.zona]||l.perfil.zona):"—";
       const pres=l.perfil?.presupuesto?fmtMXN(l.perfil.presupuesto):"—";
       const est=l.estado||"sin_atender";
+      const chips=(l.etiquetas&&l.etiquetas.length)?`<div class="chips">${l.etiquetas.slice(0,3).map(t=>`<span class="chip">${t}</span>`).join("")}</div>`:"";
       return `<tr onclick='abrirModal("${l.telefono}")'>
-        <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div>${(l.etiquetas&&l.etiquetas.length)?`<div class="chips">${l.etiquetas.slice(0,3).map(t=>`<span class="chip">${t}</span>`).join("")}</div>`:""}</td>
+        <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div>${chips}</td>
         <td><span class="estado ${est}">${estadoLabel[est]}</span></td>
         <td><span class="temp ${l.temperatura}"><span class="pip"></span>${l.temperatura}</span></td>
         <td><div class="score"><div class="gauge"><i style="width:${l.score}%;background:${tempColor[l.temperatura]}"></i></div><b>${l.score}</b></div></td>
@@ -218,10 +278,22 @@
     </tr></thead><tbody>${filas}</tbody></table>`;
   }
 
+  function modalTab(t){
+    const chat=t==='chat';
+    document.getElementById("mtabChat").classList.toggle("active",chat);
+    document.getElementById("mtabGest").classList.toggle("active",!chat);
+    document.getElementById("viewChat").classList.toggle("hidden",!chat);
+    document.getElementById("viewGest").classList.toggle("hidden",chat);
+  }
+
   async function abrirModal(telefono){
-    const l=await(await fetch("/api/leads/"+telefono)).json();
+    const r=await fetch("/api/leads/"+telefono,{headers:AH()});
+    if(r.status===401){volverAlGate();return;}
+    const l=await r.json();
     document.getElementById("mName").textContent=l.nombre||"Sin nombre";
     document.getElementById("mPhone").textContent=l.telefono;
+    modalTab('chat'); // siempre abre mostrando la conversación
+
     const p=l.perfil||{};
     document.getElementById("mProfile").innerHTML=`
       <div><span>Temperatura</span><b style="color:${tempColor[l.temperatura]}">${l.temperatura} (${l.score})</b></div>
@@ -235,9 +307,7 @@
     const opts=['<option value="">Sin asignar</option>'].concat(agentesList.map(a=>`<option value="${a.id}" ${l.agenteAsignado===a.id?'selected':''}>${a.nombre}</option>`)).join("");
     document.getElementById("mManage").innerHTML=`
       <div class="mrow"><label>Estado</label><span class="estado ${est}">${estadoLabel[est]}</span></div>
-      <div class="mrow"><label>Asignar asesor</label>
-        <select onchange="asignar('${l.telefono}',this.value)">${opts}</select>
-      </div>
+      <div class="mrow"><label>Asignar asesor</label><select onchange="asignar('${l.telefono}',this.value)">${opts}</select></div>
       <div class="mrow"><label>Acción</label>
         <div class="estbtns">
           <button class="atender ${est==='en_atencion'?'on':''}" onclick="setEstado('${l.telefono}','en_atencion')">✋ Atender</button>
@@ -258,7 +328,7 @@
     document.getElementById("mChat").innerHTML=(l.historial||[]).map(h=>{
       const hora=new Date(h.ts).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
       return `<div class="msg ${h.rol}">${h.texto}<span class="t">${hora}</span></div>`;
-    }).join("")||'<p class="empty sub">Sin mensajes aún.</p>';
+    }).join("")||'<p class="empty sub" style="padding:30px">Sin mensajes todavía.</p>';
 
     const botCtrl=l.humanoEnControl
       ? `<button class="btn primary" onclick="devolverControl('${l.telefono}')">↩ Reactivar bot</button>`
@@ -268,26 +338,17 @@
     document.getElementById("overlay").classList.add("show");
   }
 
-  async function asignar(tel,agenteId){
-    await fetch(`/api/leads/${tel}/asignar`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({agenteId})});
-    cargar();
-  }
+  async function asignar(tel,agenteId){await fetch(`/api/leads/${tel}/asignar`,{method:"POST",headers:JH(),body:JSON.stringify({agenteId})});cargar()}
   async function guardarNotas(tel){
     const etiquetas=document.getElementById("leadTags").value.split(",").map(s=>s.trim()).filter(Boolean);
     const notas=document.getElementById("leadNotes").value;
-    await fetch(`/api/leads/${tel}/notas`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({notas,etiquetas})});
-    cargar();
+    await fetch(`/api/leads/${tel}/notas`,{method:"POST",headers:JH(),body:JSON.stringify({notas,etiquetas})});cargar();
   }
-  async function setEstado(tel,estado){
-    await fetch(`/api/leads/${tel}/estado`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({estado})});
-    abrirModal(tel);cargar();
-  }
-  async function tomarControl(tel){await fetch(`/api/leads/${tel}/tomar-control`,{method:"POST"});abrirModal(tel);cargar()}
-  async function devolverControl(tel){await fetch(`/api/leads/${tel}/devolver-control`,{method:"POST"});abrirModal(tel);cargar()}
+  async function setEstado(tel,estado){await fetch(`/api/leads/${tel}/estado`,{method:"POST",headers:JH(),body:JSON.stringify({estado})});abrirModal(tel);cargar()}
+  async function tomarControl(tel){await fetch(`/api/leads/${tel}/tomar-control`,{method:"POST",headers:AH()});abrirModal(tel);cargar()}
+  async function devolverControl(tel){await fetch(`/api/leads/${tel}/devolver-control`,{method:"POST",headers:AH()});abrirModal(tel);cargar()}
   function cerrarModal(){document.getElementById("overlay").classList.remove("show")}
   document.getElementById("overlay").addEventListener("click",e=>{if(e.target.id==="overlay")cerrarModal()});
-
-  cargar();setInterval(cargar,15000);
 </script>
 </body>
 </html>

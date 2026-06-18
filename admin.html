@@ -249,7 +249,7 @@
   // ---------- PROPIEDADES ----------
   async function cargar(){
     try{
-      const r=await fetch("/api/properties");const props=(await r.json()).properties||[];
+      const r=await fetch("/api/properties",{headers:{"x-admin-password":PASS}});const props=(await r.json()).properties||[];
       document.getElementById("count").textContent=`Propiedades (${props.length})`;
       const grid=document.getElementById("grid");
       if(!props.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">Aún no hay propiedades. Dale a «+ Agregar propiedad».</div>';return}
@@ -307,12 +307,12 @@
   // ---------- AJUSTES ----------
   async function cargarAjustes(){
     try{
-      const c=(await(await fetch("/api/config")).json()).config||{};
+      const c=(await(await fetch("/api/config",{headers:{"x-admin-password":PASS}})).json()).config||{};
       document.getElementById("s_nombre").value=c.nombreAgencia||"";
       if(c.tono)document.getElementById("s_tono").value=c.tono;
       if(c.brandColor){document.getElementById("s_color").value=c.brandColor;aplicarMarca(c.brandColor);}
       document.getElementById("agencyName").textContent=c.nombreAgencia||"Panel";
-      const ags=(await(await fetch("/api/agents")).json()).agents||[];
+      const ags=(await(await fetch("/api/agents",{headers:{"x-admin-password":PASS}})).json()).agents||[];
       const list=document.getElementById("agentList");
       if(!ags.length){list.innerHTML='<div class="empty">Aún no hay agentes. Agrega el primero.</div>';return}
       list.innerHTML=ags.map(a=>{
