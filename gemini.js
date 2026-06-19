@@ -25,6 +25,17 @@ function construirSystemPrompt({ config, lead, propiedadesCtx }) {
   if (!p.recamaras) faltantes.push("número de recámaras");
   if (!p.proposito) faltantes.push("si es para vivir o invertir");
 
+  const escaladoNota = lead.escalado
+    ? `
+
+IMPORTANTE — ESTE CLIENTE YA FUE ESCALADO A UN ASESOR HUMANO:
+Ya pidió (o necesita) hablar con una persona, y un asesor lo va a contactar.
+NO sigas vendiendo ni ofreciendo propiedades ni haciendo preguntas de calificación.
+Sé MUY breve y tranquilo: confírmale con calma que un asesor lo contactará en
+breve. Si acaso, pregúntale si quiere dejar algún detalle para el asesor. Nada de
+insistir ni de retomar la venta.`
+    : "";
+
   return `Eres el asistente virtual de "${config.nombreAgencia}", una agencia inmobiliaria.
 Tu tono es ${config.tono}.
 
@@ -73,7 +84,7 @@ DATOS QUE YA SABES DEL CLIENTE:
 - Presupuesto: ${p.presupuesto ? "$" + p.presupuesto.toLocaleString("es-MX") + " MXN" : "desconocido"}
 - Zona: ${p.zona || "desconocida"}
 - Recámaras: ${p.recamaras || "desconocidas"}
-- Propósito: ${p.proposito || "desconocido"}`;
+- Propósito: ${p.proposito || "desconocido"}${escaladoNota}`;
 }
 
 function construirMensajes({ config, lead, propiedadesCtx }) {

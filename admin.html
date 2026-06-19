@@ -136,7 +136,6 @@
       <h2>Datos de la agencia</h2>
       <p class="sub">Cómo se presenta el bot con los clientes.</p>
       <div class="frow">
-        <div><label>Nombre de la agencia</label><input id="s_nombre" placeholder="Inmobiliaria del Valle" /></div>
         <div><label>Tono del bot</label>
           <select id="s_tono">
             <option value="profesional y cálido">Profesional y cálido</option>
@@ -308,7 +307,6 @@
   async function cargarAjustes(){
     try{
       const c=(await(await fetch("/api/config",{headers:{"x-admin-password":PASS}})).json()).config||{};
-      document.getElementById("s_nombre").value=c.nombreAgencia||"";
       if(c.tono)document.getElementById("s_tono").value=c.tono;
       if(c.brandColor){document.getElementById("s_color").value=c.brandColor;aplicarMarca(c.brandColor);}
       document.getElementById("agencyName").textContent=c.nombreAgencia||"Panel";
@@ -325,8 +323,7 @@
     }catch(e){toast("Error al cargar ajustes")}
   }
   async function guardarConfig(){
-    const body={nombreAgencia:val("s_nombre"),tono:document.getElementById("s_tono").value,brandColor:document.getElementById("s_color").value};
-    if(!body.nombreAgencia){toast("Pon el nombre de la agencia");return}
+    const body={tono:document.getElementById("s_tono").value,brandColor:document.getElementById("s_color").value};
     try{const r=await fetch("/api/config",{method:"PUT",headers:{"Content-Type":"application/json","x-admin-password":PASS},body:JSON.stringify(body)});
       if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}
       aplicarMarca(body.brandColor);toast("Datos guardados ✓");cargarAjustes();
