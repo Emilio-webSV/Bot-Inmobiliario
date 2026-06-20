@@ -41,17 +41,20 @@
   .nav a{font-size:13px;color:var(--ink-soft);text-decoration:none;font-weight:600;padding:9px 16px;border-radius:10px;border:1px solid var(--line);background:#fff}
   .nav a.active{background:var(--ink);color:#fff;border-color:var(--ink)}
 
-  .metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:28px}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:28px}
   .metric{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;box-shadow:var(--shadow)}
   .metric .label{font-size:11.5px;color:var(--muted);font-weight:500}
   .metric .num{font-family:'Space Grotesk',sans-serif;font-size:27px;font-weight:700;letter-spacing:-.03em;margin-top:6px}
   .metric .num.small{font-size:18px}
   .metric.alert .num,.metric.hot .num{color:var(--hot)}
   .metric.warm .num{color:var(--warm)}.metric.cold .num{color:var(--cold)}
+  .metric.cita .num{color:var(--green)}
   .metric .bar{height:3px;border-radius:2px;margin-top:11px;background:var(--line);overflow:hidden}
   .metric .bar i{display:block;height:100%}
   .metric.alert .bar i,.metric.hot .bar i{background:var(--hot)}
   .metric.warm .bar i{background:var(--warm)}.metric.cold .bar i{background:var(--cold)}.metric.pipe .bar i{background:var(--gold)}
+  .metric.cita .bar i{background:var(--green)}
+  .citatag{display:inline-block;font-size:10.5px;font-weight:600;background:var(--green-bg);color:var(--green);padding:2px 8px;border-radius:99px;margin-top:5px}
 
   .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
   .phead{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
@@ -109,6 +112,7 @@
   .manage .mrow:last-child{margin-bottom:0}
   .manage label{font-size:12px;color:var(--muted);font-weight:600;min-width:92px}
   .manage select{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);flex:1}
+  .manage input{font-family:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);flex:1}
   .estbtns{display:flex;gap:7px;flex-wrap:wrap}
   .estbtns button{font-family:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer}
   .estbtns button.on{color:#fff}
@@ -252,6 +256,7 @@
       <div class="metric hot"><div class="label">🔴 Calientes</div><div class="num">${m.calientes}</div><div class="bar"><i style="width:${(m.calientes/total*100)}%"></i></div></div>
       <div class="metric warm"><div class="label">🟡 Tibios</div><div class="num">${m.tibios}</div><div class="bar"><i style="width:${(m.tibios/total*100)}%"></i></div></div>
       <div class="metric cold"><div class="label">🔵 Fríos</div><div class="num">${m.frios}</div><div class="bar"><i style="width:${(m.frios/total*100)}%"></i></div></div>
+      <div class="metric cita"><div class="label">📅 Citas</div><div class="num">${m.citas||0}</div><div class="bar"><i style="width:${((m.citas||0)/total*100)}%"></i></div></div>
       <div class="metric pipe"><div class="label">💰 Pipeline</div><div class="num small">${fmtMXN(m.pipeline)}</div><div class="bar"><i style="width:100%"></i></div></div>`;
   }
 
@@ -263,8 +268,9 @@
       const pres=l.perfil?.presupuesto?fmtMXN(l.perfil.presupuesto):"—";
       const est=l.estado||"sin_atender";
       const chips=(l.etiquetas&&l.etiquetas.length)?`<div class="chips">${l.etiquetas.slice(0,3).map(t=>`<span class="chip">${t}</span>`).join("")}</div>`:"";
+      const citaTag=l.citaProgramada?`<div><span class="citatag">📅 ${new Date(l.citaProgramada).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</span></div>`:"";
       return `<tr onclick='abrirModal("${l.telefono}")'>
-        <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div>${chips}</td>
+        <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div>${chips}${citaTag}</td>
         <td><span class="estado ${est}">${estadoLabel[est]}</span></td>
         <td><span class="temp ${l.temperatura}"><span class="pip"></span>${l.temperatura}</span></td>
         <td><div class="score"><div class="gauge"><i style="width:${l.score}%;background:${tempColor[l.temperatura]}"></i></div><b>${l.score}</b></div></td>
@@ -315,7 +321,12 @@
           <button class="cerrar ${est==='cerrado'?'on':''}" onclick="setEstado('${l.telefono}','cerrado')">✓ Cerrado</button>
           <button class="perder ${est==='perdido'?'on':''}" onclick="setEstado('${l.telefono}','perdido')">✕ Perdido</button>
         </div>
+      </div>
+      <div class="mrow"><label>📅 Cita</label>
+        <input type="datetime-local" id="leadCita" />
+        <button class="savenote" onclick="guardarCita('${l.telefono}')">Guardar</button>
       </div>`;
+    document.getElementById("leadCita").value=isoToLocalInput(l.citaProgramada);
 
     document.getElementById("mNotes").innerHTML=`
       <label>Etiquetas <span style="font-weight:400;color:var(--muted)">(separadas por coma)</span></label>
@@ -340,6 +351,17 @@
     document.getElementById("overlay").classList.add("show");
   }
 
+  function isoToLocalInput(iso){
+    if(!iso)return"";
+    const d=new Date(iso);const off=d.getTimezoneOffset()*60000;
+    return new Date(d.getTime()-off).toISOString().slice(0,16);
+  }
+  async function guardarCita(tel){
+    const v=document.getElementById("leadCita").value;
+    const iso=v?new Date(v).toISOString():null;
+    await fetch(`/api/leads/${tel}/cita`,{method:"POST",headers:JH(),body:JSON.stringify({cita:iso})});
+    abrirModal(tel);cargar();
+  }
   async function asignar(tel,agenteId){await fetch(`/api/leads/${tel}/asignar`,{method:"POST",headers:JH(),body:JSON.stringify({agenteId})});cargar()}
   async function guardarNotas(tel){
     const etiquetas=document.getElementById("leadTags").value.split(",").map(s=>s.trim()).filter(Boolean);

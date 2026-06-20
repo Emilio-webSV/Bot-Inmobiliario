@@ -88,6 +88,17 @@ app.post("/webhook", async (req, res) => {
 // ---------------------------------------------------------------------------
 // Lógica central: qué hace el bot con cada mensaje entrante
 // ---------------------------------------------------------------------------
+// Detecta la etiqueta oculta [CITA: YYYY-MM-DD HH:MM] que pone el bot al agendar.
+// Devuelve la fecha en ISO y el texto ya sin la etiqueta, o null si no hay cita.
+function extraerCita(texto) {
+  const m = texto.match(/\[CITA:\s*(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})\]/i);
+  if (!m) return null;
+  const hh = m[2].length === 4 ? "0" + m[2] : m[2];
+  const d = new Date(`${m[1]}T${hh}:00-06:00`); // hora de Ciudad de México (UTC-6)
+  if (isNaN(d.getTime())) return null;
+  return { iso: d.toISOString(), textoLimpio: texto.replace(m[0], "").trim() };
+}
+
 async function procesarMensaje(telefono, texto, nombrePerfil) {
   const config = getConfig();
 
@@ -137,7 +148,20 @@ async function procesarMensaje(telefono, texto, nombrePerfil) {
   const propiedadesCtx = contextoPropiedades(matches);
 
   // 5) Genera respuesta con el bot (ya conoce las propiedades reales)
-  const respuesta = await generarRespuesta({ config, lead, propiedadesCtx });
+  let respuesta = await generarRespuesta({ config, lead, propiedadesCtx });
+
+  // 5b) ¿El bot agendó una cita? Detecta la etiqueta oculta [CITA: YYYY-MM-DD HH:MM]
+  const cita = extraerCita(respuesta);
+  if (cita) {
+    respuesta = cita.textoLimpio; // quita la etiqueta antes de mandársela al cliente
+    upsertLead(telefono, { citaProgramada: cita.iso, seguimientos: { recordatorioCita: false } });
+    const dueno = process.env.OWNER_PHONE;
+    const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    if (dueno) {
+      await enviarTexto(dueno, `📅 Cita agendada\nCliente: ${lead.nombre || telefono}\n${fechaTxt}`).catch(() => {});
+    }
+  }
+
   await enviarTexto(telefono, respuesta);
   pushHistorial(telefono, "bot", respuesta);
 
@@ -190,6 +214,7 @@ app.get("/api/leads", (req, res) => {
     calientes: leads.filter((l) => l.temperatura === "caliente").length,
     tibios: leads.filter((l) => l.temperatura === "tibio").length,
     frios: leads.filter((l) => l.temperatura === "frio").length,
+    citas: leads.filter((l) => l.citaProgramada).length,
     pipeline: leads
       .filter((l) => l.perfil?.presupuesto)
       .reduce((s, l) => s + l.perfil.presupuesto, 0),
@@ -286,6 +311,20 @@ app.post("/api/leads/:telefono/notas", (req, res) => {
       : [];
   }
   upsertLead(req.params.telefono, patch);
+  res.json({ ok: true });
+});
+
+// Programar / editar / quitar la cita de un lead a mano desde el panel
+app.post("/api/leads/:telefono/cita", (req, res) => {
+  const lead = getLead(req.params.telefono);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  let iso = req.body?.cita || null; // viene de un input datetime-local, o null para quitar
+  if (iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return res.status(400).json({ error: "Fecha inválida" });
+    iso = d.toISOString();
+  }
+  upsertLead(req.params.telefono, { citaProgramada: iso, seguimientos: { recordatorioCita: false } });
   res.json({ ok: true });
 });
 

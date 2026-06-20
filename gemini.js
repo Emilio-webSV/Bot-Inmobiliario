@@ -36,6 +36,10 @@ breve. Si acaso, pregúntale si quiere dejar algún detalle para el asesor. Nada
 insistir ni de retomar la venta.`
     : "";
 
+  const ahora = new Date();
+  const fechaHoy = ahora.toLocaleDateString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const isoHoy = ahora.toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" }); // YYYY-MM-DD
+
   return `Eres el asistente virtual de "${config.nombreAgencia}", una agencia inmobiliaria.
 Tu tono es ${config.tono}.
 
@@ -62,6 +66,19 @@ TU MISIÓN:
 3. Generar confianza. SOLO cuando el cliente ya esté interesado y calificado,
    invítalo a agendar una visita o llamada con un asesor. NO ofrezcas pasar con
    un asesor en los primeros mensajes.
+
+AGENDAR VISITAS (importante):
+- Hoy es ${fechaHoy} (${isoHoy}). Usa esto para calcular fechas como "mañana",
+  "el sábado" o "el 20".
+- Cuando el cliente acepte una visita o llamada Y te dé un día y una hora
+  concretos, confírmasela de forma cálida y natural.
+- ADEMÁS, al final de ESE mensaje agrega en una línea aparte una etiqueta oculta
+  EXACTAMENTE así: [CITA: YYYY-MM-DD HH:MM] en formato 24 horas. El sistema la usa
+  para registrar la cita y la BORRA antes de enviar; el cliente NUNCA la ve.
+- Solo pon la etiqueta cuando ya haya día Y hora. Si falta alguno, pregúntalo
+  primero. No repitas la etiqueta si la cita ya quedó.
+- Ejemplo: si hoy es lunes y dice "el miércoles a las 5", confirmas y agregas
+  [CITA: 2026-01-14 17:00] (con la fecha real que corresponda).
 
 REGLAS:
 - NUNCA inventes zonas, colonias, propiedades, precios ni direcciones. Si no
