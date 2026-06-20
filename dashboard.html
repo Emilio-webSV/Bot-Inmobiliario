@@ -121,11 +121,12 @@
   .notesbox textarea:focus,.notesbox input:focus{outline:none;border-color:var(--gold)}
   .savenote{font-size:12px;font-weight:600;padding:8px 14px;border-radius:9px;border:none;background:var(--ink);color:#fff;cursor:pointer}
 
-  .chat{padding:16px 22px;background:#faf8f3;min-height:240px}
-  .msg{max-width:80%;padding:9px 13px;border-radius:13px;font-size:13.5px;margin-bottom:10px}
-  .msg.user{background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
-  .msg.bot{background:var(--ink);color:#fff;margin-left:auto;border-bottom-right-radius:4px}
-  .msg .t{display:block;font-size:10px;opacity:.55;margin-top:4px}
+  .chat{padding:16px 16px 20px;background:#e7ddd3;min-height:260px;background-image:radial-gradient(rgba(255,255,255,.5) 1px,transparent 0);background-size:18px 18px}
+  .msg{max-width:78%;padding:6px 9px 4px;border-radius:9px;font-size:13.5px;line-height:1.35;margin-bottom:8px;box-shadow:0 1px 1px rgba(0,0,0,.1);position:relative;word-wrap:break-word}
+  .msg.user{background:#fff;border-top-left-radius:2px}
+  .msg.bot{background:#d9fdd3;margin-left:auto;border-top-right-radius:2px}
+  .msg .t{display:block;font-size:10px;color:#667781;margin-top:1px;text-align:right;line-height:1}
+  .msg .tick{color:#53bdeb;font-size:10px}
 
   .actions{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px}
   .btn{font-family:inherit;font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px;border:none;cursor:pointer;flex:1}
@@ -327,7 +328,8 @@
 
     document.getElementById("mChat").innerHTML=(l.historial||[]).map(h=>{
       const hora=new Date(h.ts).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
-      return `<div class="msg ${h.rol}">${h.texto}<span class="t">${hora}</span></div>`;
+      const tick=h.rol==='bot'?' <span class="tick">✓✓</span>':'';
+      return `<div class="msg ${h.rol}">${h.texto}<span class="t">${hora}${tick}</span></div>`;
     }).join("")||'<p class="empty sub" style="padding:30px">Sin mensajes todavía.</p>';
 
     const botCtrl=l.humanoEnControl
