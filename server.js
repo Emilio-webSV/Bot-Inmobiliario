@@ -18,6 +18,7 @@ import {
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
 import { enviarTexto, enviarImagen } from "./whatsapp.js";
+import { enviarTextoCanal, enviarImagenCanal } from "./canales.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
@@ -69,17 +70,34 @@ app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
 
   try {
-    const entry = req.body?.entry?.[0];
-    const change = entry?.changes?.[0];
-    const value = change?.value;
-    const mensaje = value?.messages?.[0];
-    if (!mensaje || mensaje.type !== "text") return;
+    const body = req.body;
+    const obj = body?.object;
 
-    const telefono = mensaje.from;
-    const texto = mensaje.text.body;
-    const nombrePerfil = value?.contacts?.[0]?.profile?.name || null;
+    // --- WhatsApp ---
+    if (obj === "whatsapp_business_account" || body?.entry?.[0]?.changes) {
+      const value = body?.entry?.[0]?.changes?.[0]?.value;
+      const mensaje = value?.messages?.[0];
+      if (!mensaje || mensaje.type !== "text") return;
+      const nombre = value?.contacts?.[0]?.profile?.name || null;
+      await procesarMensaje(mensaje.from, mensaje.text.body, nombre, "whatsapp");
+      return;
+    }
 
-    await procesarMensaje(telefono, texto, nombrePerfil);
+    // --- Facebook Messenger o Instagram ---
+    if (obj === "page" || obj === "instagram" || body?.entry?.[0]?.messaging) {
+      const canal = obj === "instagram" ? "instagram" : "messenger";
+      for (const e of body?.entry || []) {
+        for (const ev of e.messaging || []) {
+          const msg = ev.message;
+          // Ignora "echos" (mensajes que mandamos nosotros) y lo que no sea texto
+          if (!msg || msg.is_echo || !msg.text) continue;
+          const remitente = ev.sender?.id;
+          if (!remitente) continue;
+          await procesarMensaje(remitente, msg.text, null, canal);
+        }
+      }
+      return;
+    }
   } catch (err) {
     console.error("[webhook] Error procesando mensaje:", err.message);
   }
@@ -99,13 +117,13 @@ function extraerCita(texto) {
   return { iso: d.toISOString(), textoLimpio: texto.replace(m[0], "").trim() };
 }
 
-async function procesarMensaje(telefono, texto, nombrePerfil) {
+async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp") {
   const config = getConfig();
 
-  // Asegura que el lead exista y guarda el nombre del perfil si aún no lo hay
+  // Asegura que el lead exista y guarda el nombre del perfil y el canal de origen
   let lead = getLead(telefono);
   if (!lead) {
-    lead = upsertLead(telefono, { nombre: nombrePerfil });
+    lead = upsertLead(telefono, { nombre: nombrePerfil, canal });
   } else if (!lead.nombre && nombrePerfil) {
     lead = upsertLead(telefono, { nombre: nombrePerfil });
   }
@@ -122,7 +140,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil) {
       lead = upsertLead(telefono, { agenteAsignado: agente.id });
     }
     const respuesta = "Entiendo perfectamente 🙏 Voy a pasar tu caso ahora mismo con uno de nuestros asesores para atenderte personalmente. En un momento te contactan.";
-    await enviarTexto(telefono, respuesta);
+    await enviarTextoCanal(canal, telefono, respuesta);
     pushHistorial(telefono, "bot", respuesta);
 
     // Avisar al dueño / agente
@@ -162,7 +180,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil) {
     }
   }
 
-  await enviarTexto(telefono, respuesta);
+  await enviarTextoCanal(canal, telefono, respuesta);
   pushHistorial(telefono, "bot", respuesta);
 
   // 6) Si el cliente ya está calificado (zona + presupuesto) y hay match nuevo,
@@ -173,7 +191,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil) {
     if (nueva) {
       const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
       const caption = `🏡 ${nueva.titulo}\n${fmt(nueva.precio)}${nueva.operacion === "renta" ? "/mes" : ""} · ${nueva.recamaras} rec · ${nueva.banos} baños · ${nueva.m2} m²`;
-      await enviarImagen(telefono, nueva.imagenes[0], caption);
+      await enviarImagenCanal(canal, telefono, nueva.imagenes[0], caption);
       pushHistorial(telefono, "bot", `[foto enviada] ${nueva.titulo}`);
       marcarEnviada(telefono, nueva.id);
     }

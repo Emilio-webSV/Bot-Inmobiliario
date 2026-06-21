@@ -210,6 +210,8 @@
   const zonaNombre={polanco:"Polanco",chapultepec:"Lomas/Chapultepec",reforma:"Reforma",condesa:"Condesa/Roma",delvalle:"Del Valle",santafe:"Santa Fe"};
   const tempColor={caliente:"var(--hot)",tibio:"var(--warm)",frio:"var(--cold)"};
   const estadoLabel={sin_atender:"Sin atender",en_atencion:"En atención",cerrado:"Cerrado",perdido:"Perdido"};
+  const canalMini={whatsapp:'<span style="color:#25d366;font-weight:600">● WhatsApp</span>',instagram:'<span style="color:#e1306c;font-weight:600">● Instagram</span>',messenger:'<span style="color:#0084ff;font-weight:600">● Messenger</span>'};
+  const canalNombre={whatsapp:"WhatsApp",instagram:"Instagram",messenger:"Messenger"};
   let intervalo=null;
 
   function aplicarMarca(c){if(!c)return;document.documentElement.style.setProperty('--gold',c);document.documentElement.style.setProperty('--gold-deep',c)}
@@ -270,7 +272,7 @@
       const chips=(l.etiquetas&&l.etiquetas.length)?`<div class="chips">${l.etiquetas.slice(0,3).map(t=>`<span class="chip">${t}</span>`).join("")}</div>`:"";
       const citaTag=l.citaProgramada?`<div><span class="citatag">📅 ${new Date(l.citaProgramada).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</span></div>`:"";
       return `<tr onclick='abrirModal("${l.telefono}")'>
-        <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div>${chips}${citaTag}</td>
+        <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${canalMini[l.canal||'whatsapp']} · ${l.telefono}</div>${chips}${citaTag}</td>
         <td><span class="estado ${est}">${estadoLabel[est]}</span></td>
         <td><span class="temp ${l.temperatura}"><span class="pip"></span>${l.temperatura}</span></td>
         <td><div class="score"><div class="gauge"><i style="width:${l.score}%;background:${tempColor[l.temperatura]}"></i></div><b>${l.score}</b></div></td>
@@ -298,7 +300,7 @@
     if(r.status===401){volverAlGate();return;}
     const l=await r.json();
     document.getElementById("mName").textContent=l.nombre||"Sin nombre";
-    document.getElementById("mPhone").textContent=l.telefono;
+    document.getElementById("mPhone").innerHTML=`${canalMini[l.canal||'whatsapp']} · ${l.telefono}`;
     modalTab('chat'); // siempre abre mostrando la conversación
 
     const p=l.perfil||{};
@@ -346,8 +348,11 @@
     const botCtrl=l.humanoEnControl
       ? `<button class="btn primary" onclick="devolverControl('${l.telefono}')">↩ Reactivar bot</button>`
       : `<button class="btn ghost" onclick="tomarControl('${l.telefono}')">Pausar bot</button>`;
-    document.getElementById("mActions").innerHTML=`${botCtrl}
-      <a class="btn ghost" style="text-decoration:none;text-align:center" href="https://wa.me/${l.telefono}" target="_blank">Escribir por WhatsApp</a>`;
+    const canal=l.canal||'whatsapp';
+    const responderBtn=(canal==='whatsapp')
+      ? `<a class="btn ghost" style="text-decoration:none;text-align:center" href="https://wa.me/${l.telefono}" target="_blank">Escribir por WhatsApp</a>`
+      : `<a class="btn ghost" style="text-decoration:none;text-align:center" href="https://business.facebook.com/latest/inbox" target="_blank">Responder en ${canalNombre[canal]}</a>`;
+    document.getElementById("mActions").innerHTML=`${botCtrl}${responderBtn}`;
     document.getElementById("overlay").classList.add("show");
   }
 

@@ -90,6 +90,7 @@ export function upsertLead(telefono, patch) {
       score: 0,               // 0-100
       temperatura: "frio",    // caliente | tibio | frio
       estado: "sin_atender",  // sin_atender | en_atencion | cerrado | perdido
+      canal: "whatsapp",      // whatsapp | messenger | instagram
       agenteAsignado: null,
       humanoEnControl: false, // si un agente tomó el control
       escalado: false,        // si se escaló por frustración

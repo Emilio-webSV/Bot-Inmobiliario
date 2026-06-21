@@ -12,6 +12,7 @@
 import cron from "node-cron";
 import { loadDB, upsertLead, pushHistorial, getConfig } from "./store.js";
 import { enviarTexto } from "./whatsapp.js";
+import { enviarTextoCanal } from "./canales.js";
 
 const HORA = 60 * 60 * 1000;
 const DIA = 24 * HORA;
@@ -42,7 +43,7 @@ async function revisarSeguimientos() {
     // 24h sin responder
     if (esperandoRespuesta && h >= 24 && h < 72 && !lead.seguimientos.f24) {
       const msg = `Hola${lead.nombre ? " " + lead.nombre : ""} 👋 ¿Sigues interesado en encontrar tu propiedad? Con gusto te ayudo a dar el siguiente paso cuando quieras.`;
-      await enviarTexto(lead.telefono, msg);
+      await enviarTextoCanal(lead.canal, lead.telefono, msg);
       pushHistorial(lead.telefono, "bot", msg);
       upsertLead(lead.telefono, { seguimientos: { f24: true } });
       continue;
@@ -51,7 +52,7 @@ async function revisarSeguimientos() {
     // 72h sin responder
     if (esperandoRespuesta && h >= 72 && h < 24 * 30 && !lead.seguimientos.f72) {
       const msg = `${lead.nombre ? lead.nombre + ", t" : "T"}e cuento que el mercado se mueve rápido y tengo opciones que quizá te encanten. ¿Retomamos? 🏡`;
-      await enviarTexto(lead.telefono, msg);
+      await enviarTextoCanal(lead.canal, lead.telefono, msg);
       pushHistorial(lead.telefono, "bot", msg);
       upsertLead(lead.telefono, { seguimientos: { f72: true } });
       continue;
@@ -59,7 +60,7 @@ async function revisarSeguimientos() {
 
     // Reactivación de leads fríos
     const reactivar = async (mensaje, flag) => {
-      await enviarTexto(lead.telefono, mensaje);
+      await enviarTextoCanal(lead.canal, lead.telefono, mensaje);
       pushHistorial(lead.telefono, "bot", mensaje);
       upsertLead(lead.telefono, { seguimientos: { [flag]: true } });
     };
@@ -85,7 +86,7 @@ async function revisarCitas() {
         weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
       });
       const msg = `Recordatorio 📅 Tienes tu cita el ${fecha}. ¿Confirmas asistencia? Aquí estaré para lo que necesites.`;
-      await enviarTexto(lead.telefono, msg);
+      await enviarTextoCanal(lead.canal, lead.telefono, msg);
       pushHistorial(lead.telefono, "bot", msg);
       upsertLead(lead.telefono, { seguimientos: { recordatorioCita: true } });
     }
