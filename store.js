@@ -133,6 +133,16 @@ export function getAgents() {
   return loadDB().agents;
 }
 
+export function deleteLead(telefono) {
+  const db = loadDB();
+  if (db.leads[telefono]) {
+    delete db.leads[telefono];
+    saveDB(db);
+    return true;
+  }
+  return false;
+}
+
 export function getConfig() {
   const c = loadDB().config;
   // El nombre se fija en la instalación con la variable AGENCY_NAME (lo pones TÚ,

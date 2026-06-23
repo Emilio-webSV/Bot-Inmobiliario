@@ -9,8 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#14151a;--ink-soft:#3a3d47;--muted:#8a8f9c;--line:#e7e4dc;
-    --canvas:#f6f4ee;--card:#fff;--gold:#d9a526;--gold-deep:#b9851a;
+    --ink:#15181f;--ink-soft:#3b414e;--muted:#79818f;--line:#e4e7ec;
+    --canvas:#eef1f5;--card:#fff;--gold:#2d52c4;--gold-deep:#2342a0;
     --green:#2e9e4f;--red:#e0483b;
     --shadow:0 1px 2px rgba(20,21,26,.04),0 6px 20px rgba(20,21,26,.06);
   }
@@ -143,9 +143,6 @@
             <option value="relajado y amigable">Relajado y amigable</option>
             <option value="lujoso y exclusivo">Lujoso y exclusivo</option>
           </select>
-        </div>
-        <div><label>Color de marca <span style="font-weight:400;color:var(--muted)">(personaliza el CRM)</span></label>
-          <input id="s_color" type="color" value="#d9a526" style="height:42px;padding:4px;cursor:pointer" />
         </div>
       </div>
       <button class="btn primary" onclick="guardarConfig()">Guardar datos</button>
@@ -308,7 +305,6 @@
     try{
       const c=(await(await fetch("/api/config",{headers:{"x-admin-password":PASS}})).json()).config||{};
       if(c.tono)document.getElementById("s_tono").value=c.tono;
-      if(c.brandColor){document.getElementById("s_color").value=c.brandColor;aplicarMarca(c.brandColor);}
       document.getElementById("agencyName").textContent=c.nombreAgencia||"Panel";
       const ags=(await(await fetch("/api/agents",{headers:{"x-admin-password":PASS}})).json()).agents||[];
       const list=document.getElementById("agentList");
@@ -323,10 +319,10 @@
     }catch(e){toast("Error al cargar ajustes")}
   }
   async function guardarConfig(){
-    const body={tono:document.getElementById("s_tono").value,brandColor:document.getElementById("s_color").value};
+    const body={tono:document.getElementById("s_tono").value};
     try{const r=await fetch("/api/config",{method:"PUT",headers:{"Content-Type":"application/json","x-admin-password":PASS},body:JSON.stringify(body)});
       if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}
-      aplicarMarca(body.brandColor);toast("Datos guardados ✓");cargarAjustes();
+      toast("Guardado ✓");cargarAjustes();
     }catch(e){toast("Error de conexión")}
   }
   function setZonasChecks(zonas){document.querySelectorAll("#a_zonas input").forEach(c=>c.checked=(zonas||[]).includes(c.value))}

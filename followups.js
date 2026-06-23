@@ -83,7 +83,7 @@ async function revisarCitas() {
     const h = (new Date(lead.citaProgramada).getTime() - Date.now()) / HORA;
     if (h <= 24 && h > 23 && !lead.seguimientos.recordatorioCita) {
       const fecha = new Date(lead.citaProgramada).toLocaleString("es-MX", {
-        weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+        timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
       });
       const msg = `Recordatorio 📅 Tienes tu cita el ${fecha}. ¿Confirmas asistencia? Aquí estaré para lo que necesites.`;
       await enviarTextoCanal(lead.canal, lead.telefono, msg);

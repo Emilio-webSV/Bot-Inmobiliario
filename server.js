@@ -12,7 +12,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import {
-  loadDB, upsertLead, pushHistorial, getLead, getAllLeads, getConfig, saveDB,
+  loadDB, upsertLead, pushHistorial, getLead, getAllLeads, getConfig, saveDB, deleteLead,
   getProperties, getProperty, createProperty, updateProperty, deleteProperty,
   getAgents, updateConfig, createAgent, updateAgent, deleteAgent,
 } from "./store.js";
@@ -77,8 +77,12 @@ app.post("/webhook", async (req, res) => {
     if (obj === "whatsapp_business_account" || body?.entry?.[0]?.changes) {
       const value = body?.entry?.[0]?.changes?.[0]?.value;
       const mensaje = value?.messages?.[0];
-      if (!mensaje || mensaje.type !== "text") return;
+      if (!mensaje) return;
       const nombre = value?.contacts?.[0]?.profile?.name || null;
+      if (mensaje.type !== "text") {
+        await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // imagen, audio, etc.
+        return;
+      }
       await procesarMensaje(mensaje.from, mensaje.text.body, nombre, "whatsapp");
       return;
     }
@@ -89,11 +93,11 @@ app.post("/webhook", async (req, res) => {
       for (const e of body?.entry || []) {
         for (const ev of e.messaging || []) {
           const msg = ev.message;
-          // Ignora "echos" (mensajes que mandamos nosotros) y lo que no sea texto
-          if (!msg || msg.is_echo || !msg.text) continue;
+          if (!msg || msg.is_echo) continue; // ignora echos
           const remitente = ev.sender?.id;
           if (!remitente) continue;
-          await procesarMensaje(remitente, msg.text, null, canal);
+          if (msg.text) await procesarMensaje(remitente, msg.text, null, canal);
+          else await manejarNoTexto(remitente, null, canal); // imagen / adjunto
         }
       }
       return;
@@ -106,6 +110,18 @@ app.post("/webhook", async (req, res) => {
 // ---------------------------------------------------------------------------
 // Lógica central: qué hace el bot con cada mensaje entrante
 // ---------------------------------------------------------------------------
+// El cliente mandó algo que no es texto (imagen, audio, sticker...). El bot
+// todavía no "ve" imágenes, así que responde con gracia en vez de quedarse callado.
+async function manejarNoTexto(remitente, nombre, canal) {
+  let lead = getLead(remitente);
+  if (!lead) lead = upsertLead(remitente, { nombre, canal });
+  pushHistorial(remitente, "user", "[imagen/archivo recibido]");
+  if (lead.humanoEnControl) return; // si un asesor ya está atendiendo, no respondas
+  const msg = "¡Gracias! 🙂 Por aquí todavía no alcanzo a ver las imágenes, pero cuéntame qué estás buscando (zona, presupuesto, recámaras) y te ayudo. O si prefieres, te paso con un asesor.";
+  await enviarTextoCanal(canal, remitente, msg);
+  pushHistorial(remitente, "bot", msg);
+}
+
 // Detecta la etiqueta oculta [CITA: YYYY-MM-DD HH:MM] que pone el bot al agendar.
 // Devuelve la fecha en ISO y el texto ya sin la etiqueta, o null si no hay cita.
 function extraerCita(texto) {
@@ -174,7 +190,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     respuesta = cita.textoLimpio; // quita la etiqueta antes de mandársela al cliente
     upsertLead(telefono, { citaProgramada: cita.iso, seguimientos: { recordatorioCita: false } });
     const dueno = process.env.OWNER_PHONE;
-    const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
     if (dueno) {
       await enviarTexto(dueno, `📅 Cita agendada\nCliente: ${lead.nombre || telefono}\n${fechaTxt}`).catch(() => {});
     }
@@ -238,7 +254,7 @@ app.get("/api/leads", (req, res) => {
       .reduce((s, l) => s + l.perfil.presupuesto, 0),
   };
 
-  res.json({ leads, agentes: db.agents, agentesById, metricas, config: db.config });
+  res.json({ leads, agentes: db.agents, agentesById, metricas, config: getConfig() });
 });
 
 // Exportar todos los leads a CSV (se abre en Excel). Va ANTES de /:telefono
@@ -261,7 +277,7 @@ app.get("/api/leads/export", (req, res) => {
       p.zona || "", p.presupuesto || "", p.recamaras || "", p.proposito || "",
       l.agenteAsignado ? (agentesById[l.agenteAsignado] || "") : "",
       (l.etiquetas || []).join(" | "), (l.notas || "").replace(/\n/g, " "),
-      l.creado ? new Date(l.creado).toLocaleString("es-MX") : "",
+      l.creado ? new Date(l.creado).toLocaleString("es-MX", { timeZone: "America/Mexico_City" }) : "",
     ].map(esc).join(",");
   });
 
@@ -344,6 +360,31 @@ app.post("/api/leads/:telefono/cita", (req, res) => {
   }
   upsertLead(req.params.telefono, { citaProgramada: iso, seguimientos: { recordatorioCita: false } });
   res.json({ ok: true });
+});
+
+// El asesor escribe al cliente DIRECTO desde el CRM (por el canal del lead).
+// Al mandar, el bot deja de responder solo (el humano tomó el control).
+app.post("/api/leads/:telefono/enviar", async (req, res) => {
+  const lead = getLead(req.params.telefono);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  const texto = String(req.body?.texto || "").trim();
+  if (!texto) return res.status(400).json({ error: "Texto vacío" });
+  await enviarTextoCanal(lead.canal, req.params.telefono, texto);
+  pushHistorial(req.params.telefono, "bot", texto);
+  upsertLead(req.params.telefono, { humanoEnControl: true });
+  res.json({ ok: true });
+});
+
+// Acciones en lote: borrar o cambiar estado de varios leads seleccionados
+app.post("/api/leads/bulk", (req, res) => {
+  const { accion, telefonos } = req.body || {};
+  if (!Array.isArray(telefonos) || !telefonos.length) return res.status(400).json({ error: "Sin leads" });
+  let n = 0;
+  for (const tel of telefonos) {
+    if (accion === "borrar") { if (deleteLead(tel)) n++; }
+    else if (["sin_atender", "en_atencion", "cerrado", "perdido"].includes(accion)) { upsertLead(tel, { estado: accion }); n++; }
+  }
+  res.json({ ok: true, count: n });
 });
 
 // ---------------------------------------------------------------------------
@@ -433,9 +474,9 @@ app.get("/api/test/alerta-calientes", async (req, res) => {
   res.json({ ok: true, detalle: r });
 });
 
-// Panel de administración
+// Panel de administración (ahora unificado dentro del CRM)
 app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "admin.html"));
+  res.redirect("/dashboard");
 });
 
 // Dashboard
