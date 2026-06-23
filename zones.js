@@ -74,8 +74,8 @@ export function detectarZona(texto) {
   if (t.includes("chapultepec") || t.includes("lomas")) return "chapultepec";
   if (t.includes("reforma") || t.includes("cuauhtemoc") || t.includes("cuauhtémoc")) return "reforma";
   if (t.includes("condesa") || t.includes("roma")) return "condesa";
-  if (t.includes("del valle") || t.includes("napoles") || t.includes("nápoles")) return "delvalle";
-  if (t.includes("santa fe") || t.includes("santafe")) return "santafe";
+  if (t.includes("valle") || t.includes("napoles") || t.includes("nápoles")) return "delvalle";
+  if (t.includes("santa fe") || t.includes("santafe") || t.includes("santa fé")) return "santafe";
   return null;
 }
 

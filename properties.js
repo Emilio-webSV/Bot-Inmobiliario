@@ -7,45 +7,60 @@
 
 import { getProperties, loadDB, saveDB } from "./store.js";
 
-// Devuelve las mejores propiedades disponibles para el perfil del lead
+// Devuelve las mejores propiedades disponibles para el perfil del lead.
+// ESTRICTO: si el cliente dijo una zona, SOLO devuelve propiedades de esa zona
+// (nunca de otra). Si aún no hay zona, no adivina: devuelve [].
 export function buscarPropiedades(lead, limite = 3) {
   const p = lead.perfil || {};
-  let props = getProperties().filter((x) => x.disponible !== false && x.imagenes.length >= 0);
+  if (!p.zona) return []; // sin zona no presentamos nada (evita ofrecer lo que no pidió)
 
-  // Puntaje de coincidencia para ordenar
+  let props = getProperties().filter(
+    (x) => x.disponible !== false && (x.imagenes || []).length >= 0 && x.zona === p.zona
+  );
+
   const scored = props.map((prop) => {
-    let s = 0;
-    if (p.zona && prop.zona === p.zona) s += 50;          // misma zona = lo más importante
+    let s = 10; // ya cumple la zona
     if (p.recamaras && prop.recamaras >= p.recamaras) s += 20;
     if (p.recamaras && prop.recamaras === p.recamaras) s += 10;
     if (p.presupuesto) {
-      if (prop.precio <= p.presupuesto) s += 30;          // dentro de presupuesto
+      if (prop.precio <= p.presupuesto) s += 30;            // dentro de presupuesto
       else if (prop.precio <= p.presupuesto * 1.1) s += 15; // un poquito arriba
-      else s -= 20;                                        // muy caro
+      else s -= 40;                                         // muy caro: casi descártala
     }
-    // propósito invertir/vivir no filtra duro, pero da un empujoncito
     if (p.proposito === "invertir" && prop.operacion === "venta") s += 5;
     return { prop, s };
   });
 
   return scored
-    .filter((x) => x.s > 0)        // que al menos coincida en algo
+    .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s)
     .slice(0, limite)
     .map((x) => x.prop);
 }
 
-// Texto compacto para inyectar al prompt del bot (para que recomiende reales)
-export function contextoPropiedades(props) {
-  if (!props.length) return "";
+// Texto compacto para inyectar al prompt del bot (para que recomiende reales).
+// `featured` es la propiedad cuya foto se enviará enseguida: el bot debe hablar
+// de ESA para que el texto y la foto coincidan.
+export function contextoPropiedades(props, featured) {
+  if (!props.length) {
+    return `NO TIENES NINGUNA PROPIEDAD que cuadre con la zona y el presupuesto que pidió el cliente.
+Sé honesto: dile con naturalidad que ahorita no tienes algo con esas características y ofrece
+que un asesor le avise apenas entre algo que le quede. NUNCA inventes una propiedad, NUNCA
+inventes precios y NUNCA le ofrezcas algo de otra zona distinta a la que pidió.`;
+  }
   const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
-  const lineas = props.map((p, i) => {
-    return `${i + 1}. ${p.titulo} — ${p.tipo} en ${p.zona || "zona N/D"}, ${p.operacion}. ${fmt(p.precio)}${p.operacion === "renta" ? "/mes" : ""}, ${p.recamaras} rec, ${p.banos} baños, ${p.m2} m². ${p.descripcion}`;
-  });
-  return `PROPIEDADES REALES DISPONIBLES QUE LE PUEDES OFRECER (NO inventes otras):
-${lineas.join("\n")}
+  const linea = (p) =>
+    `"${p.titulo}" — ${p.tipo} en ${p.zona}, ${p.operacion}. ${fmt(p.precio)}${p.operacion === "renta" ? "/mes" : ""}, ${p.recamaras} rec, ${p.banos} baños, ${p.m2} m². ${p.descripcion}`;
 
-Si alguna le queda al cliente, menciónala con naturalidad (nombre y precio). Las fotos se le envían aparte automáticamente, así que puedes decir algo como "te paso unas fotos".`;
+  let txt = `PROPIEDADES REALES DISPONIBLES (SOLO estas existen, NO inventes otras ni de otra zona):\n`;
+  txt += props.map((p, i) => `${i + 1}. ${linea(p)}`).join("\n");
+
+  if (featured) {
+    txt += `\n\nLA PROPIEDAD QUE VAS A MOSTRAR AHORITA (su foto se envía enseguida): "${featured.titulo}".
+Háblale de ESA propiedad en específico (su nombre, precio y por qué le puede gustar) y di que le
+mandas la foto. Es CLAVE que hables justo de esta, NO de otra, porque la foto que recibe es de esta.`;
+  }
+  return txt;
 }
 
 // Marca una propiedad como ya enviada a un lead (para no repetir fotos)

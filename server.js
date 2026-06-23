@@ -133,6 +133,15 @@ function extraerCita(texto) {
   return { iso: d.toISOString(), textoLimpio: texto.replace(m[0], "").trim() };
 }
 
+// Detecta la etiqueta oculta [NOMBRE: ...] que el bot agrega cuando el cliente
+// dice su nombre. Devuelve el nombre y el texto ya sin la etiqueta.
+function extraerNombre(texto) {
+  const m = texto.match(/\[NOMBRE:\s*([^\]]+)\]/i);
+  if (!m) return null;
+  const nombre = m[1].trim().replace(/["']/g, "").slice(0, 40);
+  return { nombre, textoLimpio: texto.replace(m[0], "").trim() };
+}
+
 async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp") {
   const config = getConfig();
 
@@ -177,9 +186,12 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   const perfilNuevo = extraerPerfil(texto, lead.perfil);
   lead = upsertLead(telefono, { perfil: perfilNuevo });
 
-  // 4) Busca propiedades reales que le queden y se las da al bot como contexto
+  // 4) Propiedades reales de SU zona que le quedan. `featured` = la que se le
+  //    mostrará ahorita (su foto). Así el bot habla justo de la que manda, no de otra.
   const matches = buscarPropiedades(lead, 3);
-  const propiedadesCtx = contextoPropiedades(matches);
+  const yaEnviadas = lead.propiedadesEnviadas || [];
+  const featured = matches.find((m) => !yaEnviadas.includes(m.id) && (m.imagenes || []).length) || null;
+  const propiedadesCtx = contextoPropiedades(matches, featured);
 
   // 5) Genera respuesta con el bot (ya conoce las propiedades reales)
   let respuesta = await generarRespuesta({ config, lead, propiedadesCtx });
@@ -196,21 +208,23 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     }
   }
 
+  // 5c) ¿El bot captó el nombre del cliente? Detecta [NOMBRE: ...] y lo guarda.
+  const nm = extraerNombre(respuesta);
+  if (nm) {
+    respuesta = nm.textoLimpio;
+    if (nm.nombre) upsertLead(telefono, { nombre: nm.nombre });
+  }
+
   await enviarTextoCanal(canal, telefono, respuesta);
   pushHistorial(telefono, "bot", respuesta);
 
-  // 6) Si el cliente ya está calificado (zona + presupuesto) y hay match nuevo,
-  //    le manda la foto de la mejor propiedad que no le hayamos enviado antes.
-  if (lead.perfil.zona && lead.perfil.presupuesto && matches.length) {
-    const yaEnviadas = lead.propiedadesEnviadas || [];
-    const nueva = matches.find((m) => !yaEnviadas.includes(m.id) && m.imagenes.length);
-    if (nueva) {
-      const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
-      const caption = `🏡 ${nueva.titulo}\n${fmt(nueva.precio)}${nueva.operacion === "renta" ? "/mes" : ""} · ${nueva.recamaras} rec · ${nueva.banos} baños · ${nueva.m2} m²`;
-      await enviarImagenCanal(canal, telefono, nueva.imagenes[0], caption);
-      pushHistorial(telefono, "bot", `[foto enviada] ${nueva.titulo}`);
-      marcarEnviada(telefono, nueva.id);
-    }
+  // 6) Manda la foto de LA propiedad que el bot acaba de presentar (la misma).
+  if (featured && lead.perfil.zona && lead.perfil.presupuesto) {
+    const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
+    const caption = `🏡 ${featured.titulo}\n${fmt(featured.precio)}${featured.operacion === "renta" ? "/mes" : ""} · ${featured.recamaras} rec · ${featured.banos} baños · ${featured.m2} m²`;
+    await enviarImagenCanal(canal, telefono, featured.imagenes[0], caption);
+    pushHistorial(telefono, "bot", `[foto enviada] ${featured.titulo}`);
+    marcarEnviada(telefono, featured.id);
   }
 
   // 7) Recalcula score y temperatura, asigna agente si subió a tibio/caliente

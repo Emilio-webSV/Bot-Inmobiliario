@@ -222,12 +222,12 @@
       <div class="navgroup">
         <div class="gtitle">Principal</div>
         <div class="navitem active" data-view="leads" onclick="showView('leads')"><span class="ic">📊</span> Leads <span class="badge hidden" id="navLeadsBadge">0</span></div>
+        <div class="navitem" data-view="agenda" onclick="showView('agenda')"><span class="ic">📅</span> Agenda <span class="badge hidden" id="navAgendaBadge">0</span></div>
         <div class="navitem" data-view="props" onclick="showView('props')"><span class="ic">🏠</span> Propiedades</div>
       </div>
       <div class="navgroup">
         <div class="gtitle">Gestión</div>
         <div class="navitem" data-view="agentes" onclick="showView('agentes')"><span class="ic">👥</span> Agentes</div>
-        <div class="navitem" data-view="ajustes" onclick="showView('ajustes')"><span class="ic">⚙️</span> Ajustes</div>
       </div>
       <div class="sidefoot">CRM en vivo · se actualiza solo</div>
     </aside>
@@ -248,7 +248,7 @@
           <button class="danger" onclick="bulk('borrar')">🗑 Borrar</button>
         </div>
         <div class="panel">
-          <div class="phead"><h3>Leads por prioridad</h3><a class="exportbtn" id="exportLink" href="#">⬇ Exportar a Excel</a></div>
+          <div class="phead"><h3>Leads por prioridad</h3></div>
           <div id="tableHost"><div class="empty" style="border:none">Cargando…</div></div>
         </div>
       </section>
@@ -266,22 +266,11 @@
         <div id="agentList"></div>
       </section>
 
-      <!-- AJUSTES -->
-      <section id="view-ajustes" class="view hidden">
-        <div class="scard">
-          <h3>Datos de la agencia</h3>
-          <p class="sub">Cómo se presenta el bot con los clientes.</p>
-          <div class="frow">
-            <div><label>Tono del bot</label>
-              <select id="s_tono">
-                <option value="profesional y cálido">Profesional y cálido</option>
-                <option value="formal y serio">Formal y serio</option>
-                <option value="relajado y amigable">Relajado y amigable</option>
-                <option value="lujoso y exclusivo">Lujoso y exclusivo</option>
-              </select>
-            </div>
-          </div>
-          <button class="btn primary" onclick="guardarConfig()">Guardar</button>
+      <!-- AGENDA -->
+      <section id="view-agenda" class="view hidden">
+        <div class="panel">
+          <div class="phead"><h3>Próximas citas</h3></div>
+          <div id="agendaHost"><div class="empty" style="border:none">Cargando…</div></div>
         </div>
       </section>
     </main>
@@ -376,7 +365,6 @@
     if(r.status===401){document.getElementById("gateErr").style.display="block";return;}
     document.getElementById("gate").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
-    document.getElementById("exportLink").href="/api/leads/export?pass="+encodeURIComponent(PASS);
     renderLeads(await r.json());
     if(!intervalo)intervalo=setInterval(()=>{if(!document.getElementById("view-leads").classList.contains("hidden"))cargarLeads();},15000);
   }
@@ -391,12 +379,12 @@
     document.querySelectorAll(".navitem").forEach(n=>n.classList.toggle("active",n.dataset.view===name));
     document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
     document.getElementById("view-"+name).classList.remove("hidden");
-    document.getElementById("pageTitle").textContent={leads:"Leads",props:"Propiedades",agentes:"Agentes",ajustes:"Ajustes"}[name];
+    document.getElementById("pageTitle").textContent={leads:"Leads",agenda:"Agenda",props:"Propiedades",agentes:"Agentes"}[name];
     document.getElementById("upd").textContent=name==='leads'?document.getElementById("upd").textContent:"";
     if(name==='leads')cargarLeads();
+    else if(name==='agenda')cargarAgenda();
     else if(name==='props')cargarProps();
     else if(name==='agentes')cargarAgentes();
-    else if(name==='ajustes')cargarConfig();
   }
 
   /* ---------- LEADS ---------- */
@@ -413,6 +401,8 @@
     pintarMetricas(data.metricas);pintarTabla(data.leads);
     const b=document.getElementById("navLeadsBadge"),sa=data.metricas.sinAtender||0;
     b.textContent=sa;b.classList.toggle("hidden",!sa);
+    const up=(data.leads||[]).filter(l=>l.citaProgramada&&new Date(l.citaProgramada).getTime()>Date.now()).length;
+    const ab=document.getElementById("navAgendaBadge");ab.textContent=up;ab.classList.toggle("hidden",!up);
     document.getElementById("upd").textContent="Actualizado "+new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
   }
   function pintarMetricas(m){
@@ -524,6 +514,25 @@
   function toggleAll(c){document.querySelectorAll(".lead-check").forEach(x=>{x.checked=c;toggleSel(x.value,c)})}
   function actualizarBulkBar(){document.getElementById("bulkcount").textContent=seleccion.size;document.getElementById("bulkbar").style.display=seleccion.size?"flex":"none"}
   async function bulk(accion){const tels=[...seleccion];if(!tels.length)return;if(accion==='borrar'&&!confirm(`¿Borrar ${tels.length} lead(s)? No se puede deshacer.`))return;await fetch('/api/leads/bulk',{method:'POST',headers:JH(),body:JSON.stringify({accion,telefonos:tels})});seleccion.clear();actualizarBulkBar();cargarLeads()}
+
+  /* ---------- AGENDA ---------- */
+  async function cargarAgenda(){
+    try{
+      const data=await(await fetch("/api/leads",{headers:AH()})).json();
+      agentesById=data.agentesById||{};
+      const conCita=(data.leads||[]).filter(l=>l.citaProgramada).sort((a,b)=>new Date(a.citaProgramada)-new Date(b.citaProgramada));
+      const host=document.getElementById("agendaHost");
+      if(!conCita.length){host.innerHTML='<div class="empty" style="border:none"><p>No hay citas agendadas</p><p class="sub">Cuando el bot o un asesor agende una visita, aparecerá aquí.</p></div>';return}
+      const ahora=Date.now();
+      host.innerHTML=`<table><thead><tr><th>Fecha y hora</th><th>Cliente</th><th class="hide-sm">Zona</th><th class="hide-sm">Asesor</th></tr></thead><tbody>${conCita.map(l=>{
+        const d=new Date(l.citaProgramada),pasada=d.getTime()<ahora;
+        const fecha=d.toLocaleString("es-MX",{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+        const agente=l.agenteAsignado?(agentesById[l.agenteAsignado]||"—"):"Sin asignar";
+        const zona=l.perfil?.zona?(zonaNombre[l.perfil.zona]||l.perfil.zona):"—";
+        return `<tr onclick='abrirModal("${l.telefono}")'><td><b style="${pasada?'color:var(--muted)':''}">${fecha}</b>${pasada?' <span class="sub">(pasada)</span>':''}</td><td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div></td><td class="hide-sm">${zona}</td><td class="hide-sm sub">${agente}</td></tr>`;
+      }).join("")}</tbody></table>`;
+    }catch(e){document.getElementById("agendaHost").innerHTML='<div class="empty" style="border:none">Error al cargar</div>'}
+  }
 
   /* ---------- PROPIEDADES ---------- */
   async function cargarProps(){

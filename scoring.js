@@ -16,12 +16,20 @@ export function extraerPresupuesto(texto) {
   if (!texto) return null;
   const t = texto.toLowerCase().replace(/,/g, "");
 
-  // "2 millones", "2.5 mdp", "3 mdp"
-  let m = t.match(/(\d+(?:\.\d+)?)\s*(?:millones|millon|millón|mdp|mill)/);
+  // Combinado: "6 millones 800 mil", "6 melones 801k" => 6,801,000
+  let m = t.match(/(\d+(?:\.\d+)?)\s*(?:millones|millon|millón|melones|melon)\s*(\d+(?:\.\d+)?)\s*(?:mil|k)\b/);
+  if (m) return Math.round(parseFloat(m[1]) * 1_000_000 + parseFloat(m[2]) * 1_000);
+
+  // "2 millones", "6 melones" (slang), "2.5 mdp", "3 mdp"
+  m = t.match(/(\d+(?:\.\d+)?)\s*(?:millones|millon|millón|melones|melon|mdp|mill)/);
   if (m) return Math.round(parseFloat(m[1]) * 1_000_000);
 
   // "800 mil", "500mil"
-  m = t.match(/(\d+(?:\.\d+)?)\s*mil/);
+  m = t.match(/(\d+(?:\.\d+)?)\s*mil\b/);
+  if (m) return Math.round(parseFloat(m[1]) * 1_000);
+
+  // "500k", "800 k"
+  m = t.match(/(\d+(?:\.\d+)?)\s*k\b/);
   if (m) return Math.round(parseFloat(m[1]) * 1_000);
 
   // Número grande directo: 1500000, 2000000
