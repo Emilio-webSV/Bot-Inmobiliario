@@ -15,6 +15,7 @@ import {
   loadDB, upsertLead, pushHistorial, getLead, getAllLeads, getConfig, saveDB, deleteLead,
   getProperties, getProperty, createProperty, updateProperty, deleteProperty,
   getAgents, updateConfig, createAgent, updateAgent, deleteAgent,
+  getZones, createZone, updateZone, deleteZone, zonaEnUso, seedZonasDemo,
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
 import { enviarTexto, enviarImagen } from "./whatsapp.js";
@@ -268,7 +269,7 @@ app.get("/api/leads", (req, res) => {
       .reduce((s, l) => s + l.perfil.presupuesto, 0),
   };
 
-  res.json({ leads, agentes: db.agents, agentesById, metricas, config: getConfig() });
+  res.json({ leads, agentes: db.agents, agentesById, zonas: db.zones || [], metricas, config: getConfig() });
 });
 
 // Exportar todos los leads a CSV (se abre en Excel). Va ANTES de /:telefono
@@ -473,6 +474,25 @@ app.delete("/api/agents/:id", (req, res) => {
   res.json({ ok: deleteAgent(req.params.id) });
 });
 
+// Zonas (se administran desde el panel; sincronizadas con bot, propiedades y agentes)
+app.get("/api/zones", (req, res) => {
+  res.json({ zones: getZones() });
+});
+app.post("/api/zones", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  res.json({ ok: true, zone: createZone(req.body || {}) });
+});
+app.put("/api/zones/:id", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const z = updateZone(req.params.id, req.body || {});
+  if (!z) return res.status(404).json({ error: "No encontrada" });
+  res.json({ ok: true, zone: z });
+});
+app.delete("/api/zones/:id", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  res.json({ ok: deleteZone(req.params.id), uso: zonaEnUso(req.params.id) });
+});
+
 // ---------------------------------------------------------------------------
 // 5) ENDPOINTS DE PRUEBA (para disparar alertas/reportes cuando quieras)
 // ---------------------------------------------------------------------------
@@ -507,6 +527,7 @@ app.get("/", (req, res) => res.send("Bot inmobiliario activo ✅. Ve a /dashboar
 app.listen(PORT, () => {
   seedAgentesDemo();       // crea agentes de ejemplo si no hay
   seedPropiedadesDemo();   // crea propiedades de ejemplo si no hay
+  seedZonasDemo();         // crea zonas de ejemplo si no hay
   iniciarCronJobs();       // activa seguimientos automáticos
   console.log(`🚀 Bot inmobiliario corriendo en puerto ${PORT}`);
   console.log(`   Dashboard: http://localhost:${PORT}/dashboard`);

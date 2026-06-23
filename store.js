@@ -21,6 +21,7 @@ const DEFAULT_DB = {
   leads: {},        // { telefono: { ...datosDelLead } }
   agents: [],       // [ { id, nombre, telefono, zonas: [], activo } ]
   properties: [],   // [ { id, titulo, zona, tipo, operacion, precio, ... } ]
+  zones: [],        // [ { id, nombre, aliases: [], precioM2, nota, activa } ]
   config: {
     nombreAgencia: "Inmobiliaria Demo",
     tono: "profesional y cálido", // formal | relajado | lujoso
@@ -258,4 +259,110 @@ export function deleteProperty(id) {
   db.properties = (db.properties || []).filter((p) => p.id !== id);
   saveDB(db);
   return db.properties.length < antes;
+}
+
+// ---- Helpers de ZONAS -----------------------------------------------------
+// Las zonas viven en la base de datos para que el dueño las administre desde el
+// panel. El `id` (slug) es la llave que usan las propiedades (prop.zona) y los
+// agentes (agent.zonas), así que NO cambia aunque se edite el nombre.
+
+function slugZona(s) {
+  return (
+    String(s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "")
+      .slice(0, 24) || "z" + Date.now()
+  );
+}
+
+function normalizaAliases(aliases, nombre) {
+  let arr = [];
+  if (Array.isArray(aliases)) arr = aliases;
+  else if (typeof aliases === "string") arr = aliases.split(",");
+  arr = arr.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+  if (nombre) {
+    const n = String(nombre).toLowerCase().trim();
+    if (n && !arr.includes(n)) arr.push(n);
+  }
+  return [...new Set(arr)];
+}
+
+export function getZones() {
+  return loadDB().zones || [];
+}
+
+export function createZone(data) {
+  const db = loadDB();
+  db.zones = db.zones || [];
+  let id = slugZona(data.nombre);
+  let base = id, n = 2;
+  while (db.zones.some((z) => z.id === id)) id = base + n++;
+  const zone = {
+    id,
+    nombre: data.nombre || "Zona",
+    aliases: normalizaAliases(data.aliases, data.nombre),
+    precioM2: data.precioM2 ? Number(data.precioM2) : null,
+    nota: data.nota || "",
+    activa: data.activa !== false,
+  };
+  db.zones.push(zone);
+  saveDB(db);
+  return zone;
+}
+
+export function updateZone(id, data) {
+  const db = loadDB();
+  const i = (db.zones || []).findIndex((z) => z.id === id);
+  if (i === -1) return null;
+  const z = db.zones[i];
+  db.zones[i] = {
+    ...z,
+    nombre: data.nombre !== undefined ? data.nombre : z.nombre,
+    aliases:
+      data.aliases !== undefined
+        ? normalizaAliases(data.aliases, data.nombre || z.nombre)
+        : z.aliases,
+    precioM2:
+      data.precioM2 !== undefined ? (data.precioM2 ? Number(data.precioM2) : null) : z.precioM2,
+    nota: data.nota !== undefined ? data.nota : z.nota,
+    activa: data.activa !== undefined ? data.activa !== false : z.activa,
+    id: z.id, // el slug NO cambia (mantiene sincronía con propiedades y agentes)
+  };
+  saveDB(db);
+  return db.zones[i];
+}
+
+export function deleteZone(id) {
+  const db = loadDB();
+  const antes = (db.zones || []).length;
+  db.zones = (db.zones || []).filter((z) => z.id !== id);
+  saveDB(db);
+  return db.zones.length < antes;
+}
+
+// Cuenta cuántas propiedades y agentes usan una zona (para avisar antes de borrar)
+export function zonaEnUso(id) {
+  const db = loadDB();
+  const props = (db.properties || []).filter((p) => p.zona === id).length;
+  const agentes = (db.agents || []).filter((a) => (a.zonas || []).includes(id)).length;
+  return { props, agentes };
+}
+
+// Crea las zonas de ejemplo de CDMX si no hay ninguna (para que el demo arranque solo).
+// Los slugs coinciden con las llaves que ya usan las propiedades demo.
+export function seedZonasDemo() {
+  const db = loadDB();
+  if ((db.zones || []).length > 0) return;
+  db.zones = [
+    { id: "polanco", nombre: "Polanco", aliases: ["polanco"], precioM2: 95000, nota: "Tendencia estable-alta. Renta promedio ~$45,000/mes (depto 2 rec). Compradores: ejecutivos, inversionistas y extranjeros; buscan lujo y ubicación. Típico: departamentos de lujo de 2-3 recámaras con amenidades premium.", activa: true },
+    { id: "chapultepec", nombre: "Lomas / Chapultepec", aliases: ["chapultepec", "lomas"], precioM2: 78000, nota: "Tendencia subiendo. Compradores: familias de alto poder adquisitivo que buscan espacio y seguridad. Típico: casas y departamentos amplios, con jardín y seguridad privada.", activa: true },
+    { id: "reforma", nombre: "Reforma / Cuauhtémoc", aliases: ["reforma", "cuauhtemoc", "cuauhtémoc"], precioM2: 72000, nota: "Tendencia subiendo. Compradores: jóvenes profesionistas, inversionistas en renta y corporativos. Típico: departamentos modernos en torre, 1-2 recámaras, con vista a la ciudad.", activa: true },
+    { id: "condesa", nombre: "Condesa / Roma", aliases: ["condesa", "roma"], precioM2: 68000, nota: "Tendencia estable-alta. Compradores: creativos, expats e inversionistas en renta corta (Airbnb). Típico: departamentos con estilo, edificios art déco y lofts.", activa: true },
+    { id: "delvalle", nombre: "Del Valle / Nápoles", aliases: ["valle", "del valle", "napoles", "nápoles"], precioM2: 58000, nota: "Tendencia estable. Compradores: familias clase media-alta y primer comprador con buen ingreso. Típico: departamentos familiares, buena conectividad y escuelas cerca.", activa: true },
+    { id: "santafe", nombre: "Santa Fe", aliases: ["santa fe", "santafe", "santa fé"], precioM2: 52000, nota: "Tendencia estable. Compradores: ejecutivos que trabajan en los corporativos de la zona. Típico: departamentos en torre, con plusvalía corporativa y amenidades.", activa: true },
+  ];
+  saveDB(db);
+  console.log("[zones] Zonas demo creadas.");
 }

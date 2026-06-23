@@ -8,7 +8,7 @@
 //   GROQ_MODEL    -> opcional. Por defecto: llama-3.3-70b-versatile
 // ---------------------------------------------------------------------------
 
-import { contextoZona } from "./zones.js";
+import { contextoZona, listaZonasNombres } from "./zones.js";
 
 const MODELO = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const API_KEY = process.env.GROQ_API_KEY;
@@ -17,6 +17,7 @@ const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 function construirSystemPrompt({ config, lead, propiedadesCtx }) {
   const p = lead.perfil || {};
   const zonaCtx = p.zona ? contextoZona(p.zona) : "";
+  const listaZonas = listaZonasNombres();
   const idioma = p.idioma === "en" ? "inglés" : "español";
 
   const faltantes = [];
@@ -106,11 +107,10 @@ Este cliente YA tiene una cita agendada para el ${citaActual}.
 REGLAS:
 - NUNCA inventes zonas, colonias, propiedades, precios ni direcciones. Si no
   tienes el dato, pregunta o di que un asesor lo confirmará.
-- ZONAS QUE MANEJA LA AGENCIA: Polanco, Lomas/Chapultepec, Reforma, Condesa/Roma,
-  Del Valle, Santa Fe. Trabaja SOLO con estas. Si el cliente menciona otra zona,
-  o la escribe con errores (ej. "planc0", "polaco"), NO inventes una colonia ni
-  su descripción: pregúntale amablemente a cuál de las zonas que manejas se refiere
-  (ej. "¿Te refieres a Polanco? 🙂").
+- ZONAS QUE MANEJA LA AGENCIA: ${listaZonas}. Trabaja SOLO con estas. Si el
+  cliente menciona otra zona, o la escribe con errores (ej. "planc0", "polaco"),
+  NO inventes una colonia ni su descripción: pregúntale amablemente a cuál de las
+  zonas que manejas se refiere (ej. "¿Te refieres a Polanco? 🙂").
 - Si el cliente da un dato (presupuesto, zona, etc.), reconócelo breve y sigue.
 - ENFÓCATE en lo que el cliente pidió. Si pidió una zona, NO le ofrezcas otra
   zona distinta a menos que él lo pida. Si no tienes algo que cuadre, dilo honesto

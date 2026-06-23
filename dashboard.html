@@ -228,6 +228,7 @@
       <div class="navgroup">
         <div class="gtitle">Gestión</div>
         <div class="navitem" data-view="agentes" onclick="showView('agentes')"><span class="ic">👥</span> Agentes</div>
+        <div class="navitem" data-view="zonas" onclick="showView('zonas')"><span class="ic">📍</span> Zonas</div>
       </div>
       <div class="sidefoot">CRM en vivo · se actualiza solo</div>
     </aside>
@@ -264,6 +265,13 @@
         <div class="toolbar"><h3>Agentes</h3><button class="btn gold" onclick="abrirAgente()">+ Agregar agente</button></div>
         <p class="sub" style="font-size:13px;color:var(--muted);margin-bottom:16px">El bot asigna cada lead al agente según su zona. Cuando cae un lead calificado, le llega por WhatsApp a su número.</p>
         <div id="agentList"></div>
+      </section>
+
+      <!-- ZONAS -->
+      <section id="view-zonas" class="view hidden">
+        <div class="toolbar"><h3>Zonas</h3><button class="btn gold" onclick="abrirZona()">+ Agregar zona</button></div>
+        <p class="sub" style="font-size:13px;color:var(--muted);margin-bottom:16px">Estas son las zonas que maneja la agencia. El bot solo trabaja con estas, las usa para sonar como experto local, y aquí se sincronizan con las propiedades y los agentes.</p>
+        <div id="zoneList"></div>
       </section>
 
       <!-- AGENDA -->
@@ -304,7 +312,7 @@
     <div class="mhead"><h3 id="modalTitle">Nueva propiedad</h3><button class="close" onclick="cerrar()">×</button></div>
     <div class="form">
       <div class="full"><label>Título</label><input id="f_titulo" placeholder="Ej. Depto de lujo en Polanco" /></div>
-      <div><label>Zona</label><select id="f_zona"><option value="polanco">Polanco</option><option value="chapultepec">Lomas / Chapultepec</option><option value="reforma">Reforma</option><option value="condesa">Condesa / Roma</option><option value="delvalle">Del Valle</option><option value="santafe">Santa Fe</option></select></div>
+      <div><label>Zona</label><select id="f_zona"></select></div>
       <div><label>Tipo</label><select id="f_tipo"><option value="departamento">Departamento</option><option value="casa">Casa</option><option value="terreno">Terreno</option><option value="oficina">Oficina</option></select></div>
       <div><label>Operación</label><select id="f_operacion"><option value="venta">Venta</option><option value="renta">Renta</option></select></div>
       <div><label>Precio (MXN)</label><input id="f_precio" type="number" placeholder="5200000" /></div>
@@ -327,14 +335,7 @@
       <div class="full"><label>Nombre</label><input id="a_nombre" placeholder="María López" /></div>
       <div class="full"><label>WhatsApp <span style="font-weight:400;color:var(--muted)">(con código de país, ej. 5215512345678)</span></label><input id="a_telefono" placeholder="5215512345678" /></div>
       <div class="full"><label>Zonas que cubre</label>
-        <div class="zonechecks" id="a_zonas">
-          <label><input type="checkbox" value="polanco" />Polanco</label>
-          <label><input type="checkbox" value="chapultepec" />Lomas/Chapultepec</label>
-          <label><input type="checkbox" value="reforma" />Reforma</label>
-          <label><input type="checkbox" value="condesa" />Condesa/Roma</label>
-          <label><input type="checkbox" value="delvalle" />Del Valle</label>
-          <label><input type="checkbox" value="santafe" />Santa Fe</label>
-        </div>
+        <div class="zonechecks" id="a_zonas"></div>
       </div>
       <div class="full checkrow"><input id="a_activo" type="checkbox" checked /><label style="margin:0">Activo (recibe leads)</label></div>
     </div>
@@ -342,15 +343,43 @@
   </div>
 </div>
 
+<!-- Modal ZONA -->
+<div class="overlay" id="zoneOverlay">
+  <div class="modal">
+    <div class="mhead"><h3 id="zoneModalTitle">Nueva zona</h3><button class="close" onclick="cerrarZona()">×</button></div>
+    <div class="form">
+      <div class="full"><label>Nombre de la zona</label><input id="z_nombre" placeholder="Ej. Coyoacán" /></div>
+      <div class="full"><label>Palabras clave <span style="font-weight:400;color:var(--muted)">(separadas por coma; así el bot reconoce la zona en los mensajes)</span></label><input id="z_aliases" placeholder="coyoacan, coyoacán, villa coyoacán" /></div>
+      <div class="full"><label>Precio aprox. por m² <span style="font-weight:400;color:var(--muted)">(MXN, opcional)</span></label><input id="z_precio" type="number" placeholder="45000" /></div>
+      <div class="full"><label>Nota para el bot <span style="font-weight:400;color:var(--muted)">(opcional: perfil de comprador, tendencia, lo típico de la zona)</span></label><textarea id="z_nota" rows="3" placeholder="Zona cultural y tranquila. Compradores: familias y creativos. Típico: casas con jardín y mucho árbol."></textarea></div>
+      <div class="full checkrow"><input id="z_activa" type="checkbox" checked /><label style="margin:0">Activa (el bot la ofrece)</label></div>
+    </div>
+    <div class="factions"><button class="btn ghost" onclick="cerrarZona()">Cancelar</button><button class="btn primary" onclick="guardarZona()">Guardar</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
   let PASS="",agentesById={},agentesList=[],intervalo=null,leadActual=null,seleccion=new Set();
-  let editandoId=null,editandoAgenteId=null;
+  let editandoId=null,editandoAgenteId=null,editandoZonaId=null;
+  let zonasList=[];
   const AH=()=>({"x-admin-password":PASS});
   const JH=()=>({"x-admin-password":PASS,"Content-Type":"application/json"});
   const fmtMXN=(n)=>"$"+(Number(n)||0).toLocaleString("es-MX");
-  const zonaNombre={polanco:"Polanco",chapultepec:"Lomas/Chapultepec",reforma:"Reforma",condesa:"Condesa/Roma",delvalle:"Del Valle",santafe:"Santa Fe"};
+  let zonaNombre={};
+
+  // Mantiene zonasList + zonaNombre sincronizados con el servidor
+  function setZonas(zonas){
+    if(!Array.isArray(zonas))return;
+    zonasList=zonas;
+    zonaNombre={};
+    zonas.forEach(z=>zonaNombre[z.id]=z.nombre);
+  }
+  const opcionesZona=()=>zonasList.map(z=>`<option value="${z.id}">${z.nombre}</option>`).join("");
+  const checksZona=()=>zonasList.length
+    ? zonasList.map(z=>`<label><input type="checkbox" value="${z.id}" />${z.nombre}</label>`).join("")
+    : '<span class="sub" style="color:var(--muted)">Primero agrega zonas en la sección Zonas.</span>';
   const tempColor={caliente:"var(--hot)",tibio:"var(--warm)",frio:"var(--cold)"};
   const estadoLabel={sin_atender:"Sin atender",en_atencion:"En atención",cerrado:"Cerrado",perdido:"Perdido"};
   const canalMini={whatsapp:'<span style="color:#25d366;font-weight:600">● WhatsApp</span>',instagram:'<span style="color:#e1306c;font-weight:600">● Instagram</span>',messenger:'<span style="color:#0084ff;font-weight:600">● Messenger</span>'};
@@ -379,12 +408,13 @@
     document.querySelectorAll(".navitem").forEach(n=>n.classList.toggle("active",n.dataset.view===name));
     document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
     document.getElementById("view-"+name).classList.remove("hidden");
-    document.getElementById("pageTitle").textContent={leads:"Leads",agenda:"Agenda",props:"Propiedades",agentes:"Agentes"}[name];
+    document.getElementById("pageTitle").textContent={leads:"Leads",agenda:"Agenda",props:"Propiedades",agentes:"Agentes",zonas:"Zonas"}[name];
     document.getElementById("upd").textContent=name==='leads'?document.getElementById("upd").textContent:"";
     if(name==='leads')cargarLeads();
     else if(name==='agenda')cargarAgenda();
     else if(name==='props')cargarProps();
     else if(name==='agentes')cargarAgentes();
+    else if(name==='zonas')cargarZonas();
   }
 
   /* ---------- LEADS ---------- */
@@ -396,7 +426,7 @@
     }catch(e){document.getElementById("tableHost").innerHTML='<div class="empty" style="border:none">No pude conectar con el servidor</div>'}
   }
   function renderLeads(data){
-    agentesById=data.agentesById||{};agentesList=data.agentes||[];
+    agentesById=data.agentesById||{};agentesList=data.agentes||[];setZonas(data.zonas);
     if(data.config?.nombreAgencia)document.getElementById("agencyName").textContent=data.config.nombreAgencia;
     pintarMetricas(data.metricas);pintarTabla(data.leads);
     const b=document.getElementById("navLeadsBadge"),sa=data.metricas.sinAtender||0;
@@ -550,8 +580,8 @@
       }).join("");
     }catch(e){toast("Error al cargar")}
   }
-  function abrirNueva(){editandoId=null;document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","imagenes"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").value="polanco";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_disponible").checked=true;document.getElementById("propOverlay").classList.add("show")}
-  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").value=p.zona||"polanco";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_imagenes").value=(p.imagenes||[]).join("\n");document.getElementById("f_disponible").checked=p.disponible!==false;document.getElementById("propOverlay").classList.add("show")}
+  function abrirNueva(){editandoId=null;document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","imagenes"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_disponible").checked=true;document.getElementById("propOverlay").classList.add("show")}
+  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_imagenes").value=(p.imagenes||[]).join("\n");document.getElementById("f_disponible").checked=p.disponible!==false;document.getElementById("propOverlay").classList.add("show")}
   function cerrar(){document.getElementById("propOverlay").classList.remove("show")}
   async function guardar(){
     const body={titulo:val("f_titulo"),zona:document.getElementById("f_zona").value,tipo:document.getElementById("f_tipo").value,operacion:document.getElementById("f_operacion").value,precio:val("f_precio"),recamaras:val("f_recamaras"),banos:val("f_banos"),m2:val("f_m2"),descripcion:val("f_descripcion"),imagenes:val("f_imagenes").split("\n").map(s=>s.trim()).filter(Boolean),disponible:document.getElementById("f_disponible").checked};
@@ -576,8 +606,8 @@
   }
   function setZonasChecks(z){document.querySelectorAll("#a_zonas input").forEach(c=>c.checked=(z||[]).includes(c.value))}
   function getZonasChecks(){return [...document.querySelectorAll("#a_zonas input:checked")].map(c=>c.value)}
-  function abrirAgente(){editandoAgenteId=null;document.getElementById("agentModalTitle").textContent="Nuevo agente";document.getElementById("a_nombre").value="";document.getElementById("a_telefono").value="";setZonasChecks([]);document.getElementById("a_activo").checked=true;document.getElementById("agentOverlay").classList.add("show")}
-  function editarAgente(a){editandoAgenteId=a.id;document.getElementById("agentModalTitle").textContent="Editar agente";document.getElementById("a_nombre").value=a.nombre||"";document.getElementById("a_telefono").value=a.telefono||"";setZonasChecks(a.zonas||[]);document.getElementById("a_activo").checked=a.activo!==false;document.getElementById("agentOverlay").classList.add("show")}
+  function abrirAgente(){editandoAgenteId=null;document.getElementById("agentModalTitle").textContent="Nuevo agente";document.getElementById("a_nombre").value="";document.getElementById("a_telefono").value="";document.getElementById("a_zonas").innerHTML=checksZona();setZonasChecks([]);document.getElementById("a_activo").checked=true;document.getElementById("agentOverlay").classList.add("show")}
+  function editarAgente(a){editandoAgenteId=a.id;document.getElementById("agentModalTitle").textContent="Editar agente";document.getElementById("a_nombre").value=a.nombre||"";document.getElementById("a_telefono").value=a.telefono||"";document.getElementById("a_zonas").innerHTML=checksZona();setZonasChecks(a.zonas||[]);document.getElementById("a_activo").checked=a.activo!==false;document.getElementById("agentOverlay").classList.add("show")}
   function cerrarAgente(){document.getElementById("agentOverlay").classList.remove("show")}
   async function guardarAgente(){
     const body={nombre:val("a_nombre"),telefono:val("a_telefono"),zonas:getZonasChecks(),activo:document.getElementById("a_activo").checked};
@@ -587,17 +617,46 @@
   }
   async function borrarAgente(id){if(!confirm("¿Borrar este agente?"))return;try{const r=await fetch("/api/agents/"+id,{method:"DELETE",headers:AH()});if(r.status===401){toast("Contraseña incorrecta");return}toast("Borrado");cargarAgentes()}catch(e){toast("Error")}}
 
-  /* ---------- AJUSTES ---------- */
-  async function cargarConfig(){
-    try{const c=(await(await fetch("/api/config",{headers:AH()})).json()).config||{};if(c.tono)document.getElementById("s_tono").value=c.tono;if(c.nombreAgencia)document.getElementById("agencyName").textContent=c.nombreAgencia;}catch(e){toast("Error al cargar")}
+  /* ---------- ZONAS ---------- */
+  async function cargarZonas(){
+    try{
+      const zs=(await(await fetch("/api/zones",{headers:AH()})).json()).zones||[];
+      setZonas(zs);
+      const list=document.getElementById("zoneList");
+      if(!zs.length){list.innerHTML='<div class="empty">Aún no hay zonas. Agrega la primera.</div>';return}
+      list.innerHTML=zs.map(z=>{
+        const alias=(z.aliases||[]).join(", ");
+        const precio=z.precioM2?(" · "+fmtMXN(z.precioM2)+"/m²"):"";
+        return `<div class="agent"><div class="ainfo"><b>${z.nombre}</b> <span class="pill ${z.activa===false?'off':''}">${z.activa===false?'inactiva':'activa'}</span><div class="meta">🔎 ${alias||'sin palabras clave'}${precio}</div>${z.nota?`<div class="meta" style="margin-top:4px;line-height:1.4">${z.nota}</div>`:''}</div>
+          <div class="aacts"><button class="btn ghost" onclick='editarZona(${JSON.stringify(z)})'>Editar</button><button class="btn danger" onclick="borrarZona('${z.id}','${(z.nombre||'').replace(/'/g,'')}')">Borrar</button></div></div>`;
+      }).join("");
+    }catch(e){toast("Error al cargar zonas")}
   }
-  async function guardarConfig(){
-    try{const r=await fetch("/api/config",{method:"PUT",headers:JH(),body:JSON.stringify({tono:document.getElementById("s_tono").value})});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}toast("Guardado ✓")}catch(e){toast("Error de conexión")}
+  function abrirZona(){editandoZonaId=null;document.getElementById("zoneModalTitle").textContent="Nueva zona";["z_nombre","z_aliases","z_precio","z_nota"].forEach(k=>document.getElementById(k).value="");document.getElementById("z_activa").checked=true;document.getElementById("zoneOverlay").classList.add("show")}
+  function editarZona(z){editandoZonaId=z.id;document.getElementById("zoneModalTitle").textContent="Editar zona";document.getElementById("z_nombre").value=z.nombre||"";document.getElementById("z_aliases").value=(z.aliases||[]).join(", ");document.getElementById("z_precio").value=z.precioM2||"";document.getElementById("z_nota").value=z.nota||"";document.getElementById("z_activa").checked=z.activa!==false;document.getElementById("zoneOverlay").classList.add("show")}
+  function cerrarZona(){document.getElementById("zoneOverlay").classList.remove("show")}
+  async function guardarZona(){
+    const body={nombre:val("z_nombre"),aliases:val("z_aliases"),precioM2:val("z_precio"),nota:val("z_nota"),activa:document.getElementById("z_activa").checked};
+    if(!body.nombre){toast("Ponle nombre a la zona");return}
+    const url=editandoZonaId?"/api/zones/"+editandoZonaId:"/api/zones";
+    try{const r=await fetch(url,{method:editandoZonaId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrarZona();toast(editandoZonaId?"Actualizada ✓":"Agregada ✓");cargarZonas()}catch(e){toast("Error de conexión")}
+  }
+  async function borrarZona(id,nombre){
+    if(!confirm('¿Borrar la zona "'+nombre+'"?\n\nLas propiedades y agentes que ya la tengan conservarán su etiqueta, pero el bot dejará de ofrecerla.'))return;
+    try{
+      const r=await fetch("/api/zones/"+id,{method:"DELETE",headers:AH()});
+      if(r.status===401){toast("Contraseña incorrecta");return}
+      const d=await r.json().catch(()=>({}));const u=d.uso||{};
+      if((u.props||0)+(u.agentes||0)>0)toast(`Zona borrada · la usaban ${u.props||0} propiedad(es) y ${u.agentes||0} agente(s)`);
+      else toast("Zona borrada");
+      cargarZonas();
+    }catch(e){toast("Error")}
   }
 
   document.getElementById("leadOverlay").addEventListener("click",e=>{if(e.target.id==="leadOverlay")cerrarModal()});
   document.getElementById("propOverlay").addEventListener("click",e=>{if(e.target.id==="propOverlay")cerrar()});
   document.getElementById("agentOverlay").addEventListener("click",e=>{if(e.target.id==="agentOverlay")cerrarAgente()});
+  document.getElementById("zoneOverlay").addEventListener("click",e=>{if(e.target.id==="zoneOverlay")cerrarZona()});
 </script>
 </body>
 </html>
