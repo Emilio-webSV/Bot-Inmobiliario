@@ -149,6 +149,8 @@ export function getConfig() {
   // El nombre se fija en la instalación con la variable AGENCY_NAME (lo pones TÚ,
   // no el cliente). Así cada agencia ve SU nombre y se siente hecho a su medida.
   if (process.env.AGENCY_NAME) c.nombreAgencia = process.env.AGENCY_NAME;
+  // El logo del cliente se pone con la variable LOGO_URL (un link a su logo).
+  if (process.env.LOGO_URL) c.logoUrl = process.env.LOGO_URL;
   return c;
 }
 
