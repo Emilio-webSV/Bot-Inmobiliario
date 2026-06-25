@@ -130,8 +130,20 @@ function extraerCita(texto) {
   if (!m) return null;
   const hh = m[2].length === 4 ? "0" + m[2] : m[2];
   const d = new Date(`${m[1]}T${hh}:00-06:00`); // hora de Ciudad de México (UTC-6)
-  if (isNaN(d.getTime())) return null;
-  return { iso: d.toISOString(), textoLimpio: texto.replace(m[0], "").trim() };
+  const textoLimpio = texto.replace(m[0], "").trim();
+  if (isNaN(d.getTime())) return { iso: null, textoLimpio };
+
+  // Red de seguridad: aunque el bot lo intente, NO registramos citas absurdas.
+  // (1) nada en el pasado. (2) solo dentro del horario de visitas (L-S, 9:00-19:00).
+  if (d.getTime() < Date.now() - 5 * 60 * 1000) return { iso: null, textoLimpio };
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Mexico_City", weekday: "short", hour: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const hora = parseInt(partes.find((p) => p.type === "hour").value, 10);
+  const dia = partes.find((p) => p.type === "weekday").value; // Sun, Mon, ...
+  if (dia === "Sun" || hora < 9 || hora >= 19) return { iso: null, textoLimpio };
+
+  return { iso: d.toISOString(), textoLimpio };
 }
 
 // Detecta la etiqueta oculta [NOMBRE: ...] que el bot agrega cuando el cliente
@@ -201,11 +213,13 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   const cita = extraerCita(respuesta);
   if (cita) {
     respuesta = cita.textoLimpio; // quita la etiqueta antes de mandársela al cliente
-    upsertLead(telefono, { citaProgramada: cita.iso, seguimientos: { recordatorioCita: false } });
-    const dueno = process.env.OWNER_PHONE;
-    const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-    if (dueno) {
-      await enviarTexto(dueno, `📅 Cita agendada\nCliente: ${lead.nombre || telefono}\n${fechaTxt}`).catch(() => {});
+    if (cita.iso) { // solo si pasó la validación (no pasado, dentro de horario)
+      upsertLead(telefono, { citaProgramada: cita.iso, seguimientos: { recordatorioCita: false } });
+      const dueno = process.env.OWNER_PHONE;
+      const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+      if (dueno) {
+        await enviarTexto(dueno, `📅 Cita agendada\nCliente: ${lead.nombre || telefono}\n${fechaTxt}`).catch(() => {});
+      }
     }
   }
 
