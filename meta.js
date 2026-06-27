@@ -40,3 +40,12 @@ export async function enviarMetaImagen(id, url, caption) {
     message: { attachment: { type: "image", payload: { url, is_reusable: true } } },
   });
 }
+
+// Enviar un video (con un texto opcional antes, como "caption")
+export async function enviarMetaVideo(id, url, caption) {
+  if (caption) await postMeta({ recipient: { id }, message: { text: caption } });
+  return postMeta({
+    recipient: { id },
+    message: { attachment: { type: "video", payload: { url, is_reusable: true } } },
+  });
+}

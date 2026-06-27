@@ -262,6 +262,8 @@
   .member .pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;background:#eef3ee;color:var(--green)}
   .member .pill.off{background:#f1eeee;color:var(--muted)}
   /* Accesibilidad */
+  .calbtn{display:inline-block;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;padding:6px 11px;border-radius:8px;background:var(--glass-strong);border:1px solid var(--glass-bd);color:var(--gold-deep)}
+  .calbtn:hover{background:#fff}
   .navitem:focus-visible,.btn:focus-visible,.mtab:focus-visible{outline:2px solid #4f7bff;outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
   @media (max-width:820px){
@@ -400,6 +402,7 @@
       <div class="full"><label>Metros cuadrados (m²)</label><input id="f_m2" type="number" placeholder="95" /></div>
       <div class="full"><label>Descripción</label><textarea id="f_descripcion" rows="2" placeholder="Edificio con amenidades..."></textarea></div>
       <div class="full"><label>Imágenes <span style="font-weight:400;color:var(--muted)">(una URL por línea)</span></label><textarea id="f_imagenes" rows="2" placeholder="https://...jpg"></textarea></div>
+      <div class="full"><label>Video <span style="font-weight:400;color:var(--muted)">(URL directa a un .mp4, opcional)</span></label><input id="f_video" placeholder="https://...mp4" /></div>
       <div class="full checkrow"><input id="f_disponible" type="checkbox" checked /><label style="margin:0">Disponible</label></div>
     </div>
     <div class="factions"><button class="btn ghost" onclick="cerrar()">Cancelar</button><button class="btn primary" onclick="guardar()">Guardar</button></div>
@@ -626,6 +629,12 @@
   async function bulk(accion){const tels=[...seleccion];if(!tels.length)return;if(accion==='borrar'&&!confirm(`¿Borrar ${tels.length} lead(s)? No se puede deshacer.`))return;await fetch('/api/leads/bulk',{method:'POST',headers:JH(),body:JSON.stringify({accion,telefonos:tels})});seleccion.clear();actualizarBulkBar();cargarLeads()}
 
   /* ---------- AGENDA ---------- */
+  function gcalUrl(iso,titulo,detalles){
+    const s=new Date(iso),e=new Date(s.getTime()+3600000);
+    const f=d=>d.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+    const p=new URLSearchParams({action:"TEMPLATE",text:titulo,dates:f(s)+"/"+f(e),details:detalles||""});
+    return "https://calendar.google.com/calendar/render?"+p.toString();
+  }
   async function cargarAgenda(){
     try{
       const data=await(await fetch("/api/leads",{headers:AH()})).json();
@@ -634,12 +643,13 @@
       const host=document.getElementById("agendaHost");
       if(!conCita.length){host.innerHTML='<div class="empty" style="border:none"><p>No hay citas agendadas</p><p class="sub">Cuando el bot o un asesor agende una visita, aparecerá aquí.</p></div>';return}
       const ahora=Date.now();
-      host.innerHTML=`<table><thead><tr><th>Fecha y hora</th><th>Cliente</th><th class="hide-sm">Zona</th><th class="hide-sm">Asesor</th></tr></thead><tbody>${conCita.map(l=>{
+      host.innerHTML=`<table><thead><tr><th>Fecha y hora</th><th>Cliente</th><th class="hide-sm">Zona</th><th class="hide-sm">Asesor</th><th></th></tr></thead><tbody>${conCita.map(l=>{
         const d=new Date(l.citaProgramada),pasada=d.getTime()<ahora;
         const fecha=d.toLocaleString("es-MX",{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
         const agente=l.agenteAsignado?(agentesById[l.agenteAsignado]||"—"):"Sin asignar";
         const zona=l.perfil?.zona?(zonaNombre[l.perfil.zona]||l.perfil.zona):"—";
-        return `<tr onclick='abrirModal("${l.telefono}")'><td><b style="${pasada?'color:var(--muted)':''}">${fecha}</b>${pasada?' <span class="sub">(pasada)</span>':''}</td><td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div></td><td class="hide-sm">${zona}</td><td class="hide-sm sub">${agente}</td></tr>`;
+        const cal=gcalUrl(l.citaProgramada,"Cita: "+(l.nombre||l.telefono),"Cliente: "+(l.nombre||l.telefono)+" ("+l.telefono+")");
+        return `<tr onclick='abrirModal("${l.telefono}")'><td><b style="${pasada?'color:var(--muted)':''}">${fecha}</b>${pasada?' <span class="sub">(pasada)</span>':''}</td><td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div></td><td class="hide-sm">${zona}</td><td class="hide-sm sub">${agente}</td><td><a href="${cal}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="calbtn">➕ Calendar</a></td></tr>`;
       }).join("")}</tbody></table>`;
     }catch(e){document.getElementById("agendaHost").innerHTML='<div class="empty" style="border:none">Error al cargar</div>'}
   }
@@ -660,11 +670,11 @@
       }).join("");
     }catch(e){toast("Error al cargar")}
   }
-  function abrirNueva(){editandoId=null;document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","imagenes"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_disponible").checked=true;document.getElementById("propOverlay").classList.add("show")}
-  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_imagenes").value=(p.imagenes||[]).join("\n");document.getElementById("f_disponible").checked=p.disponible!==false;document.getElementById("propOverlay").classList.add("show")}
+  function abrirNueva(){editandoId=null;document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","imagenes","video"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_disponible").checked=true;document.getElementById("propOverlay").classList.add("show")}
+  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_imagenes").value=(p.imagenes||[]).join("\n");document.getElementById("f_video").value=p.video||"";document.getElementById("f_disponible").checked=p.disponible!==false;document.getElementById("propOverlay").classList.add("show")}
   function cerrar(){document.getElementById("propOverlay").classList.remove("show")}
   async function guardar(){
-    const body={titulo:val("f_titulo"),zona:document.getElementById("f_zona").value,tipo:document.getElementById("f_tipo").value,operacion:document.getElementById("f_operacion").value,precio:val("f_precio"),recamaras:val("f_recamaras"),banos:val("f_banos"),m2:val("f_m2"),descripcion:val("f_descripcion"),imagenes:val("f_imagenes").split("\n").map(s=>s.trim()).filter(Boolean),disponible:document.getElementById("f_disponible").checked};
+    const body={titulo:val("f_titulo"),zona:document.getElementById("f_zona").value,tipo:document.getElementById("f_tipo").value,operacion:document.getElementById("f_operacion").value,precio:val("f_precio"),recamaras:val("f_recamaras"),banos:val("f_banos"),m2:val("f_m2"),descripcion:val("f_descripcion"),imagenes:val("f_imagenes").split("\n").map(s=>s.trim()).filter(Boolean),video:val("f_video"),disponible:document.getElementById("f_disponible").checked};
     if(!body.titulo){toast("Ponle un título");return}
     const url=editandoId?"/api/properties/"+editandoId:"/api/properties";
     try{const r=await fetch(url,{method:editandoId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrar();toast(editandoId?"Actualizada ✓":"Agregada ✓");cargarProps()}catch(e){toast("Error de conexión")}

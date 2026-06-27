@@ -43,6 +43,20 @@ export async function enviarImagen(to, urlImagen, caption = "") {
   return enviar(body, to);
 }
 
+export async function enviarVideo(to, urlVideo, caption = "") {
+  if (!TOKEN || !PHONE_ID) {
+    console.warn(`[whatsapp] (Simulado video) -> ${to}: ${urlVideo}`);
+    return { simulado: true };
+  }
+  const body = {
+    messaging_product: "whatsapp",
+    to,
+    type: "video",
+    video: { link: urlVideo, caption },
+  };
+  return enviar(body, to);
+}
+
 async function enviar(body, to) {
   try {
     const res = await fetch(baseUrl(), {

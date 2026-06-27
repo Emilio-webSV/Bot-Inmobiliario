@@ -19,7 +19,8 @@ import {
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
 import { enviarTexto, enviarImagen } from "./whatsapp.js";
-import { enviarTextoCanal, enviarImagenCanal } from "./canales.js";
+import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal } from "./canales.js";
+import { descargarMediaWhatsApp, analizarImagen } from "./vision.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
@@ -80,8 +81,14 @@ app.post("/webhook", async (req, res) => {
       const mensaje = value?.messages?.[0];
       if (!mensaje) return;
       const nombre = value?.contacts?.[0]?.profile?.name || null;
+      if (mensaje.type === "image") {
+        // El cliente mandó una foto: la bajamos y el bot la "ve".
+        const media = await descargarMediaWhatsApp(mensaje.image?.id);
+        await manejarImagen(mensaje.from, nombre, "whatsapp", media, mensaje.image?.caption);
+        return;
+      }
       if (mensaje.type !== "text") {
-        await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // imagen, audio, etc.
+        await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // audio, sticker, etc.
         return;
       }
       await procesarMensaje(mensaje.from, mensaje.text.body, nombre, "whatsapp");
@@ -98,7 +105,11 @@ app.post("/webhook", async (req, res) => {
           const remitente = ev.sender?.id;
           if (!remitente) continue;
           if (msg.text) await procesarMensaje(remitente, msg.text, null, canal);
-          else await manejarNoTexto(remitente, null, canal); // imagen / adjunto
+          else {
+            const att = (msg.attachments || []).find((a) => a.type === "image" && a.payload?.url);
+            if (att) await manejarImagen(remitente, null, canal, { url: att.payload.url }, null);
+            else await manejarNoTexto(remitente, null, canal); // audio / adjunto
+          }
         }
       }
       return;
@@ -118,7 +129,37 @@ async function manejarNoTexto(remitente, nombre, canal) {
   if (!lead) lead = upsertLead(remitente, { nombre, canal });
   pushHistorial(remitente, "user", "[imagen/archivo recibido]");
   if (lead.humanoEnControl) return; // si un asesor ya está atendiendo, no respondas
-  const msg = "¡Gracias! 🙂 Por aquí todavía no alcanzo a ver las imágenes, pero cuéntame qué estás buscando (zona, presupuesto, recámaras) y te ayudo. O si prefieres, te paso con un asesor.";
+  const msg = "¡Gracias! 🙂 Por aquí todavía no alcanzo a abrir ese tipo de archivo, pero cuéntame qué estás buscando (zona, presupuesto, recámaras) y te ayudo. O si prefieres, te paso con un asesor.";
+  await enviarTextoCanal(canal, remitente, msg);
+  pushHistorial(remitente, "bot", msg);
+}
+
+// El cliente mandó una FOTO. La analizamos con visión y, si es una propiedad, el
+// bot la comenta con naturalidad (como si la viera) y sigue ayudando. Si no se
+// pudo ver o no es una propiedad, responde con gracia.
+async function manejarImagen(remitente, nombre, canal, imagen, caption) {
+  let lead = getLead(remitente);
+  if (!lead) lead = upsertLead(remitente, { nombre, canal });
+  if (lead.humanoEnControl) {
+    pushHistorial(remitente, "user", "[📷 foto recibida]");
+    return; // un asesor ya está atendiendo
+  }
+
+  const desc = imagen ? await analizarImagen(imagen) : null;
+
+  if (desc && !/NO_PROPIEDAD/i.test(desc)) {
+    // El bot "vio" la foto. Le pasamos lo que ve a su cerebro como mensaje.
+    const cap = caption ? ` El cliente escribió junto a la foto: "${caption}".` : "";
+    const texto = `📷 (El cliente te envió una foto de una propiedad que le interesa. En la foto se ve: ${desc}.${cap})`;
+    await procesarMensaje(remitente, texto, nombre, canal);
+    return;
+  }
+
+  // No se pudo ver, o no es una propiedad: respuesta con gracia.
+  pushHistorial(remitente, "user", "[📷 foto recibida]");
+  const msg = desc && /NO_PROPIEDAD/i.test(desc)
+    ? "¡Gracias por la foto! 🙂 Esa imagen no parece ser de una propiedad. Cuéntame qué buscas (zona, presupuesto, recámaras) y con gusto te ayudo."
+    : "¡Gracias por la foto! 🙂 Tuve un detalle para abrirla, pero cuéntame qué estás buscando (zona, presupuesto, recámaras) y te ayudo igual.";
   await enviarTextoCanal(canal, remitente, msg);
   pushHistorial(remitente, "bot", msg);
 }
@@ -153,6 +194,21 @@ function extraerNombre(texto) {
   if (!m) return null;
   const nombre = m[1].trim().replace(/["']/g, "").slice(0, 40);
   return { nombre, textoLimpio: texto.replace(m[0], "").trim() };
+}
+
+// Arma un link de "Agregar a Google Calendar" (un toque y la cita queda en el
+// calendario del asesor/dueño). No requiere conectar cuentas: es una URL.
+function gcalLink(iso, titulo, detalles) {
+  const start = new Date(iso);
+  const end = new Date(start.getTime() + 60 * 60 * 1000); // dura 1 hora por defecto
+  const f = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: titulo,
+    dates: `${f(start)}/${f(end)}`,
+    details: detalles || "",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp") {
@@ -199,12 +255,13 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   const perfilNuevo = extraerPerfil(texto, lead.perfil);
   lead = upsertLead(telefono, { perfil: perfilNuevo });
 
-  // 4) Propiedades reales de SU zona que le quedan. `featured` = la que se le
-  //    mostrará ahorita (su foto). Así el bot habla justo de la que manda, no de otra.
+  // 4) Propiedades reales de SU zona que le quedan. `nuevas` = hasta 3 opciones
+  //    que aún no le hemos mostrado (se le mandan sus fotos). El bot habla justo
+  //    de las que manda, no de otras.
   const matches = buscarPropiedades(lead, 3);
   const yaEnviadas = lead.propiedadesEnviadas || [];
-  const featured = matches.find((m) => !yaEnviadas.includes(m.id) && (m.imagenes || []).length) || null;
-  const propiedadesCtx = contextoPropiedades(matches, featured);
+  const nuevas = matches.filter((m) => !yaEnviadas.includes(m.id) && (m.imagenes || []).length).slice(0, 3);
+  const propiedadesCtx = contextoPropiedades(matches, nuevas);
 
   // 5) Genera respuesta con el bot (ya conoce las propiedades reales)
   let respuesta = await generarRespuesta({ config, lead, propiedadesCtx });
@@ -215,11 +272,14 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     respuesta = cita.textoLimpio; // quita la etiqueta antes de mandársela al cliente
     if (cita.iso) { // solo si pasó la validación (no pasado, dentro de horario)
       upsertLead(telefono, { citaProgramada: cita.iso, seguimientos: { recordatorioCita: false } });
-      const dueno = process.env.OWNER_PHONE;
       const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-      if (dueno) {
-        await enviarTexto(dueno, `📅 Cita agendada\nCliente: ${lead.nombre || telefono}\n${fechaTxt}`).catch(() => {});
-      }
+      const link = gcalLink(cita.iso, `Cita: ${lead.nombre || telefono}`, `Visita agendada por el asistente. Cliente: ${lead.nombre || telefono} (${telefono}).`);
+      const aviso = `📅 Cita agendada\nCliente: ${lead.nombre || telefono}\n${fechaTxt}\n\n➕ Agrégala a tu calendario:\n${link}`;
+      const dueno = process.env.OWNER_PHONE;
+      if (dueno) await enviarTexto(dueno, aviso).catch(() => {});
+      // También al asesor asignado, si tiene teléfono (y no es el mismo del dueño)
+      const ag = lead.agenteAsignado ? (getAgents() || []).find((a) => a.id === lead.agenteAsignado) : null;
+      if (ag && ag.telefono && ag.telefono !== dueno) await enviarTexto(ag.telefono, aviso).catch(() => {});
     }
   }
 
@@ -233,13 +293,21 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   await enviarTextoCanal(canal, telefono, respuesta);
   pushHistorial(telefono, "bot", respuesta);
 
-  // 6) Manda la foto de LA propiedad que el bot acaba de presentar (la misma).
-  if (featured && lead.perfil.zona && lead.perfil.presupuesto) {
+  // 6) Manda las fotos de las propiedades que el bot acaba de presentar (hasta 3).
+  if (nuevas.length && lead.perfil.zona && lead.perfil.presupuesto) {
     const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
-    const caption = `🏡 ${featured.titulo}\n${fmt(featured.precio)}${featured.operacion === "renta" ? "/mes" : ""} · ${featured.recamaras} rec · ${featured.banos} baños · ${featured.m2} m²`;
-    await enviarImagenCanal(canal, telefono, featured.imagenes[0], caption);
-    pushHistorial(telefono, "bot", `[foto enviada] ${featured.titulo}`);
-    marcarEnviada(telefono, featured.id);
+    for (const prop of nuevas) {
+      const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.titulo + " Ciudad de México")}`;
+      const caption = `🏡 ${prop.titulo}\n${fmt(prop.precio)}${prop.operacion === "renta" ? "/mes" : ""} · ${prop.recamaras} rec · ${prop.banos} baños · ${prop.m2} m²\n📍 Ubicación: ${maps}`;
+      await enviarImagenCanal(canal, telefono, prop.imagenes[0], caption);
+      pushHistorial(telefono, "bot", `[foto enviada] ${prop.titulo}`);
+      marcarEnviada(telefono, prop.id);
+      // Si la propiedad tiene video, también se lo mandamos.
+      if (prop.video) {
+        await enviarVideoCanal(canal, telefono, prop.video, `🎥 Video: ${prop.titulo}`).catch(() => {});
+        pushHistorial(telefono, "bot", `[video enviado] ${prop.titulo}`);
+      }
+    }
   }
 
   // 7) Recalcula score y temperatura, asigna agente si subió a tibio/caliente

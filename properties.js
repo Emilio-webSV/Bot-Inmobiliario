@@ -41,7 +41,7 @@ export function buscarPropiedades(lead, limite = 3) {
 // Texto compacto para inyectar al prompt del bot (para que recomiende reales).
 // `featured` es la propiedad cuya foto se enviará enseguida: el bot debe hablar
 // de ESA para que el texto y la foto coincidan.
-export function contextoPropiedades(props, featured) {
+export function contextoPropiedades(props, mostrar) {
   if (!props.length) {
     return `NO TIENES NINGUNA PROPIEDAD que cuadre con la zona y el presupuesto que pidió el cliente.
 Sé honesto: dile con naturalidad que ahorita no tienes algo con esas características y ofrece
@@ -55,10 +55,16 @@ inventes precios y NUNCA le ofrezcas algo de otra zona distinta a la que pidió.
   let txt = `PROPIEDADES REALES DISPONIBLES (SOLO estas existen, NO inventes otras ni de otra zona):\n`;
   txt += props.map((p, i) => `${i + 1}. ${linea(p)}`).join("\n");
 
-  if (featured) {
-    txt += `\n\nLA PROPIEDAD QUE VAS A MOSTRAR AHORITA (su foto se envía enseguida): "${featured.titulo}".
-Háblale de ESA propiedad en específico (su nombre, precio y por qué le puede gustar) y di que le
-mandas la foto. Es CLAVE que hables justo de esta, NO de otra, porque la foto que recibe es de esta.`;
+  const lista = mostrar && mostrar.length ? mostrar : [];
+  if (lista.length === 1) {
+    txt += `\n\nVAS A MOSTRARLE AHORITA esta propiedad (su foto se envía enseguida): "${lista[0].titulo}".
+Háblale de ESA en específico (nombre, precio y por qué le puede gustar) y di que le mandas la foto.`;
+  } else if (lista.length > 1) {
+    txt += `\n\nVAS A MOSTRARLE AHORITA estas ${lista.length} opciones (se le envían sus fotos enseguida): ${lista
+      .map((p) => `"${p.titulo}" (${fmt(p.precio)})`)
+      .join(", ")}.
+Preséntalas como un CONJUNTO: di algo como "te paso unas opciones que te pueden interesar 👇" y
+menciona cada una breve por nombre y precio. NO te claves en una sola ni inventes otras.`;
   }
   return txt;
 }

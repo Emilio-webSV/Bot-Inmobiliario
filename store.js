@@ -224,6 +224,7 @@ export function createProperty(data) {
     m2: Number(data.m2) || 0,
     descripcion: data.descripcion || "",
     imagenes: Array.isArray(data.imagenes) ? data.imagenes.filter(Boolean) : [],
+    video: data.video || "",            // link a un video (opcional)
     disponible: data.disponible !== false,
     creado: new Date().toISOString(),
   };
