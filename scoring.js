@@ -75,13 +75,23 @@ export function extraerPerfil(texto, perfilActual = {}) {
   const zona = detectarZona(texto);
   const recamaras = extraerRecamaras(texto);
   const proposito = extraerProposito(texto);
+  const operacion = extraerOperacion(texto);
 
   if (presupuesto) nuevo.presupuesto = presupuesto;
   if (zona) nuevo.zona = zona;
   if (recamaras) nuevo.recamaras = recamaras;
   if (proposito) nuevo.proposito = proposito;
+  if (operacion) nuevo.operacion = operacion;
 
   return nuevo;
+}
+
+// ¿El cliente busca RENTA o COMPRA (venta)?
+function extraerOperacion(texto) {
+  const t = (texto || "").toLowerCase();
+  if (/(rent|alquil|arrend)/.test(t)) return "renta";
+  if (/(compr|de venta|en venta|adquir)/.test(t)) return "venta";
+  return null;
 }
 
 // Calcula score 0-100 y temperatura a partir del perfil + señales de la conversación

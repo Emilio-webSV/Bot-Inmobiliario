@@ -151,6 +151,8 @@ export function getConfig() {
   if (process.env.AGENCY_NAME) c.nombreAgencia = process.env.AGENCY_NAME;
   // El logo del cliente se pone con la variable LOGO_URL (un link a su logo).
   if (process.env.LOGO_URL) c.logoUrl = process.env.LOGO_URL;
+  // Nombre con el que se presenta el bot (ej. "Sofía"). Lo hace sentir humano.
+  if (process.env.BOT_NAME) c.botName = process.env.BOT_NAME;
   return c;
 }
 
@@ -223,9 +225,11 @@ export function createProperty(data) {
     banos: Number(data.banos) || 0,
     m2: Number(data.m2) || 0,
     descripcion: data.descripcion || "",
+    direccion: data.direccion || "",   // dirección exacta (se comparte si el cliente la pide)
     imagenes: Array.isArray(data.imagenes) ? data.imagenes.filter(Boolean) : [],
     video: data.video || "",            // link a un video (opcional)
-    disponible: data.disponible !== false,
+    estado: data.estado || (data.disponible === false ? "vendido" : "disponible"), // disponible | apartado | vendido
+    disponible: (data.estado || (data.disponible === false ? "vendido" : "disponible")) === "disponible",
     creado: new Date().toISOString(),
   };
   db.properties = db.properties || [];
@@ -249,6 +253,9 @@ export function updateProperty(id, data) {
     imagenes: data.imagenes !== undefined
       ? (Array.isArray(data.imagenes) ? data.imagenes.filter(Boolean) : actual.imagenes)
       : actual.imagenes,
+    estado: data.estado !== undefined ? data.estado : (actual.estado || "disponible"),
+    disponible: data.estado !== undefined ? data.estado === "disponible"
+      : (data.disponible !== undefined ? data.disponible !== false : actual.disponible),
     id: actual.id,
     creado: actual.creado,
   };

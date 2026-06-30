@@ -80,6 +80,11 @@
   .estado{font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;white-space:nowrap}
   .estado.sin_atender{color:var(--hot);background:var(--hot-bg)}.estado.en_atencion{color:var(--cold);background:var(--cold-bg)}
   .estado.cerrado{color:var(--green);background:var(--green-bg)}.estado.perdido{color:var(--muted);background:#eee}
+  .estado.bot{color:#1d4ed8;background:#e7efff}
+  .estado.bot::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#2563eb;margin-right:6px;vertical-align:middle;animation:vivo 1.4s infinite}
+  .estado.urgente{color:#fff;background:var(--hot);animation:urge 1.4s infinite}
+  @keyframes vivo{0%{box-shadow:0 0 0 0 rgba(37,99,235,.55)}70%{box-shadow:0 0 0 6px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
+  @keyframes urge{0%,100%{opacity:1}50%{opacity:.65}}
   .score{display:flex;align-items:center;gap:8px}
   .gauge{width:50px;height:6px;border-radius:4px;background:var(--line);overflow:hidden}
   .gauge i{display:block;height:100%;border-radius:4px}
@@ -113,6 +118,7 @@
   .prop .img{height:150px;background:#eee center/cover no-repeat;position:relative}
   .prop .img .badge2{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:rgba(20,21,26,.8);color:#fff}
   .prop .img .nodisp{position:absolute;top:8px;right:8px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--red);color:#fff}
+  .prop.off .img{filter:grayscale(.55);opacity:.72}
   .prop .body{padding:14px;flex:1;display:flex;flex-direction:column;gap:6px}
   .prop .body h3{font-family:'Space Grotesk',sans-serif;font-size:15px;line-height:1.3}
   .prop .price{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:var(--gold-deep)}
@@ -262,6 +268,23 @@
   .member .pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;background:#eef3ee;color:var(--green)}
   .member .pill.off{background:#f1eeee;color:var(--muted)}
   /* Accesibilidad */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--glass);border:1px solid var(--glass-bd);border-radius:14px;padding:15px 17px}
+  .kpi .l{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
+  .kpi .v{font-size:23px;font-weight:800;color:var(--ink);letter-spacing:-.5px}
+  .kpi.green .v{color:#16a34a}.kpi.gold .v{color:var(--gold-deep)}.kpi.blue .v{color:#2563eb}
+  .anagrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.anagrid{grid-template-columns:1fr}}
+  .fstep{margin-bottom:12px}
+  .fstep .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+  .fbar{height:32px;border-radius:8px;background:linear-gradient(90deg,#1e3a8a,#3b82f6);display:flex;align-items:center;padding-left:11px;color:#fff;font-weight:700;font-size:13.5px;min-width:42px;transition:width .5s}
+  .fconv{font-size:11px;color:var(--muted);text-align:right;margin-top:3px}
+  .rankrow{margin-bottom:13px}
+  .rankrow .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;align-items:baseline}
+  .rankrow .nm{font-weight:600}.rankrow .vv{font-weight:700;color:#16a34a}
+  .rankbar{height:9px;border-radius:99px;background:#eef1f6;overflow:hidden}
+  .rankbar i{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#34d399);border-radius:99px;transition:width .5s}
+  .rsub{font-size:11px;color:var(--muted);margin-left:8px;font-weight:500}
   .calbtn{display:inline-block;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;padding:6px 11px;border-radius:8px;background:var(--glass-strong);border:1px solid var(--glass-bd);color:var(--gold-deep)}
   .calbtn:hover{background:#fff}
   .navitem:focus-visible,.btn:focus-visible,.mtab:focus-visible{outline:2px solid #4f7bff;outline-offset:2px}
@@ -302,6 +325,7 @@
       <div class="navgroup">
         <div class="gtitle">Principal</div>
         <div class="navitem active" data-view="leads" onclick="showView('leads')"><span class="ic">📊</span> Leads <span class="badge hidden" id="navLeadsBadge">0</span></div>
+        <div class="navitem" data-view="analisis" onclick="showView('analisis')"><span class="ic">📈</span> Análisis</div>
         <div class="navitem" data-view="agenda" onclick="showView('agenda')"><span class="ic">📅</span> Agenda <span class="badge hidden" id="navAgendaBadge">0</span></div>
         <div class="navitem" data-view="props" onclick="showView('props')"><span class="ic">🏠</span> Propiedades</div>
       </div>
@@ -355,6 +379,17 @@
         <div id="zoneList"></div>
       </section>
 
+      <!-- ANÁLISIS -->
+      <section id="view-analisis" class="view hidden">
+        <div class="toolbar"><h3>Análisis de ventas</h3></div>
+        <div id="anaKpis" class="kpis"></div>
+        <div class="anagrid">
+          <div class="panel"><div class="phead"><h3>Embudo de conversión</h3></div><div id="anaFunnel" style="padding:16px"></div></div>
+          <div class="panel"><div class="phead"><h3>Ventas por asesor</h3></div><div id="anaAsesor" style="padding:8px 16px 16px"></div></div>
+        </div>
+        <div class="panel"><div class="phead"><h3>Ingresos por zona</h3></div><div id="anaZona" style="padding:8px 16px 16px"></div></div>
+      </section>
+
       <!-- AGENDA -->
       <section id="view-agenda" class="view hidden">
         <div class="panel">
@@ -401,9 +436,10 @@
       <div><label>Baños</label><input id="f_banos" type="number" placeholder="2" /></div>
       <div class="full"><label>Metros cuadrados (m²)</label><input id="f_m2" type="number" placeholder="95" /></div>
       <div class="full"><label>Descripción</label><textarea id="f_descripcion" rows="2" placeholder="Edificio con amenidades..."></textarea></div>
+      <div class="full"><label>Dirección <span style="font-weight:400;color:var(--muted)">(se comparte solo si el cliente la pide)</span></label><input id="f_direccion" placeholder="Av. Insurgentes Sur 1234, Del Valle" /></div>
       <div class="full"><label>Imágenes <span style="font-weight:400;color:var(--muted)">(una URL por línea)</span></label><textarea id="f_imagenes" rows="2" placeholder="https://...jpg"></textarea></div>
       <div class="full"><label>Video <span style="font-weight:400;color:var(--muted)">(URL directa a un .mp4, opcional)</span></label><input id="f_video" placeholder="https://...mp4" /></div>
-      <div class="full checkrow"><input id="f_disponible" type="checkbox" checked /><label style="margin:0">Disponible</label></div>
+      <div class="full"><label>Estado</label><select id="f_estado"><option value="disponible">🟢 Disponible</option><option value="apartado">🟡 Apartado</option><option value="vendido">🔴 Vendido</option></select></div>
     </div>
     <div class="factions"><button class="btn ghost" onclick="cerrar()">Cancelar</button><button class="btn primary" onclick="guardar()">Guardar</button></div>
   </div>
@@ -446,6 +482,7 @@
   let PASS="",agentesById={},agentesList=[],intervalo=null,leadActual=null,seleccion=new Set();
   let editandoId=null,editandoAgenteId=null,editandoZonaId=null;
   let zonasList=[];
+  let propsList=[];
   const AH=()=>({"x-admin-password":PASS});
   const JH=()=>({"x-admin-password":PASS,"Content-Type":"application/json"});
   const fmtMXN=(n)=>"$"+(Number(n)||0).toLocaleString("es-MX");
@@ -464,6 +501,15 @@
     : '<span class="sub" style="color:var(--muted)">Primero agrega zonas en la sección Zonas.</span>';
   const tempColor={caliente:"var(--hot)",tibio:"var(--warm)",frio:"var(--cold)"};
   const estadoLabel={sin_atender:"Sin atender",en_atencion:"En atención",cerrado:"Cerrado",perdido:"Perdido"};
+  // Cómo se muestra el estado al cliente (la inmobiliaria): el bot atiende solo,
+  // y solo se marca urgente cuando de verdad se necesita una persona.
+  function estadoInfo(l){
+    if(l.estado==='cerrado')return{label:'Cerrado',cls:'cerrado'};
+    if(l.estado==='perdido')return{label:'Perdido',cls:'perdido'};
+    if(l.escalado&&l.estado!=='en_atencion')return{label:'Urgente · atender humano',cls:'urgente'};
+    if(l.estado==='en_atencion')return{label:'En atención',cls:'en_atencion'};
+    return{label:'Bot atendiendo',cls:'bot'};
+  }
   const canalMini={whatsapp:'<span style="color:#25d366;font-weight:600">● WhatsApp</span>',instagram:'<span style="color:#e1306c;font-weight:600">● Instagram</span>',messenger:'<span style="color:#0084ff;font-weight:600">● Messenger</span>'};
   const canalNombre={whatsapp:"WhatsApp",instagram:"Instagram",messenger:"Messenger"};
   function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200)}
@@ -490,9 +536,10 @@
     document.querySelectorAll(".navitem").forEach(n=>n.classList.toggle("active",n.dataset.view===name));
     document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
     document.getElementById("view-"+name).classList.remove("hidden");
-    document.getElementById("pageTitle").textContent={leads:"Leads",agenda:"Agenda",props:"Propiedades",agentes:"Equipo",zonas:"Zonas"}[name];
+    document.getElementById("pageTitle").textContent={leads:"Leads",analisis:"Análisis de ventas",agenda:"Agenda",props:"Propiedades",agentes:"Equipo",zonas:"Zonas"}[name];
     document.getElementById("upd").textContent=name==='leads'?document.getElementById("upd").textContent:"";
     if(name==='leads')cargarLeads();
+    else if(name==='analisis')cargarAnalisis();
     else if(name==='agenda')cargarAgenda();
     else if(name==='props')cargarProps();
     else if(name==='agentes')cargarAgentes();
@@ -511,18 +558,19 @@
     agentesById=data.agentesById||{};agentesList=data.agentes||[];setZonas(data.zonas);
     if(data.config?.nombreAgencia)document.getElementById("agencyName").textContent=data.config.nombreAgencia;
     if(data.config?.logoUrl){const lg=document.getElementById("brandLogo");lg.src=data.config.logoUrl;lg.classList.remove("hidden");document.getElementById("brandDot").classList.add("hidden");}
-    pintarMetricas(data.metricas);pintarTabla(data.leads);
-    const b=document.getElementById("navLeadsBadge"),sa=data.metricas.sinAtender||0;
-    b.textContent=sa;b.classList.toggle("hidden",!sa);
+    pintarMetricas(data.metricas,data.leads);pintarTabla(data.leads);
+    const urgentes=(data.leads||[]).filter(l=>l.escalado&&l.estado!=='en_atencion'&&l.estado!=='cerrado'&&l.estado!=='perdido').length;
+    const b=document.getElementById("navLeadsBadge");b.textContent=urgentes;b.classList.toggle("hidden",!urgentes);
     const up=(data.leads||[]).filter(l=>l.citaProgramada&&new Date(l.citaProgramada).getTime()>Date.now()).length;
     const ab=document.getElementById("navAgendaBadge");ab.textContent=up;ab.classList.toggle("hidden",!up);
     document.getElementById("upd").textContent="Actualizado "+new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
   }
-  function pintarMetricas(m){
+  function pintarMetricas(m,leads){
     const total=m.total||1;
+    const urgentes=(leads||[]).filter(l=>l.escalado&&l.estado!=='en_atencion'&&l.estado!=='cerrado'&&l.estado!=='perdido').length;
     document.getElementById("metrics").innerHTML=`
       <div class="metric"><div class="label">Leads totales</div><div class="num">${m.total}</div><div class="bar"><i style="width:100%;background:var(--ink)"></i></div></div>
-      <div class="metric alert"><div class="label">🔔 Sin atender</div><div class="num">${m.sinAtender||0}</div><div class="bar"><i style="width:${((m.sinAtender||0)/total*100)}%"></i></div></div>
+      <div class="metric ${urgentes?'alert':''}"><div class="label">⚠️ Urgente · humano</div><div class="num">${urgentes}</div><div class="bar"><i style="width:${(urgentes/total*100)}%"></i></div></div>
       <div class="metric hot"><div class="label">🔴 Calientes</div><div class="num">${m.calientes}</div><div class="bar"><i style="width:${(m.calientes/total*100)}%"></i></div></div>
       <div class="metric warm"><div class="label">🟡 Tibios</div><div class="num">${m.tibios}</div><div class="bar"><i style="width:${(m.tibios/total*100)}%"></i></div></div>
       <div class="metric cold"><div class="label">🔵 Fríos</div><div class="num">${m.frios}</div><div class="bar"><i style="width:${(m.frios/total*100)}%"></i></div></div>
@@ -535,13 +583,13 @@
       const agente=l.agenteAsignado?(agentesById[l.agenteAsignado]||"—"):"Sin asignar";
       const zona=l.perfil?.zona?(zonaNombre[l.perfil.zona]||l.perfil.zona):"—";
       const pres=l.perfil?.presupuesto?fmtMXN(l.perfil.presupuesto):"—";
-      const est=l.estado||"sin_atender";
+      const est=l.estado||"sin_atender";const ei=estadoInfo(l);
       const chips=(l.etiquetas&&l.etiquetas.length)?`<div class="chips">${l.etiquetas.slice(0,3).map(t=>`<span class="chip">${t}</span>`).join("")}</div>`:"";
       const citaTag=l.citaProgramada?`<div><span class="citatag">📅 ${new Date(l.citaProgramada).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</span></div>`:"";
       return `<tr onclick='abrirModal("${l.telefono}")'>
         <td class="checkcol"><input type="checkbox" class="lead-check" value="${l.telefono}" ${seleccion.has(l.telefono)?'checked':''} onclick="event.stopPropagation();toggleSel('${l.telefono}',this.checked)"></td>
         <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${canalMini[l.canal||'whatsapp']} · ${l.telefono}</div>${chips}${citaTag}</td>
-        <td><span class="estado ${est}">${estadoLabel[est]}</span></td>
+        <td><span class="estado ${ei.cls}">${ei.label}</span></td>
         <td><span class="temp ${l.temperatura}"><span class="pip"></span>${l.temperatura}</span></td>
         <td><div class="score"><div class="gauge"><i style="width:${l.score}%;background:${tempColor[l.temperatura]}"></i></div><b>${l.score}</b></div></td>
         <td class="hide-sm">${zona}</td><td class="hide-sm">${pres}</td><td class="hide-sm sub">${agente}</td>
@@ -567,6 +615,7 @@
     const r=await fetch("/api/leads/"+telefono,{headers:AH()});
     if(r.status===401){volverAlGate();return;}
     const l=await r.json();
+    try{const pr=await(await fetch("/api/properties",{headers:AH()})).json();propsList=Array.isArray(pr)?pr:(pr.properties||[]);}catch(e){}
     document.getElementById("mName").textContent=l.nombre||"Sin nombre";
     document.getElementById("mPhone").innerHTML=`${canalMini[l.canal||'whatsapp']} · ${l.telefono}`;
     modalTab('chat');
@@ -578,16 +627,24 @@
       <div><span>Recámaras</span><b>${p.recamaras||"—"}</b></div>
       <div><span>Propósito</span><b>${p.proposito||"—"}</b></div>
       <div><span>Propiedades enviadas</span><b>${(l.propiedadesEnviadas||[]).length}</b></div>`;
-    const est=l.estado||"sin_atender";
+    const est=l.estado||"sin_atender";const ei=estadoInfo(l);
     const opts=['<option value="">Sin asignar</option>'].concat(agentesList.map(a=>`<option value="${a.id}" ${l.agenteAsignado===a.id?'selected':''}>${a.nombre}</option>`)).join("");
+    const propOpts='<option value="">— elige la propiedad vendida —</option>'+propsList.map(pr=>`<option value="${pr.id}" data-precio="${pr.precio||0}">${pr.titulo} (${fmtMXN(pr.precio||0)})</option>`).join("");
+    const propVendida=l.venta&&l.venta.propiedadId?propsList.find(x=>x.id===l.venta.propiedadId):null;
+    const ventaBlock=l.venta?`
+      <div class="mrow"><label>💰 Venta</label><div style="font-size:13.5px;flex:1"><b style="color:#16a34a;font-size:15px">${fmtMXN(l.venta.monto||0)}</b>${propVendida?` · ${propVendida.titulo}`:""}<button class="savenote" style="margin-left:10px" onclick="deshacerVenta('${l.telefono}')">Deshacer</button></div></div>`
+      :`<div class="mrow"><label>💰 Registrar venta</label><div style="display:flex;flex-direction:column;gap:7px;flex:1">
+        <select id="ventaProp" onchange="document.getElementById('ventaMonto').value=this.options[this.selectedIndex].dataset.precio||''">${propOpts}</select>
+        <div style="display:flex;gap:7px"><input id="ventaMonto" type="number" placeholder="Monto final de venta $" style="flex:1"/><button class="cerrar" onclick="registrarVenta('${l.telefono}')">Registrar venta ✓</button></div>
+        <span class="rsub" style="margin:0">Marca el lead como cerrado y la propiedad como vendida.</span></div></div>`;
     document.getElementById("mManage").innerHTML=`
-      <div class="mrow"><label>Estado</label><span class="estado ${est}">${estadoLabel[est]}</span></div>
+      <div class="mrow"><label>Estado</label><span class="estado ${ei.cls}">${ei.label}</span></div>
       <div class="mrow"><label>Asignar asesor</label><select onchange="asignar('${l.telefono}',this.value)">${opts}</select></div>
       <div class="mrow"><label>Acción</label><div class="estbtns">
         <button class="atender ${est==='en_atencion'?'on':''}" onclick="setEstado('${l.telefono}','en_atencion')">✋ Atender</button>
-        <button class="cerrar ${est==='cerrado'?'on':''}" onclick="setEstado('${l.telefono}','cerrado')">✓ Cerrado</button>
         <button class="perder ${est==='perdido'?'on':''}" onclick="setEstado('${l.telefono}','perdido')">✕ Perdido</button>
       </div></div>
+      ${ventaBlock}
       <div class="mrow"><label>📅 Cita</label><input type="datetime-local" id="leadCita" /><button class="savenote" onclick="guardarCita('${l.telefono}')">Guardar</button></div>`;
     document.getElementById("leadCita").value=isoToLocalInput(l.citaProgramada);
     document.getElementById("mNotes").innerHTML=`
@@ -620,6 +677,15 @@
   async function guardarCita(tel){const v=document.getElementById("leadCita").value;const iso=v?new Date(v).toISOString():null;await fetch(`/api/leads/${tel}/cita`,{method:"POST",headers:JH(),body:JSON.stringify({cita:iso})});toast("Cita guardada ✓");abrirModal(tel);cargarLeads()}
   async function enviarChat(){const t=val("chatInput");if(!t||!leadActual)return;document.getElementById("chatInput").value="";await fetch(`/api/leads/${leadActual}/enviar`,{method:"POST",headers:JH(),body:JSON.stringify({texto:t})});await abrirModal(leadActual);cargarLeads()}
   async function setEstado(tel,estado){await fetch(`/api/leads/${tel}/estado`,{method:"POST",headers:JH(),body:JSON.stringify({estado})});abrirModal(tel);cargarLeads()}
+  async function registrarVenta(tel){
+    const propiedadId=document.getElementById("ventaProp").value;
+    const monto=Number(document.getElementById("ventaMonto").value)||0;
+    if(!monto){toast("Pon el monto de la venta");return}
+    const r=await fetch(`/api/leads/${tel}/venta`,{method:"POST",headers:JH(),body:JSON.stringify({propiedadId,monto})});
+    if(r.status===401){toast("Contraseña incorrecta");return}
+    toast("¡Venta registrada! 🎉");abrirModal(tel);cargarLeads()
+  }
+  async function deshacerVenta(tel){if(!confirm("¿Deshacer esta venta?"))return;await fetch(`/api/leads/${tel}/venta/deshacer`,{method:"POST",headers:JH()});toast("Venta deshecha");abrirModal(tel);cargarLeads()}
   async function tomarControl(tel){await fetch(`/api/leads/${tel}/tomar-control`,{method:"POST",headers:AH()});abrirModal(tel);cargarLeads()}
   async function devolverControl(tel){await fetch(`/api/leads/${tel}/devolver-control`,{method:"POST",headers:AH()});abrirModal(tel);cargarLeads()}
   function cerrarModal(){document.getElementById("leadOverlay").classList.remove("show")}
@@ -627,6 +693,41 @@
   function toggleAll(c){document.querySelectorAll(".lead-check").forEach(x=>{x.checked=c;toggleSel(x.value,c)})}
   function actualizarBulkBar(){document.getElementById("bulkcount").textContent=seleccion.size;document.getElementById("bulkbar").style.display=seleccion.size?"flex":"none"}
   async function bulk(accion){const tels=[...seleccion];if(!tels.length)return;if(accion==='borrar'&&!confirm(`¿Borrar ${tels.length} lead(s)? No se puede deshacer.`))return;await fetch('/api/leads/bulk',{method:'POST',headers:JH(),body:JSON.stringify({accion,telefonos:tels})});seleccion.clear();actualizarBulkBar();cargarLeads()}
+
+  /* ---------- ANÁLISIS DE VENTAS ---------- */
+  async function cargarAnalisis(){
+    try{
+      const a=await(await fetch("/api/analytics",{headers:AH()})).json();
+      document.getElementById("anaKpis").innerHTML=`
+        <div class="kpi green"><div class="l">💰 Ingresos totales</div><div class="v">${fmtMXN(a.totales.ingresos)}</div></div>
+        <div class="kpi gold"><div class="l">🏆 Ventas cerradas</div><div class="v">${a.totales.ventas}</div></div>
+        <div class="kpi blue"><div class="l">🎯 Ticket promedio</div><div class="v">${fmtMXN(a.totales.ticket)}</div></div>
+        <div class="kpi"><div class="l">📈 Conversión lead→venta</div><div class="v">${a.totales.conversion}%</div></div>`;
+      // Embudo
+      const e=a.embudo,max=Math.max(e.leads,1);
+      const steps=[["Leads",e.leads],["Calificados",e.calificados],["Con cita",e.citas],["Ventas",e.ventas]];
+      let prev=null,fh="";
+      steps.forEach(([nm,val])=>{
+        const w=Math.max(val/max*100,3);
+        const conv=prev!==null?`<div class="fconv">${prev>0?(val/prev*100).toFixed(0):0}% pasa del paso anterior</div>`:"";
+        fh+=`<div class="fstep"><div class="top"><span>${nm}</span><b>${val}</b></div><div class="fbar" style="width:${w}%">${val}</div>${conv}</div>`;
+        prev=val;
+      });
+      document.getElementById("anaFunnel").innerHTML=fh;
+      // Por asesor
+      const maxA=Math.max(...a.porAsesor.map(x=>x.ingresos),1);
+      document.getElementById("anaAsesor").innerHTML=a.porAsesor.length?a.porAsesor.map(x=>`
+        <div class="rankrow"><div class="top"><span class="nm">${x.nombre}</span><span class="vv">${fmtMXN(x.ingresos)}</span></div>
+        <div class="rankbar"><i style="width:${x.ingresos/maxA*100}%"></i></div>
+        <div class="rsub" style="margin:4px 0 0 0">${x.ventas} ventas · ${x.citas} citas · ${x.leads} leads</div></div>`).join(""):'<div class="empty" style="border:none">Aún no hay asesores o ventas</div>';
+      // Por zona
+      const maxZ=Math.max(...a.porZona.map(x=>x.ingresos),1);
+      document.getElementById("anaZona").innerHTML=a.porZona.length?a.porZona.map(x=>`
+        <div class="rankrow"><div class="top"><span class="nm">${x.zona}</span><span class="vv">${fmtMXN(x.ingresos)}</span></div>
+        <div class="rankbar"><i style="width:${x.ingresos/maxZ*100}%"></i></div>
+        <div class="rsub" style="margin:4px 0 0 0">${x.ventas} ventas</div></div>`).join(""):'<div class="empty" style="border:none">Aún no hay ventas registradas. Cierra un lead con su propiedad para verlo aquí.</div>';
+    }catch(e){document.getElementById("anaKpis").innerHTML='<div class="empty" style="border:none">Error al cargar</div>'}
+  }
 
   /* ---------- AGENDA ---------- */
   function gcalUrl(iso,titulo,detalles){
@@ -663,18 +764,20 @@
       if(!props.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">Aún no hay propiedades. Dale a «+ Agregar propiedad».</div>';return}
       grid.innerHTML=props.map(p=>{
         const img=(p.imagenes&&p.imagenes[0])||"";
-        return `<div class="prop"><div class="img" style="background-image:url('${img}')"><span class="badge2">${p.operacion==='renta'?'Renta':'Venta'}</span>${p.disponible===false?'<span class="nodisp">No disponible</span>':''}</div>
+        const est=p.estado||(p.disponible===false?"vendido":"disponible");
+        const estBadge=est==='vendido'?'<span class="nodisp">VENDIDO</span>':est==='apartado'?'<span class="nodisp" style="background:var(--warm,#d97706)">Apartado</span>':'';
+        return `<div class="prop ${est!=='disponible'?'off':''}"><div class="img" style="background-image:url('${img}')"><span class="badge2">${p.operacion==='renta'?'Renta':'Venta'}</span>${estBadge}</div>
           <div class="body"><h3>${p.titulo}</h3><div class="price">${fmtMXN(p.precio)}${p.operacion==='renta'?'/mes':''}</div>
           <div class="specs">${zonaNombre[p.zona]||p.zona||'—'} · ${p.recamaras} rec · ${p.banos} baños · ${p.m2} m²</div><div class="desc">${p.descripcion||''}</div></div>
           <div class="acts"><button class="btn ghost" onclick='editar(${JSON.stringify(p)})'>Editar</button><button class="btn danger" onclick="borrar('${p.id}')">Borrar</button></div></div>`;
       }).join("");
     }catch(e){toast("Error al cargar")}
   }
-  function abrirNueva(){editandoId=null;document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","imagenes","video"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_disponible").checked=true;document.getElementById("propOverlay").classList.add("show")}
-  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_imagenes").value=(p.imagenes||[]).join("\n");document.getElementById("f_video").value=p.video||"";document.getElementById("f_disponible").checked=p.disponible!==false;document.getElementById("propOverlay").classList.add("show")}
+  function abrirNueva(){editandoId=null;document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","direccion","imagenes","video"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_estado").value="disponible";document.getElementById("propOverlay").classList.add("show")}
+  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_direccion").value=p.direccion||"";document.getElementById("f_imagenes").value=(p.imagenes||[]).join("\n");document.getElementById("f_video").value=p.video||"";document.getElementById("f_estado").value=p.estado||(p.disponible===false?"vendido":"disponible");document.getElementById("propOverlay").classList.add("show")}
   function cerrar(){document.getElementById("propOverlay").classList.remove("show")}
   async function guardar(){
-    const body={titulo:val("f_titulo"),zona:document.getElementById("f_zona").value,tipo:document.getElementById("f_tipo").value,operacion:document.getElementById("f_operacion").value,precio:val("f_precio"),recamaras:val("f_recamaras"),banos:val("f_banos"),m2:val("f_m2"),descripcion:val("f_descripcion"),imagenes:val("f_imagenes").split("\n").map(s=>s.trim()).filter(Boolean),video:val("f_video"),disponible:document.getElementById("f_disponible").checked};
+    const body={titulo:val("f_titulo"),zona:document.getElementById("f_zona").value,tipo:document.getElementById("f_tipo").value,operacion:document.getElementById("f_operacion").value,precio:val("f_precio"),recamaras:val("f_recamaras"),banos:val("f_banos"),m2:val("f_m2"),descripcion:val("f_descripcion"),direccion:val("f_direccion"),imagenes:val("f_imagenes").split("\n").map(s=>s.trim()).filter(Boolean),video:val("f_video"),estado:document.getElementById("f_estado").value};
     if(!body.titulo){toast("Ponle un título");return}
     const url=editandoId?"/api/properties/"+editandoId:"/api/properties";
     try{const r=await fetch(url,{method:editandoId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrar();toast(editandoId?"Actualizada ✓":"Agregada ✓");cargarProps()}catch(e){toast("Error de conexión")}

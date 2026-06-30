@@ -20,7 +20,7 @@ import {
 import { generarRespuesta } from "./gemini.js";
 import { enviarTexto, enviarImagen } from "./whatsapp.js";
 import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal } from "./canales.js";
-import { descargarMediaWhatsApp, analizarImagen } from "./vision.js";
+import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./vision.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
@@ -87,8 +87,14 @@ app.post("/webhook", async (req, res) => {
         await manejarImagen(mensaje.from, nombre, "whatsapp", media, mensaje.image?.caption);
         return;
       }
+      if (mensaje.type === "audio") {
+        // El cliente mandó una nota de voz: la bajamos y el bot la "escucha".
+        const media = await descargarMediaWhatsApp(mensaje.audio?.id);
+        await manejarAudio(mensaje.from, nombre, "whatsapp", media);
+        return;
+      }
       if (mensaje.type !== "text") {
-        await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // audio, sticker, etc.
+        await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // sticker, ubicación, etc.
         return;
       }
       await procesarMensaje(mensaje.from, mensaje.text.body, nombre, "whatsapp");
@@ -106,9 +112,11 @@ app.post("/webhook", async (req, res) => {
           if (!remitente) continue;
           if (msg.text) await procesarMensaje(remitente, msg.text, null, canal);
           else {
-            const att = (msg.attachments || []).find((a) => a.type === "image" && a.payload?.url);
-            if (att) await manejarImagen(remitente, null, canal, { url: att.payload.url }, null);
-            else await manejarNoTexto(remitente, null, canal); // audio / adjunto
+            const img = (msg.attachments || []).find((a) => a.type === "image" && a.payload?.url);
+            const aud = (msg.attachments || []).find((a) => a.type === "audio" && a.payload?.url);
+            if (aud) await manejarAudio(remitente, null, canal, { url: aud.payload.url });
+            else if (img) await manejarImagen(remitente, null, canal, { url: img.payload.url }, null);
+            else await manejarNoTexto(remitente, null, canal); // otro adjunto
           }
         }
       }
@@ -134,9 +142,32 @@ async function manejarNoTexto(remitente, nombre, canal) {
   pushHistorial(remitente, "bot", msg);
 }
 
-// El cliente mandó una FOTO. La analizamos con visión y, si es una propiedad, el
-// bot la comenta con naturalidad (como si la viera) y sigue ayudando. Si no se
-// pudo ver o no es una propiedad, responde con gracia.
+// El cliente mandó una NOTA DE VOZ. La transcribimos con Whisper y la tratamos
+// como si la hubiera escrito (el bot responde a lo que dijo). Si no se pudo
+// escuchar, responde con gracia.
+async function manejarAudio(remitente, nombre, canal, audio) {
+  let lead = getLead(remitente);
+  if (!lead) lead = upsertLead(remitente, { nombre, canal });
+  if (lead.humanoEnControl) {
+    pushHistorial(remitente, "user", "[🎙️ nota de voz]");
+    return; // un asesor ya está atendiendo
+  }
+
+  const texto = audio ? await transcribirAudio(audio) : null;
+
+  if (texto && texto.trim().length > 1) {
+    // El bot "escuchó" la nota. La pasamos a su cerebro como mensaje del cliente,
+    // con una marca al inicio para que en el CRM se vea que fue nota de voz.
+    await procesarMensaje(remitente, `🎙️ ${texto.trim()}`, nombre, canal);
+    return;
+  }
+
+  // No se pudo transcribir: respuesta con gracia.
+  pushHistorial(remitente, "user", "[🎙️ nota de voz]");
+  const msg = "¡Gracias por tu nota de voz! 🙂 No alcancé a escucharla bien. ¿Me cuentas por aquí qué estás buscando (zona, presupuesto, recámaras)?";
+  await enviarTextoCanal(canal, remitente, msg);
+  pushHistorial(remitente, "bot", msg);
+}
 async function manejarImagen(remitente, nombre, canal, imagen, caption) {
   let lead = getLead(remitente);
   if (!lead) lead = upsertLead(remitente, { nombre, canal });
@@ -182,7 +213,7 @@ function extraerCita(texto) {
   }).formatToParts(d);
   const hora = parseInt(partes.find((p) => p.type === "hour").value, 10);
   const dia = partes.find((p) => p.type === "weekday").value; // Sun, Mon, ...
-  if (dia === "Sun" || hora < 9 || hora >= 19) return { iso: null, textoLimpio };
+  if (dia === "Sun" || hora < 9 || hora > 19) return { iso: null, textoLimpio };
 
   return { iso: d.toISOString(), textoLimpio };
 }
@@ -428,6 +459,94 @@ app.post("/api/leads/:telefono/estado", (req, res) => {
   if (estado === "en_atencion") patch.humanoEnControl = true;
   upsertLead(req.params.telefono, patch);
   res.json({ ok: true });
+});
+
+// Registrar una VENTA cerrada: liga el lead con la propiedad vendida y el monto.
+// Marca el lead como "cerrado" Y la propiedad como "vendido" (las dos cosas ligadas).
+app.post("/api/leads/:telefono/venta", (req, res) => {
+  const lead = getLead(req.params.telefono);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  const propiedadId = req.body?.propiedadId || null;
+  const monto = Number(req.body?.monto) || 0;
+  upsertLead(req.params.telefono, {
+    estado: "cerrado",
+    venta: { propiedadId, monto, fecha: new Date().toISOString(), agenteId: lead.agenteAsignado || null },
+  });
+  if (propiedadId) updateProperty(propiedadId, { estado: "vendido" });
+  res.json({ ok: true });
+});
+
+// Deshacer una venta (si se registró por error): vuelve el lead a "en atención".
+app.post("/api/leads/:telefono/venta/deshacer", (req, res) => {
+  const lead = getLead(req.params.telefono);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  upsertLead(req.params.telefono, { estado: "en_atencion", venta: null });
+  res.json({ ok: true });
+});
+
+// Analítica de ventas: embudo, por asesor, por zona y totales.
+app.get("/api/analytics", (req, res) => {
+  const db = loadDB();
+  const leads = Object.values(db.leads);
+  const props = db.properties || [];
+  const propById = Object.fromEntries(props.map((p) => [p.id, p]));
+  const agentes = db.agents || [];
+  const ahora = new Date();
+  const esEsteMes = (iso) => {
+    const d = new Date(iso);
+    return d.getFullYear() === ahora.getFullYear() && d.getMonth() === ahora.getMonth();
+  };
+
+  const conVenta = leads.filter((l) => l.venta && l.estado === "cerrado");
+  const calificados = leads.filter((l) => l.perfil && (l.perfil.zona || l.perfil.presupuesto));
+  const conCita = leads.filter((l) => l.citaProgramada);
+
+  // Embudo
+  const embudo = {
+    leads: leads.length,
+    calificados: calificados.length,
+    citas: conCita.length,
+    ventas: conVenta.length,
+  };
+
+  // Totales
+  const ingresos = conVenta.reduce((s, l) => s + (l.venta.monto || 0), 0);
+  const ingresosMes = conVenta.filter((l) => esEsteMes(l.venta.fecha)).reduce((s, l) => s + (l.venta.monto || 0), 0);
+  const totales = {
+    ventas: conVenta.length,
+    ingresos,
+    ingresosMes,
+    ticket: conVenta.length ? Math.round(ingresos / conVenta.length) : 0,
+    conversion: leads.length ? +(conVenta.length / leads.length * 100).toFixed(1) : 0,
+  };
+
+  // Por asesor
+  const porAsesor = agentes.map((a) => {
+    const susLeads = leads.filter((l) => l.agenteAsignado === a.id);
+    const susVentas = conVenta.filter((l) => (l.venta.agenteId || l.agenteAsignado) === a.id);
+    return {
+      id: a.id,
+      nombre: a.nombre,
+      leads: susLeads.length,
+      citas: susLeads.filter((l) => l.citaProgramada).length,
+      ventas: susVentas.length,
+      ingresos: susVentas.reduce((s, l) => s + (l.venta.monto || 0), 0),
+    };
+  }).sort((x, y) => y.ingresos - x.ingresos);
+
+  // Por zona (según la zona de la propiedad vendida; si no, la del perfil del lead)
+  const zonaNombre = Object.fromEntries((db.zones || []).map((z) => [z.slug || z.id, z.nombre]));
+  const zonasAcc = {};
+  for (const l of conVenta) {
+    const prop = l.venta.propiedadId ? propById[l.venta.propiedadId] : null;
+    const zkey = (prop && prop.zona) || (l.perfil && l.perfil.zona) || "otra";
+    if (!zonasAcc[zkey]) zonasAcc[zkey] = { zona: zonaNombre[zkey] || zkey, ventas: 0, ingresos: 0 };
+    zonasAcc[zkey].ventas++;
+    zonasAcc[zkey].ingresos += l.venta.monto || 0;
+  }
+  const porZona = Object.values(zonasAcc).sort((x, y) => y.ingresos - x.ingresos);
+
+  res.json({ embudo, totales, porAsesor, porZona });
 });
 
 // Guardar notas y etiquetas del lead

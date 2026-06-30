@@ -18,6 +18,9 @@ export function buscarPropiedades(lead, limite = 3) {
     (x) => x.disponible !== false && (x.imagenes || []).length >= 0 && x.zona === p.zona
   );
 
+  // Si el cliente busca renta o compra, solo le mostramos lo que cuadra.
+  if (p.operacion) props = props.filter((x) => x.operacion === p.operacion);
+
   const scored = props.map((prop) => {
     let s = 10; // ya cumple la zona
     if (p.recamaras && prop.recamaras >= p.recamaras) s += 20;
@@ -50,7 +53,7 @@ inventes precios y NUNCA le ofrezcas algo de otra zona distinta a la que pidió.
   }
   const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
   const linea = (p) =>
-    `"${p.titulo}" — ${p.tipo} en ${p.zona}, ${p.operacion}. ${fmt(p.precio)}${p.operacion === "renta" ? "/mes" : ""}, ${p.recamaras} rec, ${p.banos} baños, ${p.m2} m². ${p.descripcion}`;
+    `"${p.titulo}" — ${p.tipo} en ${p.zona}, ${p.operacion}. ${fmt(p.precio)}${p.operacion === "renta" ? "/mes" : ""}, ${p.recamaras} rec, ${p.banos} baños, ${p.m2} m². ${p.descripcion}${p.direccion ? ` [Dirección exacta: ${p.direccion}]` : ""}`;
 
   let txt = `PROPIEDADES REALES DISPONIBLES (SOLO estas existen, NO inventes otras ni de otra zona):\n`;
   txt += props.map((p, i) => `${i + 1}. ${linea(p)}`).join("\n");
