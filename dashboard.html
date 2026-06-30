@@ -119,6 +119,7 @@
   .prop .img .badge2{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:rgba(20,21,26,.8);color:#fff}
   .prop .img .nodisp{position:absolute;top:8px;right:8px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--red);color:#fff}
   .prop.off .img{filter:grayscale(.55);opacity:.72}
+  .prop .soldby{margin-top:8px;font-size:12px;background:#eafaf0;border:1px solid #c9eede;color:#15803d;padding:7px 10px;border-radius:8px;line-height:1.5}
   .prop .body{padding:14px;flex:1;display:flex;flex-direction:column;gap:6px}
   .prop .body h3{font-family:'Space Grotesk',sans-serif;font-size:15px;line-height:1.3}
   .prop .price{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:var(--gold-deep)}
@@ -766,9 +767,10 @@
         const img=(p.imagenes&&p.imagenes[0])||"";
         const est=p.estado||(p.disponible===false?"vendido":"disponible");
         const estBadge=est==='vendido'?'<span class="nodisp">VENDIDO</span>':est==='apartado'?'<span class="nodisp" style="background:var(--warm,#d97706)">Apartado</span>':'';
+        const ventaInfo=(est==='vendido'&&p.venta)?`<div class="soldby">🏆 Vendida por <b>${p.venta.agenteNombre||'asesor no asignado'}</b>${p.venta.monto?` · ${fmtMXN(p.venta.monto)}`:''}${p.venta.fecha?` · ${new Date(p.venta.fecha).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}`:''}${p.venta.cliente?`<br><span style="color:var(--muted)">Cliente: ${p.venta.cliente}</span>`:''}</div>`:'';
         return `<div class="prop ${est!=='disponible'?'off':''}"><div class="img" style="background-image:url('${img}')"><span class="badge2">${p.operacion==='renta'?'Renta':'Venta'}</span>${estBadge}</div>
           <div class="body"><h3>${p.titulo}</h3><div class="price">${fmtMXN(p.precio)}${p.operacion==='renta'?'/mes':''}</div>
-          <div class="specs">${zonaNombre[p.zona]||p.zona||'—'} · ${p.recamaras} rec · ${p.banos} baños · ${p.m2} m²</div><div class="desc">${p.descripcion||''}</div></div>
+          <div class="specs">${zonaNombre[p.zona]||p.zona||'—'} · ${p.recamaras} rec · ${p.banos} baños · ${p.m2} m²</div><div class="desc">${p.descripcion||''}</div>${ventaInfo}</div>
           <div class="acts"><button class="btn ghost" onclick='editar(${JSON.stringify(p)})'>Editar</button><button class="btn danger" onclick="borrar('${p.id}')">Borrar</button></div></div>`;
       }).join("");
     }catch(e){toast("Error al cargar")}

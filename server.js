@@ -468,19 +468,36 @@ app.post("/api/leads/:telefono/venta", (req, res) => {
   if (!lead) return res.status(404).json({ error: "No encontrado" });
   const propiedadId = req.body?.propiedadId || null;
   const monto = Number(req.body?.monto) || 0;
+  const fecha = new Date().toISOString();
+  const agente = (getAgents() || []).find((a) => a.id === lead.agenteAsignado);
   upsertLead(req.params.telefono, {
     estado: "cerrado",
-    venta: { propiedadId, monto, fecha: new Date().toISOString(), agenteId: lead.agenteAsignado || null },
+    venta: { propiedadId, monto, fecha, agenteId: lead.agenteAsignado || null },
   });
-  if (propiedadId) updateProperty(propiedadId, { estado: "vendido" });
+  if (propiedadId) {
+    updateProperty(propiedadId, {
+      estado: "vendido",
+      venta: {
+        agenteId: lead.agenteAsignado || null,
+        agenteNombre: agente ? agente.nombre : null,
+        monto,
+        fecha,
+        cliente: lead.nombre || null,
+        leadTel: lead.telefono,
+      },
+    });
+  }
   res.json({ ok: true });
 });
 
-// Deshacer una venta (si se registró por error): vuelve el lead a "en atención".
+// Deshacer una venta (si se registró por error): vuelve el lead a "en atención"
+// y la propiedad a "disponible".
 app.post("/api/leads/:telefono/venta/deshacer", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  const propId = lead.venta?.propiedadId;
   upsertLead(req.params.telefono, { estado: "en_atencion", venta: null });
+  if (propId) updateProperty(propId, { estado: "disponible", venta: null });
   res.json({ ok: true });
 });
 
