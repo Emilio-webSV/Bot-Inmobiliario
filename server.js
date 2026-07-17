@@ -67,6 +67,22 @@ app.get("/webhook", (req, res) => {
 // ---------------------------------------------------------------------------
 // 2) RECEPCIÓN DE MENSAJES (aquí llega cada WhatsApp del cliente)
 // ---------------------------------------------------------------------------
+
+// Anti-duplicados: Meta a veces manda el mismo mensaje dos veces (reintentos o
+// doble suscripción). Guardamos los IDs ya procesados y los ignoramos si repiten.
+const idsProcesados = new Map(); // id -> timestamp
+function mensajeDuplicado(id) {
+  if (!id) return false;
+  const ahora = Date.now();
+  // Limpieza: quita IDs de hace más de 10 min para no crecer sin límite.
+  if (idsProcesados.size > 1000) {
+    for (const [k, t] of idsProcesados) if (ahora - t > 10 * 60 * 1000) idsProcesados.delete(k);
+  }
+  if (idsProcesados.has(id)) return true; // ya lo vimos
+  idsProcesados.set(id, ahora);
+  return false;
+}
+
 app.post("/webhook", async (req, res) => {
   // Respondemos 200 de inmediato para que Meta no reintente
   res.sendStatus(200);
@@ -80,6 +96,7 @@ app.post("/webhook", async (req, res) => {
       const value = body?.entry?.[0]?.changes?.[0]?.value;
       const mensaje = value?.messages?.[0];
       if (!mensaje) return;
+      if (mensajeDuplicado(mensaje.id)) return; // ya lo procesamos, no repitas
       const nombre = value?.contacts?.[0]?.profile?.name || null;
       if (mensaje.type === "image") {
         // El cliente mandó una foto: la bajamos y el bot la "ve".
@@ -108,6 +125,7 @@ app.post("/webhook", async (req, res) => {
         for (const ev of e.messaging || []) {
           const msg = ev.message;
           if (!msg || msg.is_echo) continue; // ignora echos
+          if (mensajeDuplicado(msg.mid)) continue; // duplicado, ya lo procesamos
           const remitente = ev.sender?.id;
           if (!remitente) continue;
           if (msg.text) await procesarMensaje(remitente, msg.text, null, canal);
