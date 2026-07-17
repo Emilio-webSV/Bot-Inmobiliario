@@ -56,7 +56,9 @@ export async function analizarImagen(imagen) {
     "clásico, minimalista...), número de pisos si se ve, y características visibles " +
     "(jardín, alberca, balcón, terraza, mucha luz, doble altura, etc.). " +
     "NO inventes ubicación, colonia, precio ni metros: solo lo que se ve. " +
-    "Si la imagen NO es de una propiedad o inmueble, responde EXACTAMENTE: NO_PROPIEDAD";
+    "Si la imagen NO es de una propiedad o inmueble, responde: NO_PROPIEDAD: " +
+    "seguido de MUY pocas palabras diciendo qué es (ej. 'NO_PROPIEDAD: un gatito', " +
+    "'NO_PROPIEDAD: un meme gracioso', 'NO_PROPIEDAD: una selfie').";
 
   try {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {

@@ -9,6 +9,7 @@
 
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 import {
@@ -29,7 +30,14 @@ import { iniciarCronJobs, enviarReporteAhora, revisarLeadsCalientesAhora } from 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "15mb" })); // 15mb: permite recibir fotos en base64
+
+// Carpeta donde se guardan las fotos que sube el usuario (en el disco persistente).
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+// Se sirven PÚBLICAS (sin contraseña) para que WhatsApp pueda descargarlas.
+app.use("/uploads", express.static(UPLOADS_DIR));
 
 const PORT = process.env.PORT || 3000;
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "cambia_esto";
@@ -46,6 +54,28 @@ app.use("/api", (req, res, next) => {
     return res.status(401).json({ error: "No autorizado" });
   }
   next();
+});
+
+// Subir una foto (llega en base64 desde el navegador). La guarda en el disco y
+// devuelve su URL pública, lista para usarse en una propiedad.
+app.post("/api/upload", (req, res) => {
+  try {
+    const data = req.body?.data || "";
+    const m = data.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
+    const mime = m ? m[1] : "image/jpeg";
+    const b64 = m ? m[2] : data.replace(/^data:.*;base64,/, "");
+    if (!b64) return res.status(400).json({ error: "Sin imagen" });
+    const buf = Buffer.from(b64, "base64");
+    if (buf.length > 12 * 1024 * 1024) return res.status(400).json({ error: "Imagen muy pesada (máx 12MB)" });
+    const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : mime.includes("gif") ? "gif" : "jpg";
+    const nombre = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    fs.writeFileSync(path.join(UPLOADS_DIR, nombre), buf);
+    const base = process.env.PUBLIC_URL || `https://${req.get("host")}`;
+    res.json({ url: `${base}/uploads/${nombre}` });
+  } catch (e) {
+    console.error("[upload]", e.message);
+    res.status(500).json({ error: "No se pudo subir la imagen" });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -110,8 +140,13 @@ app.post("/webhook", async (req, res) => {
         await manejarAudio(mensaje.from, nombre, "whatsapp", media);
         return;
       }
+      if (mensaje.type === "sticker") {
+        // El cliente mandó un sticker: el bot reacciona con buena onda y sigue.
+        await procesarMensaje(mensaje.from, "😄 (El cliente te mandó un sticker)", nombre, "whatsapp");
+        return;
+      }
       if (mensaje.type !== "text") {
-        await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // sticker, ubicación, etc.
+        await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // ubicación, contacto, etc.
         return;
       }
       await procesarMensaje(mensaje.from, mensaje.text.body, nombre, "whatsapp");
@@ -155,7 +190,7 @@ async function manejarNoTexto(remitente, nombre, canal) {
   if (!lead) lead = upsertLead(remitente, { nombre, canal });
   pushHistorial(remitente, "user", "[imagen/archivo recibido]");
   if (lead.humanoEnControl) return; // si un asesor ya está atendiendo, no respondas
-  const msg = "¡Gracias! 🙂 Por aquí todavía no alcanzo a abrir ese tipo de archivo, pero cuéntame qué estás buscando (zona, presupuesto, recámaras) y te ayudo. O si prefieres, te paso con un asesor.";
+  const msg = "¡Gracias! 😄 Oye, mejor cuéntame qué andas buscando —zona, presupuesto, recámaras— y te encuentro algo padre. 🏠";
   await enviarTextoCanal(canal, remitente, msg);
   pushHistorial(remitente, "bot", msg);
 }
@@ -196,19 +231,26 @@ async function manejarImagen(remitente, nombre, canal, imagen, caption) {
 
   const desc = imagen ? await analizarImagen(imagen) : null;
 
-  if (desc && !/NO_PROPIEDAD/i.test(desc)) {
-    // El bot "vio" la foto. Le pasamos lo que ve a su cerebro como mensaje.
+  if (desc && /NO_PROPIEDAD/i.test(desc)) {
+    // Es una foto que NO es propiedad (un gato, un meme, etc.). Que el bot
+    // reaccione con buena onda y de inmediato regrese al tema.
+    const quees = desc.replace(/.*NO_PROPIEDAD:?\s*/i, "").trim() || "algo";
+    const texto = `📷 (El cliente te mandó una foto que NO es una propiedad; se ve: ${quees}. Reacciona MUY breve con buena onda y de inmediato regresa la conversación a ayudarlo a encontrar una propiedad.)`;
+    await procesarMensaje(remitente, texto, nombre, canal);
+    return;
+  }
+
+  if (desc) {
+    // El bot "vio" la foto de una propiedad. Le pasamos lo que ve a su cerebro.
     const cap = caption ? ` El cliente escribió junto a la foto: "${caption}".` : "";
     const texto = `📷 (El cliente te envió una foto de una propiedad que le interesa. En la foto se ve: ${desc}.${cap})`;
     await procesarMensaje(remitente, texto, nombre, canal);
     return;
   }
 
-  // No se pudo ver, o no es una propiedad: respuesta con gracia.
+  // No se pudo abrir la imagen: respuesta con gracia.
   pushHistorial(remitente, "user", "[📷 foto recibida]");
-  const msg = desc && /NO_PROPIEDAD/i.test(desc)
-    ? "¡Gracias por la foto! 🙂 Esa imagen no parece ser de una propiedad. Cuéntame qué buscas (zona, presupuesto, recámaras) y con gusto te ayudo."
-    : "¡Gracias por la foto! 🙂 Tuve un detalle para abrirla, pero cuéntame qué estás buscando (zona, presupuesto, recámaras) y te ayudo igual.";
+  const msg = "¡Gracias por la foto! 🙂 Se me complicó abrirla, pero cuéntame qué estás buscando —zona, presupuesto, recámaras— y te ayudo igual. 🏠";
   await enviarTextoCanal(canal, remitente, msg);
   pushHistorial(remitente, "bot", msg);
 }
@@ -327,10 +369,12 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   if (cita) {
     respuesta = cita.textoLimpio; // quita la etiqueta antes de mandársela al cliente
     if (cita.iso) { // solo si pasó la validación (no pasado, dentro de horario)
+      const esReagenda = lead.citaProgramada && lead.citaProgramada !== cita.iso;
       upsertLead(telefono, { citaProgramada: cita.iso, seguimientos: { recordatorioCita: false } });
       const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
       const link = gcalLink(cita.iso, `Cita: ${lead.nombre || telefono}`, `Visita agendada por el asistente. Cliente: ${lead.nombre || telefono} (${telefono}).`);
-      const aviso = `📅 Cita agendada\nCliente: ${lead.nombre || telefono}\n${fechaTxt}\n\n➕ Agrégala a tu calendario:\n${link}`;
+      const titulo = esReagenda ? "🔄 Cita REAGENDADA" : "📅 Cita agendada";
+      const aviso = `${titulo}\nCliente: ${lead.nombre || telefono}\n${fechaTxt}\n\n➕ Agrégala a tu calendario:\n${link}`;
       const dueno = process.env.OWNER_PHONE;
       if (dueno) await enviarTexto(dueno, aviso).catch(() => {});
       // También al asesor asignado, si tiene teléfono (y no es el mismo del dueño)
@@ -349,14 +393,21 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   await enviarTextoCanal(canal, telefono, respuesta);
   pushHistorial(telefono, "bot", respuesta);
 
-  // 6) Manda las fotos de las propiedades que el bot acaba de presentar (hasta 3).
+  // 6) Manda las fotos de las propiedades que el bot acaba de presentar.
+  //    Si es UNA sola propiedad, manda varias fotos de ella (hasta 4). Si son
+  //    varias opciones, manda 1 foto de cada una para no saturar.
   if (nuevas.length && lead.perfil.zona) {
     const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
+    const maxFotos = nuevas.length === 1 ? 4 : 1;
     for (const prop of nuevas) {
       const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.titulo + " Ciudad de México")}`;
       const caption = `🏡 ${prop.titulo}\n${fmt(prop.precio)}${prop.operacion === "renta" ? "/mes" : ""} · ${prop.recamaras} rec · ${prop.banos} baños · ${prop.m2} m²\n📍 Ubicación: ${maps}`;
-      await enviarImagenCanal(canal, telefono, prop.imagenes[0], caption);
-      pushHistorial(telefono, "bot", `[foto enviada] ${prop.titulo}`);
+      const fotos = (prop.imagenes || []).slice(0, maxFotos);
+      for (let i = 0; i < fotos.length; i++) {
+        // Solo la primera foto lleva el texto (precio, specs); las demás van sin caption.
+        await enviarImagenCanal(canal, telefono, fotos[i], i === 0 ? caption : "");
+      }
+      pushHistorial(telefono, "bot", `[${fotos.length} foto(s) enviada(s)] ${prop.titulo}`);
       marcarEnviada(telefono, prop.id);
       // Si la propiedad tiene video, también se lo mandamos.
       if (prop.video) {

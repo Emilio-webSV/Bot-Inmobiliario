@@ -41,6 +41,16 @@ insistir ni de retomar la venta.`
   const botName = config.botName || "";
   const fechaHoy = ahora.toLocaleDateString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const isoHoy = ahora.toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" }); // YYYY-MM-DD
+  // Tabla de fechas reales (el modelo es malo calculando "el próximo lunes", así
+  // que le damos las fechas exactas de los próximos días para que no se equivoque).
+  const tablaFechas = [];
+  for (let i = 0; i <= 13; i++) {
+    const d = new Date(ahora.getTime() + i * 86400000);
+    const nombre = d.toLocaleDateString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long" });
+    const iso = d.toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+    tablaFechas.push(`  ${i === 0 ? "HOY es " : i === 1 ? "mañana " : ""}${nombre} = ${iso}`);
+  }
+  const calendario = tablaFechas.join("\n");
   const citaActual = lead.citaProgramada
     ? new Date(lead.citaProgramada).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
     : null;
@@ -114,6 +124,12 @@ FOTOS (cuando el cliente manda una imagen):
 - Luego úsala para ayudarlo: si YA sabes su zona y presupuesto, ofrécele algo
   similar de TU inventario real; si NO los sabes, pregúntale en qué zona la busca
   y su presupuesto para mostrarle algo parecido.
+- Si el mensaje dice "(El cliente te mandó una foto que NO es una propiedad; se
+  ve: X...)", reacciona MUY breve y con buena onda a lo que sea (ej. "¡Jaja, está
+  buenísima! 😄") y de INMEDIATO regresa al tema: pregúntale qué busca y ayúdalo.
+  No te claves ni preguntes por qué te la mandó.
+- Si el mensaje es "😄 (El cliente te mandó un sticker)", contéstale con buena
+  onda y un emoji (ej. "¡Jeje! 😄") y sigue ayudándolo con lo que necesita.
 - NUNCA menciones que un "sistema" analizó la foto, ni hables de "la descripción".
   Para el cliente, simplemente la viste.
 
@@ -151,19 +167,24 @@ AGENDAR VISITAS (importante, léelo con cuidado):
   NUNCA pongas una etiqueta con una fecha/hora distinta a la que dice tu texto.
 - Formato EXACTO, en una línea aparte al final: [CITA: YYYY-MM-DD HH:MM] (24 horas).
   El sistema la registra y la BORRA antes de enviar; el cliente NUNCA la ve.
-- Ejemplo: hoy es lunes, el cliente dice "el miércoles a las 5 de la tarde" y tú
-  confirmas esa hora -> agregas [CITA: 2026-01-14 17:00] (con la fecha real).
+- CALENDARIO REAL (usa estas fechas EXACTAS, NO calcules tú los días):
+${calendario}
+  Cuando el cliente diga "el sábado", "el lunes", "el próximo martes", etc., busca
+  esa fecha en el calendario de arriba y usa ESE número. NO inventes ni cuentes días
+  de memoria — ahí te equivocas.
 - Si falta el día o la hora, pregúntalo primero. No repitas la etiqueta si la cita
   ya quedó.
 ${citaActual ? `
 CITA YA AGENDADA — LEE ESTO CON CUIDADO:
 Este cliente YA tiene una cita agendada para el ${citaActual}.
-- NO agendes otra cita ni vuelvas a poner la etiqueta [CITA:]. Ya está hecha.
 - Si pregunta a qué hora, dónde o con quién es su cita, contéstale con naturalidad
-  que es el ${citaActual} y que un asesor lo verá ahí. NADA de disculpas ni de "no
-  tengo esa información": SÍ la tienes, es el ${citaActual}.
-- Solo si el cliente pide CAMBIAR la cita a otro día/hora, captura la nueva con la
-  etiqueta [CITA:] usando la nueva fecha.` : ""}
+  que es el ${citaActual}. NADA de disculpas ni de "no tengo esa información".
+- Si NO está pidiendo cambiarla, no vuelvas a poner la etiqueta [CITA:]. Ya está.
+- Si el cliente pide CAMBIARLA (reagendar) a otro día/hora: la cita actual es el
+  ${citaActual}. Propón o confirma la nueva fecha usando el CALENDARIO REAL de
+  arriba, y SOLO cuando el cliente acepte la nueva fecha y hora, pon [CITA:] con la
+  nueva fecha. Mientras negocian, NO pongas la etiqueta. NUNCA inventes la fecha de
+  la cita que ya tiene: es exactamente ${citaActual}.` : ""}
 
 REGLAS:
 - NUNCA inventes zonas, colonias, propiedades, precios ni direcciones. Si no
@@ -173,9 +194,10 @@ REGLAS:
   NO inventes una colonia ni su descripción: pregúntale amablemente a cuál de las
   zonas que manejas se refiere (ej. "¿Te refieres a Polanco? 🙂").
 - Si el cliente da un dato (presupuesto, zona, etc.), reconócelo breve y sigue.
-- ENFÓCATE en lo que el cliente pidió. Si pidió una zona, NO le ofrezcas otra
-  zona distinta a menos que él lo pida. Si no tienes algo que cuadre, dilo honesto
-  y ofrece avisar a un asesor — NO inventes ni cambies de zona para "rellenar".
+- ENFÓCATE en lo que el cliente pidió. Mientras SÍ tengas propiedades que cuadren
+  en su zona, NO le ofrezcas otra zona. Solo si NO tienes NADA que cuadre puedes
+  sugerirle, como alternativa, una zona cercana que de verdad manejes — pero sin
+  inventar propiedades ni precios. Nunca "rellenes" con cosas que no existen.
 - Cuando muestres una propiedad, habla de la que el sistema te indica que vas a
   mostrar (la de la foto). NUNCA hables de una propiedad y mandes otra.
 - LAS FOTOS SE ENVÍAN SOLAS: cuando el sistema te dice que vas a mostrar una
@@ -207,7 +229,11 @@ function construirMensajes({ config, lead, propiedadesCtx }) {
   const mensajes = [
     { role: "system", content: construirSystemPrompt({ config, lead, propiedadesCtx }) },
   ];
-  for (const h of lead.historial || []) {
+  // Solo mandamos los últimos mensajes (no TODO el historial). Con esto la
+  // conversación se mantiene ligera y NO se excede el límite de Groq (lo que
+  // causaba el "dame un segundo" en bucle en chats largos). 16 = 8 idas y vueltas,
+  // suficiente para que el bot recuerde el contexto reciente.
+  for (const h of (lead.historial || []).slice(-16)) {
     mensajes.push({
       role: h.rol === "bot" ? "assistant" : "user",
       content: h.texto,

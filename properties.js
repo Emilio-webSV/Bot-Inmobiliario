@@ -46,10 +46,19 @@ export function buscarPropiedades(lead, limite = 3) {
 // de ESA para que el texto y la foto coincidan.
 export function contextoPropiedades(props, mostrar) {
   if (!props.length) {
-    return `NO TIENES NINGUNA PROPIEDAD que cuadre con la zona y el presupuesto que pidió el cliente.
-Sé honesto: dile con naturalidad que ahorita no tienes algo con esas características y ofrece
-que un asesor le avise apenas entre algo que le quede. NUNCA inventes una propiedad, NUNCA
-inventes precios y NUNCA le ofrezcas algo de otra zona distinta a la que pidió.`;
+    return `NO TIENES una propiedad que cuadre EXACTO con lo que pidió el cliente,
+pero NO lo dejes ir — SIEMPRE inclínate a la venta:
+- Dile con naturalidad y buena actitud que justo con esas características no tienes
+  algo disponible en este momento (NUNCA inventes una propiedad ni precios).
+- INMEDIATAMENTE ofrece alternativas para mantener vivo el interés: pregúntale si
+  consideraría algo con recámaras/presupuesto un poco distinto, o una zona cercana
+  parecida; ofrécele apuntarlo para avisarle apenas entre algo que le quede (pídele
+  confirmar sus datos para el seguimiento); o invítalo a contarte más de lo que
+  busca para encontrarle la mejor opción.
+- Mantén el tono positivo y de asesor que quiere ayudarle a encontrar SU casa, no
+  el de "no hay, adiós". El objetivo es que siga conversando y avance.
+- Solo NO inventes ni le ofrezcas una propiedad específica de otra zona como si la
+  tuvieras; puedes SUGERIR explorar una zona cercana, pero sin inventar inmuebles.`;
   }
   const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
   const linea = (p) =>
