@@ -258,6 +258,13 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
 
   // 1) ¿Está frustrado? -> escalar a humano y no seguir con el bot
   const fr = analizarFrustracion(texto);
+
+  // Si estaba escalado pero ahora escribe tranquilo (ej. "vamos a agendar"),
+  // lo des-escalamos para que el bot vuelva a ayudarlo con normalidad.
+  if (lead.escalado && !fr.frustrado) {
+    lead = upsertLead(telefono, { escalado: false });
+  }
+
   if (fr.frustrado) {
     lead = upsertLead(telefono, { escalado: true, temperatura: "caliente" });
     const agente = lead.agenteAsignado || asignarAgente(lead.perfil.zona);
@@ -325,7 +332,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   pushHistorial(telefono, "bot", respuesta);
 
   // 6) Manda las fotos de las propiedades que el bot acaba de presentar (hasta 3).
-  if (nuevas.length && lead.perfil.zona && lead.perfil.presupuesto) {
+  if (nuevas.length && lead.perfil.zona) {
     const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
     for (const prop of nuevas) {
       const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.titulo + " Ciudad de México")}`;

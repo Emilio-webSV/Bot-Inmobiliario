@@ -14,8 +14,10 @@ const SENALES_FRUSTRACION = [
 ];
 
 const SENALES_PEDIR_HUMANO = [
-  "hablar con una persona", "hablar con alguien", "un asesor", "un agente",
-  "una persona real", "un humano", "que me llamen", "que me marquen",
+  "hablar con una persona", "hablar con alguien", "hablar con un humano",
+  "hablar con un asesor", "hablar con un agente", "hablar con una asesora",
+  "una persona real", "un humano real", "que me llamen", "que me marquen",
+  "quiero que me llame", "me puede llamar una persona", "atiéndame una persona",
 ];
 
 export function analizarFrustracion(texto) {
@@ -35,8 +37,11 @@ export function analizarFrustracion(texto) {
   const pideHumano = SENALES_PEDIR_HUMANO.some((s) => t.includes(s));
 
   return {
-    frustrado: nivel >= 1 || pideHumano,
+    // Solo escalamos si PIDE humano explícitamente, o si hay VARIAS señales de
+    // enojo juntas (nivel >= 2). Una sola palabra suelta NO escala — así el bot
+    // no se "rompe" por cualquier cosa.
+    frustrado: pideHumano || nivel >= 2,
     pideHumano,
-    nivel, // 0 = tranquilo, 1 = molesto, 2+ = muy molesto
+    nivel, // 0 = tranquilo, 1 = ligeramente molesto, 2+ = muy molesto
   };
 }

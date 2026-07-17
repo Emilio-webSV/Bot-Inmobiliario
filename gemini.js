@@ -92,9 +92,10 @@ TU MISIÓN:
    Cuando fluya natural, pregunta también (una sola vez cada cosa, sin
    interrogar): si la compra sería **de contado o con crédito**, y **para cuándo
    busca mudarse o comprar**. Eso te dice qué tan en serio va el cliente.
-4. Generar confianza. SOLO cuando el cliente ya esté interesado y calificado,
-   invítalo a agendar una visita o llamada con un asesor. NO ofrezcas pasar con
-   un asesor en los primeros mensajes.
+4. Cerrar la visita. Cuando el cliente ya esté interesado, invítalo a agendar una
+   visita y **AGÉNDALA TÚ MISMO** ahí mismo (tú eres el asesor, tú puedes hacerlo
+   — ver sección AGENDAR). NUNCA digas "un asesor te contactará para agendar" ni
+   "no puedo agendar yo": TÚ agendas la cita en el momento.
 
 OBJECIONES (maneja las dudas como asesor experto, NO como vendedor desesperado):
 - Si el cliente duda por el precio ("está caro"), respóndele con datos de la
@@ -177,6 +178,13 @@ REGLAS:
   y ofrece avisar a un asesor — NO inventes ni cambies de zona para "rellenar".
 - Cuando muestres una propiedad, habla de la que el sistema te indica que vas a
   mostrar (la de la foto). NUNCA hables de una propiedad y mandes otra.
+- LAS FOTOS SE ENVÍAN SOLAS: cuando el sistema te dice que vas a mostrar una
+  propiedad, su foto se manda automáticamente después de tu mensaje. Tú NO tienes
+  que "adjuntarla". Por eso NUNCA escribas acotaciones como "(se envía la foto)",
+  "(foto)", "(adjunto la imagen)", "📸 (aquí va la foto)" ni nada parecido —
+  quedan feísimas. Habla natural: "Mira, te muestro esta 👇" o "Aquí está 😍",
+  y ya. Si el sistema NO te indicó ninguna propiedad que mostrar, NO prometas
+  mandar fotos: mejor pide el dato que falta (zona, presupuesto) o sé honesto.
 - Con el presupuesto, usa el número tal cual lo dijo el cliente. NO sumes cifras
   ni hagas operaciones raras (si dijo "6 millones", es 6,000,000, no lo combines
   con otros números).
@@ -218,30 +226,36 @@ export async function generarRespuesta({ config, lead, propiedadesCtx }) {
     model: MODELO,
     messages: construirMensajes({ config, lead, propiedadesCtx }),
     temperature: 0.6,
-    max_tokens: 220,
+    max_tokens: 300,
   };
 
-  try {
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+  // Intenta hasta 2 veces: si Groq falla por un instante (rate limit o error
+  // pasajero), reintenta una vez antes de rendirse. Así evita los "detalle técnico".
+  for (let intento = 1; intento <= 2; intento++) {
+    try {
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
 
-    if (!res.ok) {
-      const errTxt = await res.text();
-      console.error("[groq] Error API:", res.status, errTxt);
-      return "Disculpa, tuve un detalle técnico. ¿Me repites por favor? 🙏";
+      if (!res.ok) {
+        const errTxt = await res.text();
+        console.error(`[groq] Error API (intento ${intento}):`, res.status, errTxt);
+        if (intento < 2) { await new Promise((r) => setTimeout(r, 800)); continue; }
+        return "Dame un segundo y me escribes de nuevo, por favor 🙂";
+      }
+
+      const data = await res.json();
+      const texto = data?.choices?.[0]?.message?.content;
+      return texto?.trim() || "¿Me puedes dar un poco más de detalle? 🙂";
+    } catch (err) {
+      console.error(`[groq] Excepción (intento ${intento}):`, err.message);
+      if (intento < 2) { await new Promise((r) => setTimeout(r, 800)); continue; }
+      return "Dame un segundo y me escribes de nuevo, por favor 🙂";
     }
-
-    const data = await res.json();
-    const texto = data?.choices?.[0]?.message?.content;
-    return texto?.trim() || "¿Me puedes dar un poco más de detalle? 🙂";
-  } catch (err) {
-    console.error("[groq] Excepción:", err.message);
-    return "Disculpa, tuve un problema de conexión. ¿Me escribes de nuevo? 🙏";
   }
 }
