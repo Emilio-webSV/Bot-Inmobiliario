@@ -233,7 +233,7 @@ function construirMensajes({ config, lead, propiedadesCtx }) {
   // conversación se mantiene ligera y NO se excede el límite de Groq (lo que
   // causaba el "dame un segundo" en bucle en chats largos). 16 = 8 idas y vueltas,
   // suficiente para que el bot recuerde el contexto reciente.
-  for (const h of (lead.historial || []).slice(-16)) {
+  for (const h of (lead.historial || []).slice(-12)) {
     mensajes.push({
       role: h.rol === "bot" ? "assistant" : "user",
       content: h.texto,

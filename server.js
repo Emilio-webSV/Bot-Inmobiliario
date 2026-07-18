@@ -374,7 +374,14 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
       const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
       const link = gcalLink(cita.iso, `Cita: ${lead.nombre || telefono}`, `Visita agendada por el asistente. Cliente: ${lead.nombre || telefono} (${telefono}).`);
       const titulo = esReagenda ? "🔄 Cita REAGENDADA" : "📅 Cita agendada";
-      const aviso = `${titulo}\nCliente: ${lead.nombre || telefono}\n${fechaTxt}\n\n➕ Agrégala a tu calendario:\n${link}`;
+      let cuerpo = `Cliente: ${lead.nombre || telefono}\n`;
+      if (esReagenda) {
+        const antesTxt = new Date(lead.citaProgramada).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+        cuerpo += `Antes: ${antesTxt}\nAhora: ${fechaTxt}`;
+      } else {
+        cuerpo += fechaTxt;
+      }
+      const aviso = `${titulo}\n${cuerpo}\n\n➕ Agrégala a tu calendario:\n${link}`;
       const dueno = process.env.OWNER_PHONE;
       if (dueno) await enviarTexto(dueno, aviso).catch(() => {});
       // También al asesor asignado, si tiene teléfono (y no es el mismo del dueño)
