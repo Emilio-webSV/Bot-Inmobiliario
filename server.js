@@ -19,7 +19,7 @@ import {
   getZones, createZone, updateZone, deleteZone, zonaEnUso, seedZonasDemo,
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
-import { enviarTexto, enviarImagen } from "./whatsapp.js";
+import { enviarTexto, enviarImagen, enviarTextoOPlantilla } from "./whatsapp.js";
 import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal } from "./canales.js";
 import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./vision.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
@@ -141,8 +141,11 @@ app.post("/webhook", async (req, res) => {
         return;
       }
       if (mensaje.type === "sticker") {
-        // El cliente mandó un sticker: el bot reacciona con buena onda y sigue.
-        await procesarMensaje(mensaje.from, "😄 (El cliente te mandó un sticker)", nombre, "whatsapp");
+        // El cliente mandó un sticker: lo bajamos para verlo en el CRM y el bot reacciona.
+        const media = await descargarMediaWhatsApp(mensaje.sticker?.id);
+        const url = guardarMediaLocal(media);
+        const tok = url ? `[img:${url}] ` : "";
+        await procesarMensaje(mensaje.from, `😄 ${tok}(El cliente te mandó un sticker)`, nombre, "whatsapp");
         return;
       }
       if (mensaje.type !== "text") {
@@ -221,35 +224,54 @@ async function manejarAudio(remitente, nombre, canal, audio) {
   await enviarTextoCanal(canal, remitente, msg);
   pushHistorial(remitente, "bot", msg);
 }
+// Guarda un archivo que llegó del cliente (foto/sticker) en el disco, para poder
+// mostrarlo en el CRM. Devuelve una URL relativa (/uploads/xxx) o null.
+function guardarMediaLocal(imagen) {
+  try {
+    if (imagen?.url) return imagen.url; // Messenger/Instagram ya dan URL pública
+    if (imagen?.base64) {
+      const mime = imagen.mime || "image/jpeg";
+      const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : mime.includes("gif") ? "gif" : "jpg";
+      const nombre = `rx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      fs.writeFileSync(path.join(UPLOADS_DIR, nombre), Buffer.from(imagen.base64, "base64"));
+      return `/uploads/${nombre}`;
+    }
+  } catch (e) { console.error("[media] No se pudo guardar:", e.message); }
+  return null;
+}
+
 async function manejarImagen(remitente, nombre, canal, imagen, caption) {
   let lead = getLead(remitente);
   if (!lead) lead = upsertLead(remitente, { nombre, canal });
+
+  const imgUrl = guardarMediaLocal(imagen);      // la guardamos para verla en el CRM
+  const tok = imgUrl ? `[img:${imgUrl}] ` : "";
+
   if (lead.humanoEnControl) {
-    pushHistorial(remitente, "user", "[📷 foto recibida]");
-    return; // un asesor ya está atendiendo
+    // Un asesor ya está atendiendo: el bot NO responde, pero SÍ registra la imagen
+    // para que el humano la VEA en el panel (antes se perdía).
+    pushHistorial(remitente, "user", `📷 ${tok}${caption || ""}`.trim());
+    return;
   }
 
   const desc = imagen ? await analizarImagen(imagen) : null;
 
   if (desc && /NO_PROPIEDAD/i.test(desc)) {
-    // Es una foto que NO es propiedad (un gato, un meme, etc.). Que el bot
-    // reaccione con buena onda y de inmediato regrese al tema.
     const quees = desc.replace(/.*NO_PROPIEDAD:?\s*/i, "").trim() || "algo";
-    const texto = `📷 (El cliente te mandó una foto que NO es una propiedad; se ve: ${quees}. Reacciona MUY breve con buena onda y de inmediato regresa la conversación a ayudarlo a encontrar una propiedad.)`;
+    const texto = `📷 ${tok}(El cliente te mandó una foto que NO es una propiedad; se ve: ${quees}. Reacciona MUY breve con buena onda y de inmediato regresa la conversación a ayudarlo a encontrar una propiedad.)`;
     await procesarMensaje(remitente, texto, nombre, canal);
     return;
   }
 
   if (desc) {
-    // El bot "vio" la foto de una propiedad. Le pasamos lo que ve a su cerebro.
     const cap = caption ? ` El cliente escribió junto a la foto: "${caption}".` : "";
-    const texto = `📷 (El cliente te envió una foto de una propiedad que le interesa. En la foto se ve: ${desc}.${cap})`;
+    const texto = `📷 ${tok}(El cliente te envió una foto de una propiedad que le interesa. En la foto se ve: ${desc}.${cap})`;
     await procesarMensaje(remitente, texto, nombre, canal);
     return;
   }
 
-  // No se pudo abrir la imagen: respuesta con gracia.
-  pushHistorial(remitente, "user", "[📷 foto recibida]");
+  // No se pudo analizar, pero si la guardamos igual la mostramos en el CRM.
+  pushHistorial(remitente, "user", `📷 ${tok}${caption || ""}`.trim());
   const msg = "¡Gracias por la foto! 🙂 Se me complicó abrirla, pero cuéntame qué estás buscando —zona, presupuesto, recámaras— y te ayudo igual. 🏠";
   await enviarTextoCanal(canal, remitente, msg);
   pushHistorial(remitente, "bot", msg);
@@ -305,12 +327,18 @@ function gcalLink(iso, titulo, detalles) {
 async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp") {
   const config = getConfig();
 
-  // Asegura que el lead exista y guarda el nombre del perfil y el canal de origen
+  // Asegura que el lead exista y guarda el nombre del perfil y el canal de origen.
+  // También registramos CUÁNDO escribió el cliente: mientras estemos dentro de las
+  // 24 h siguientes, WhatsApp permite mandarle texto libre (y sale gratis).
   let lead = getLead(telefono);
+  const ahoraISO = new Date().toISOString();
   if (!lead) {
-    lead = upsertLead(telefono, { nombre: nombrePerfil, canal });
-  } else if (!lead.nombre && nombrePerfil) {
-    lead = upsertLead(telefono, { nombre: nombrePerfil });
+    lead = upsertLead(telefono, { nombre: nombrePerfil, canal, ultimoMsgCliente: ahoraISO });
+  } else {
+    lead = upsertLead(telefono, {
+      ultimoMsgCliente: ahoraISO,
+      ...(!lead.nombre && nombrePerfil ? { nombre: nombrePerfil } : {}),
+    });
   }
 
   // Guarda el mensaje del cliente en el historial
@@ -338,7 +366,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     // Avisar al dueño / agente
     const dueno = process.env.OWNER_PHONE;
     if (dueno) {
-      await enviarTexto(dueno, `⚠️ Cliente requiere atención humana\n${lead.nombre || telefono}\nÚltimo mensaje: "${texto}"`);
+      await enviarTextoOPlantilla(dueno, `⚠️ Cliente requiere atención humana\n${lead.nombre || telefono}\nÚltimo mensaje: "${texto}"`, process.env.WA_TPL_ALERTA, ["Cliente requiere atencion humana", `${lead.nombre || telefono}: ${texto}`]);
     }
     return;
   }
@@ -383,10 +411,10 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
       }
       const aviso = `${titulo}\n${cuerpo}\n\n➕ Agrégala a tu calendario:\n${link}`;
       const dueno = process.env.OWNER_PHONE;
-      if (dueno) await enviarTexto(dueno, aviso).catch(() => {});
+      if (dueno) await enviarTextoOPlantilla(dueno, aviso, process.env.WA_TPL_ALERTA, [titulo.replace(/[^\p{L}\s]/gu, "").trim(), `${lead.nombre || telefono} - ${fechaTxt}`]).catch(() => {});
       // También al asesor asignado, si tiene teléfono (y no es el mismo del dueño)
       const ag = lead.agenteAsignado ? (getAgents() || []).find((a) => a.id === lead.agenteAsignado) : null;
-      if (ag && ag.telefono && ag.telefono !== dueno) await enviarTexto(ag.telefono, aviso).catch(() => {});
+      if (ag && ag.telefono && ag.telefono !== dueno) await enviarTextoOPlantilla(ag.telefono, aviso, process.env.WA_TPL_ALERTA, [titulo.replace(/[^\p{L}\s]/gu, "").trim(), `${lead.nombre || telefono} - ${fechaTxt}`]).catch(() => {});
     }
   }
 

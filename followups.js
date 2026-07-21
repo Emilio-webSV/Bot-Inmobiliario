@@ -11,8 +11,29 @@
 
 import cron from "node-cron";
 import { loadDB, upsertLead, pushHistorial, getConfig } from "./store.js";
-import { enviarTexto } from "./whatsapp.js";
+import { enviarTexto, enviarPlantilla, enviarTextoOPlantilla, dentroVentana24h } from "./whatsapp.js";
 import { enviarTextoCanal } from "./canales.js";
+
+// Manda un seguimiento al cliente respetando las reglas de WhatsApp:
+//  - Dentro de las 24 h desde su último mensaje: texto libre (y gratis).
+//  - Fuera de esa ventana: SOLO plantillas aprobadas por Meta. El nombre de la
+//    plantilla se configura con una variable de entorno (ej. WA_TPL_SEGUIMIENTO).
+// En Messenger/Instagram no aplica esta regla, ahí va texto normal.
+async function enviarSeguimiento(lead, texto, varPlantilla, params = []) {
+  if (lead.canal && lead.canal !== "whatsapp") {
+    return enviarTextoCanal(lead.canal, lead.telefono, texto);
+  }
+  if (dentroVentana24h(lead.ultimoMsgCliente)) {
+    return enviarTexto(lead.telefono, texto);
+  }
+  const tpl = varPlantilla ? process.env[varPlantilla] : null;
+  if (tpl) return enviarPlantilla(lead.telefono, tpl, params);
+  console.warn(
+    `[followups] ${lead.telefono}: fuera de la ventana de 24 h y sin plantilla configurada (${varPlantilla}). ` +
+    `WhatsApp probablemente rechace este seguimiento. Crea la plantilla en Meta y define esa variable.`
+  );
+  return enviarTexto(lead.telefono, texto);
+}
 
 const HORA = 60 * 60 * 1000;
 const DIA = 24 * HORA;
@@ -43,7 +64,7 @@ async function revisarSeguimientos() {
     // 24h sin responder
     if (esperandoRespuesta && h >= 24 && h < 72 && !lead.seguimientos.f24) {
       const msg = `Hola${lead.nombre ? " " + lead.nombre : ""} 👋 ¿Sigues interesado en encontrar tu propiedad? Con gusto te ayudo a dar el siguiente paso cuando quieras.`;
-      await enviarTextoCanal(lead.canal, lead.telefono, msg);
+      await enviarSeguimiento(lead, msg, "WA_TPL_SEGUIMIENTO", [lead.nombre || "", config.nombreAgencia]);
       pushHistorial(lead.telefono, "bot", msg);
       upsertLead(lead.telefono, { seguimientos: { f24: true } });
       continue;
@@ -52,7 +73,7 @@ async function revisarSeguimientos() {
     // 72h sin responder
     if (esperandoRespuesta && h >= 72 && h < 24 * 30 && !lead.seguimientos.f72) {
       const msg = `${lead.nombre ? lead.nombre + ", t" : "T"}e cuento que el mercado se mueve rápido y tengo opciones que quizá te encanten. ¿Retomamos? 🏡`;
-      await enviarTextoCanal(lead.canal, lead.telefono, msg);
+      await enviarSeguimiento(lead, msg, "WA_TPL_SEGUIMIENTO", [lead.nombre || "", config.nombreAgencia]);
       pushHistorial(lead.telefono, "bot", msg);
       upsertLead(lead.telefono, { seguimientos: { f72: true } });
       continue;
@@ -60,7 +81,7 @@ async function revisarSeguimientos() {
 
     // Reactivación de leads fríos
     const reactivar = async (mensaje, flag) => {
-      await enviarTextoCanal(lead.canal, lead.telefono, mensaje);
+      await enviarSeguimiento(lead, mensaje, "WA_TPL_SEGUIMIENTO", [lead.nombre || "", config.nombreAgencia]);
       pushHistorial(lead.telefono, "bot", mensaje);
       upsertLead(lead.telefono, { seguimientos: { [flag]: true } });
     };
@@ -86,7 +107,7 @@ async function revisarCitas() {
         timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
       });
       const msg = `Recordatorio 📅 Tienes tu cita el ${fecha}. ¿Confirmas asistencia? Aquí estaré para lo que necesites.`;
-      await enviarTextoCanal(lead.canal, lead.telefono, msg);
+      await enviarSeguimiento(lead, msg, "WA_TPL_CITA", [lead.nombre || "", fecha]);
       pushHistorial(lead.telefono, "bot", msg);
       upsertLead(lead.telefono, { seguimientos: { recordatorioCita: true } });
     }
@@ -106,7 +127,7 @@ async function revisarLeadsCalientes() {
 
     if (horasDesde(lead.ultimoMensaje) >= 2) {
       const msg = `🔴 LEAD CALIENTE SIN ATENDER\nCliente: ${lead.nombre || lead.telefono}\nZona: ${lead.perfil.zona || "?"}\nPresupuesto: ${lead.perfil.presupuesto ? "$" + lead.perfil.presupuesto.toLocaleString("es-MX") : "?"}\nScore: ${lead.score}/100\nLleva +2h sin respuesta humana. ¡Contáctalo ya!`;
-      await enviarTexto(dueno, msg);
+      await enviarTextoOPlantilla(dueno, msg, process.env.WA_TPL_ALERTA, ["Lead caliente sin atender", msg]);
       upsertLead(lead.telefono, { seguimientos: { alertaCaliente: true } });
     }
   }
@@ -134,7 +155,7 @@ Total en base: ${leads.length}
 💰 Pipeline potencial: $${pipeline.toLocaleString("es-MX")} MXN
 
 ¡Buena semana! Entra al dashboard para el detalle.`;
-  await enviarTexto(dueno, msg);
+  await enviarTextoOPlantilla(dueno, msg, process.env.WA_TPL_ALERTA, ["Aviso de tu asistente", msg]);
 }
 
 // --- Registrar todos los cron jobs -----------------------------------------
@@ -182,7 +203,7 @@ export async function revisarLeadsCalientesAhora(force = false) {
   for (const lead of Object.values(db.leads)) {
     if (lead.temperatura !== "caliente") continue;
     const msg = `🔴 LEAD CALIENTE SIN ATENDER (prueba)\nCliente: ${lead.nombre || lead.telefono}\nZona: ${lead.perfil.zona || "?"}\nPresupuesto: ${lead.perfil.presupuesto ? "$" + lead.perfil.presupuesto.toLocaleString("es-MX") : "?"}\nScore: ${lead.score}/100\n¡Contáctalo ya!`;
-    await enviarTexto(dueno, msg);
+    await enviarTextoOPlantilla(dueno, msg, process.env.WA_TPL_ALERTA, ["Aviso de tu asistente", msg]);
     enviadas++;
   }
   return `Alertas enviadas: ${enviadas} (de leads calientes).`;

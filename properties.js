@@ -26,9 +26,10 @@ export function buscarPropiedades(lead, limite = 3) {
     if (p.recamaras && prop.recamaras >= p.recamaras) s += 20;
     if (p.recamaras && prop.recamaras === p.recamaras) s += 10;
     if (p.presupuesto) {
-      if (prop.precio <= p.presupuesto) s += 30;            // dentro de presupuesto
-      else if (prop.precio <= p.presupuesto * 1.1) s += 15; // un poquito arriba
-      else s -= 40;                                         // muy caro: casi descártala
+      if (prop.precio <= p.presupuesto) s += 30;             // dentro de presupuesto
+      else if (prop.precio <= p.presupuesto * 1.15) s += 18; // hasta 15% arriba: se ofrece
+      else if (prop.precio <= p.presupuesto * 1.3) s += 4;   // estirado: opción de respaldo
+      else s -= 40;                                          // ya muy caro
     }
     if (p.proposito === "invertir" && prop.operacion === "venta") s += 5;
     return { prop, s };
@@ -66,6 +67,13 @@ pero NO lo dejes ir — SIEMPRE inclínate a la venta:
 
   let txt = `PROPIEDADES REALES DISPONIBLES (SOLO estas existen, NO inventes otras ni de otra zona):\n`;
   txt += props.map((p, i) => `${i + 1}. ${linea(p)}`).join("\n");
+  txt += `\n\nSÉ MUY FLEXIBLE Y SIEMPRE INCLÍNATE A LA VENTA: si alguna de estas está un poco
+arriba o abajo del presupuesto del cliente, ofrécela igual como una gran opción
+("por un poquito más te llevas esta que está buenísima"). Puedes decirle que el
+PRECIO es NEGOCIABLE y que se le puede conseguir un mejor trato o ajuste con el
+asesor. Nunca digas "no tengo nada en tu presupuesto exacto" si tienes algo
+cercano: preséntalo como la mejor opción y acércalo al cierre. NUNCA inventes
+precios ni propiedades, pero SÍ puedes ofrecer negociar el precio de las reales.`;
 
   const lista = mostrar && mostrar.length ? mostrar : [];
   if (lista.length === 1) {
@@ -97,53 +105,61 @@ export function marcarEnviada(telefono, propId) {
 export function seedPropiedadesDemo() {
   const db = loadDB();
   if ((db.properties || []).length > 0) return;
+  const IMG = {
+    depto: [
+      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800",
+      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
+    ],
+    depto2: [
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
+      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800",
+      "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800",
+    ],
+    casa: [
+      "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800",
+      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800",
+      "https://images.unsplash.com/photo-1576941089067-2de3c901e126?w=800",
+    ],
+    casa2: [
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800",
+      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800",
+      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800",
+    ],
+  };
+  const P = (id, titulo, zona, tipo, operacion, precio, recamaras, banos, m2, descripcion, imgs) => ({
+    id, titulo, zona, tipo, operacion, precio, recamaras, banos, m2, descripcion,
+    imagenes: imgs, disponible: true, creado: new Date().toISOString(),
+  });
   db.properties = [
-    {
-      id: "pdemo1",
-      titulo: "Depto de lujo en Polanco",
-      zona: "polanco",
-      tipo: "departamento",
-      operacion: "venta",
-      precio: 5200000,
-      recamaras: 2,
-      banos: 2,
-      m2: 95,
-      descripcion: "Excelente ubicación, edificio con amenidades, listo para habitar.",
-      imagenes: ["https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800"],
-      disponible: true,
-      creado: new Date().toISOString(),
-    },
-    {
-      id: "pdemo2",
-      titulo: "Departamento moderno en Reforma",
-      zona: "reforma",
-      tipo: "departamento",
-      operacion: "venta",
-      precio: 3100000,
-      recamaras: 1,
-      banos: 1,
-      m2: 60,
-      descripcion: "Torre nueva con vista a la ciudad, ideal para inversión.",
-      imagenes: ["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800"],
-      disponible: true,
-      creado: new Date().toISOString(),
-    },
-    {
-      id: "pdemo3",
-      titulo: "Casa familiar en Del Valle",
-      zona: "delvalle",
-      tipo: "casa",
-      operacion: "venta",
-      precio: 6800000,
-      recamaras: 3,
-      banos: 3,
-      m2: 180,
-      descripcion: "Casa amplia con jardín, cerca de escuelas y excelente conectividad.",
-      imagenes: ["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800"],
-      disponible: true,
-      creado: new Date().toISOString(),
-    },
+    // POLANCO (lujo)
+    P("pd01","Depto de lujo en Polanco","polanco","departamento","venta",5200000,2,2,95,"Edificio con amenidades premium, listo para habitar. Ubicación inmejorable.",IMG.depto),
+    P("pd02","Penthouse en Polanco","polanco","departamento","venta",9800000,3,3,180,"Penthouse con roof garden privado y vista panorámica. Acabados de lujo.",IMG.depto2),
+    P("pd03","Depto amueblado en Polanco (renta)","polanco","departamento","renta",48000,2,2,90,"Totalmente amueblado, ideal para ejecutivos. Incluye mantenimiento.",IMG.depto),
+    // CHAPULTEPEC / LOMAS
+    P("pd04","Casa con jardín en Lomas","chapultepec","casa","venta",14500000,4,4,420,"Casa amplia con jardín, seguridad privada y espacio para 3 autos.",IMG.casa),
+    P("pd05","Residencia en Lomas","chapultepec","casa","venta",22000000,5,5,600,"Residencia de lujo con alberca, jardín y cuarto de servicio.",IMG.casa2),
+    P("pd06","Depto amplio en Chapultepec","chapultepec","departamento","venta",7300000,3,2,150,"Departamento amplio con vista al bosque, muy iluminado.",IMG.depto2),
+    // REFORMA / CUAUHTÉMOC
+    P("pd07","Departamento moderno en Reforma","reforma","departamento","venta",3100000,1,1,60,"Torre nueva con vista a la ciudad, ideal para inversión o primer hogar.",IMG.depto),
+    P("pd08","Depto 2 recámaras en Reforma","reforma","departamento","venta",4600000,2,2,88,"Torre con gimnasio y coworking. Excelente plusvalía.",IMG.depto2),
+    P("pd09","Estudio en Reforma (renta)","reforma","departamento","renta",18000,1,1,45,"Estudio moderno, perfecto para profesionista. Incluye amenidades.",IMG.depto),
+    P("pd10","Depto en torre Cuauhtémoc","reforma","departamento","venta",5400000,2,2,98,"Departamento en piso alto con vista despejada. Estrena.",IMG.depto2),
+    // CONDESA / ROMA
+    P("pd11","Loft en Condesa","condesa","departamento","venta",4200000,1,1,70,"Loft con estilo en edificio art déco. Zona de cafés y parques.",IMG.depto),
+    P("pd12","Depto con terraza en Roma","condesa","departamento","venta",5900000,2,2,105,"Departamento con terraza privada, ideal para quien busca estilo.",IMG.depto2),
+    P("pd13","Depto para Airbnb en Condesa","condesa","departamento","venta",3800000,1,1,55,"Excelente para renta corta. Ya operando con buen rendimiento.",IMG.depto),
+    P("pd14","Departamento en Roma Norte (renta)","condesa","departamento","renta",26000,2,1,80,"En el corazón de Roma Norte, cerca de todo. Amueblado.",IMG.depto2),
+    // DEL VALLE / NÁPOLES
+    P("pd15","Casa familiar en Del Valle","delvalle","casa","venta",6800000,3,3,220,"Casa familiar con jardín, cerca de escuelas y parques. Muy tranquila.",IMG.casa),
+    P("pd16","Depto familiar en Del Valle","delvalle","departamento","venta",4100000,3,2,110,"Departamento amplio, ideal para familia. Excelente conectividad.",IMG.depto),
+    P("pd17","Depto en Nápoles","delvalle","departamento","venta",3500000,2,2,85,"Bien ubicado, listo para habitar. Buena zona en crecimiento.",IMG.depto2),
+    P("pd18","Casa en Del Valle (renta)","delvalle","casa","renta",32000,3,2,200,"Casa en renta con jardín, ideal para familia. Zona segura.",IMG.casa2),
+    // SANTA FE
+    P("pd19","Depto en torre Santa Fe","santafe","departamento","venta",5600000,2,2,100,"En torre corporativa con amenidades. Plusvalía asegurada.",IMG.depto),
+    P("pd20","Depto amplio en Santa Fe (renta)","santafe","departamento","renta",35000,3,2,130,"Departamento amplio y amueblado, cerca de los corporativos.",IMG.depto2),
   ];
   saveDB(db);
-  console.log("[properties] Propiedades demo creadas.");
+  console.log("[properties] " + db.properties.length + " propiedades demo creadas.");
 }
+

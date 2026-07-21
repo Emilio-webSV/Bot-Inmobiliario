@@ -29,6 +29,52 @@ export async function enviarTexto(to, texto) {
   return enviar(body, to);
 }
 
+// ¿Estamos dentro de la ventana de 24 h desde el último mensaje del cliente?
+// Dentro de esa ventana, WhatsApp deja mandar texto libre (y es GRATIS).
+// Fuera de ella, Meta SOLO acepta plantillas aprobadas.
+export function dentroVentana24h(isoUltimoMensajeCliente) {
+  if (!isoUltimoMensajeCliente) return false;
+  const t = new Date(isoUltimoMensajeCliente).getTime();
+  if (isNaN(t)) return false;
+  return Date.now() - t < 24 * 60 * 60 * 1000;
+}
+
+// Envía una PLANTILLA aprobada por Meta (lo único permitido fuera de las 24 h).
+// `params` son los valores que rellenan las variables {{1}}, {{2}}... del cuerpo.
+export async function enviarPlantilla(to, nombrePlantilla, params = [], idioma = process.env.WA_TPL_IDIOMA || "es_MX") {
+  if (!TOKEN || !PHONE_ID) {
+    console.warn(`[whatsapp] (Simulado plantilla "${nombrePlantilla}") -> ${to}: ${params.join(" | ")}`);
+    return { simulado: true };
+  }
+  // Meta RECHAZA parámetros con saltos de línea o espacios de más: los limpiamos.
+  const limpios = params.map((p) => String(p).replace(/\s*\n\s*/g, " · ").replace(/\s{2,}/g, " ").trim());
+  const body = {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: nombrePlantilla,
+      language: { code: idioma },
+      ...(limpios.length
+        ? { components: [{ type: "body", parameters: limpios.map((p) => ({ type: "text", text: p })) }] }
+        : {}),
+    },
+  };
+  return enviar(body, to);
+}
+
+// Manda texto normal y, si WhatsApp lo rechaza (típicamente por estar fuera de
+// la ventana de 24 h), reintenta con la plantilla aprobada. Así el mensaje llega
+// igual sin que tengamos que adivinar si la ventana sigue abierta.
+export async function enviarTextoOPlantilla(to, texto, plantilla, params = []) {
+  const r = await enviarTexto(to, texto);
+  if (r && r.error && plantilla) {
+    console.warn(`[whatsapp] Texto rechazado; reintento con plantilla "${plantilla}".`);
+    return enviarPlantilla(to, plantilla, params);
+  }
+  return r;
+}
+
 export async function enviarImagen(to, urlImagen, caption = "") {
   if (!TOKEN || !PHONE_ID) {
     console.warn(`[whatsapp] (Simulado imagen) -> ${to}: ${urlImagen}`);
