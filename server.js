@@ -19,7 +19,7 @@ import {
   getZones, createZone, updateZone, deleteZone, zonaEnUso, seedZonasDemo,
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
-import { enviarTexto, enviarImagen, enviarTextoOPlantilla } from "./whatsapp.js";
+import { enviarTexto, enviarImagen, enviarTextoOPlantilla, enviarPlantilla } from "./whatsapp.js";
 import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal } from "./canales.js";
 import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./vision.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
@@ -762,6 +762,33 @@ app.post("/api/demo-propiedades", (req, res) => {
   res.json({ ok: true, agregadas });
 });
 
+// Iniciar conversación con un número NUEVO desde el CRM. Como la persona no nos ha
+// escrito, WhatsApp obliga a que el primer mensaje sea una PLANTILLA aprobada.
+app.post("/api/iniciar-conversacion", async (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const config = getConfig();
+  let telefono = String(req.body?.telefono || "").replace(/[^0-9]/g, "");
+  const nombre = (req.body?.nombre || "").trim();
+  if (telefono.length < 10) return res.json({ ok: false, error: "Número inválido. Escríbelo con LADA (10 dígitos) o con el 52 al inicio." });
+  // México: si son 10 dígitos, le anteponemos 521 (formato de WhatsApp).
+  if (telefono.length === 10) telefono = "521" + telefono;
+
+  const plantilla = req.body?.plantilla || process.env.WA_TPL_SEGUIMIENTO;
+  if (!plantilla) {
+    return res.json({ ok: false, error: "Aún no tienes una plantilla configurada. Crea la plantilla de seguimiento en Meta (Guía 6) y define WA_TPL_SEGUIMIENTO." });
+  }
+
+  const r = await enviarPlantilla(telefono, plantilla, [nombre || "", config.nombreAgencia || "la inmobiliaria"]);
+  if (r && r.error) {
+    return res.json({ ok: false, error: "WhatsApp rechazó el mensaje. Revisa que la plantilla esté APROBADA en Meta y que el número sea válido." });
+  }
+
+  // Creamos el lead para que aparezca en el CRM y guardamos el mensaje enviado.
+  upsertLead(telefono, { nombre: nombre || null, canal: "whatsapp" });
+  pushHistorial(telefono, "bot", `📤 (Mensaje de apertura enviado por plantilla "${plantilla}")`);
+  res.json({ ok: true, telefono });
+});
+
 // Actualizar propiedad
 app.put("/api/properties/:id", (req, res) => {
   if (!checarAdmin(req, res)) return;
@@ -852,6 +879,38 @@ app.get("/admin", (req, res) => {
 // Dashboard
 app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "dashboard.html"));
+});
+
+// --- PWA: permite "instalar" el CRM como app en el celular o la compu ---
+app.get("/manifest.json", (req, res) => {
+  res.json({
+    name: "CRM Inmobiliario",
+    short_name: "CRM",
+    start_url: "/dashboard",
+    scope: "/",
+    display: "standalone",
+    orientation: "portrait",
+    background_color: "#12213A",
+    theme_color: "#12213A",
+    icons: [
+      { src: "/pwa-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+      { src: "/pwa-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+    ],
+  });
+});
+app.get("/sw.js", (req, res) => {
+  res.set("Content-Type", "application/javascript");
+  // Service worker mínimo: solo habilita la instalación. NO cachea nada, para que
+  // el panel siempre cargue la versión más reciente (sin quedarse pegado en vieja).
+  res.send(
+    'self.addEventListener("install",e=>self.skipWaiting());' +
+    'self.addEventListener("activate",e=>self.clients.claim());' +
+    'self.addEventListener("fetch",e=>{});'
+  );
+});
+app.get(["/pwa-icon-192.png", "/pwa-icon-512.png", "/apple-touch-icon.png"], (req, res) => {
+  const f = req.path.includes("512") ? "pwa-icon-512.png" : "pwa-icon-192.png";
+  res.sendFile(path.join(__dirname, f));
 });
 
 // Salud del servidor

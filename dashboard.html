@@ -4,6 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CRM Inmobiliario</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#12213A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CRM">
+<link rel="apple-touch-icon" href="/pwa-icon-192.png">
+<link rel="icon" type="image/png" href="/pwa-icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -362,7 +370,7 @@
           <button class="danger" onclick="bulk('borrar')">🗑 Borrar</button>
         </div>
         <div class="panel">
-          <div class="phead"><h3>Leads por prioridad</h3></div>
+          <div class="phead" style="display:flex;justify-content:space-between;align-items:center"><h3>Leads por prioridad</h3><button class="btn gold" onclick="abrirEscribir()">✍️ Escribir a un número</button></div>
           <div id="tableHost"><div class="empty" style="border:none">Cargando…</div></div>
         </div>
       </section>
@@ -487,6 +495,20 @@
       <div class="full checkrow"><input id="z_activa" type="checkbox" checked /><label style="margin:0">Activa (el bot la ofrece)</label></div>
     </div>
     <div class="factions"><button class="btn ghost" onclick="cerrarZona()">Cancelar</button><button class="btn primary" onclick="guardarZona()">Guardar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="escribirOverlay">
+  <div class="modal">
+    <div class="mhead"><h3>Escribir a un número nuevo</h3><button class="close" onclick="cerrarEscribir()">×</button></div>
+    <div class="form">
+      <div class="full"><label>Número de teléfono <span style="font-weight:400;color:var(--muted)">(con LADA, 10 dígitos)</span></label><input id="e_tel" placeholder="55 1234 5678" /></div>
+      <div class="full"><label>Nombre <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input id="e_nombre" placeholder="Ej. Juan" /></div>
+      <div class="full" style="background:#eef4ff;border:1px solid #d5e3ff;border-radius:10px;padding:12px">
+        <p class="sub" style="margin:0;font-size:12.5px;line-height:1.5">📩 Como esta persona aún no te escribe, WhatsApp exige que el <b>primer mensaje sea una plantilla aprobada</b>. Se enviará tu plantilla de apertura; cuando la persona responda, el bot la atiende normal y verás la conversación aquí.</p>
+      </div>
+    </div>
+    <div class="factions"><button class="btn ghost" onclick="cerrarEscribir()">Cancelar</button><button class="btn primary" onclick="enviarApertura()">Enviar mensaje</button></div>
   </div>
 </div>
 
@@ -817,6 +839,19 @@
       }).join("");
     }catch(e){toast("Error al cargar")}
   }
+  function abrirEscribir(){document.getElementById("e_tel").value="";document.getElementById("e_nombre").value="";document.getElementById("escribirOverlay").classList.add("show")}
+  function cerrarEscribir(){document.getElementById("escribirOverlay").classList.remove("show")}
+  async function enviarApertura(){
+    const tel=document.getElementById("e_tel").value.trim();
+    const nombre=document.getElementById("e_nombre").value.trim();
+    if(tel.replace(/[^0-9]/g,"").length<10){toast("Escribe un número válido (10 dígitos)");return}
+    try{
+      const r=await fetch("/api/iniciar-conversacion",{method:"POST",headers:JH(),body:JSON.stringify({telefono:tel,nombre})});
+      const j=await r.json();
+      if(j.ok){toast("Mensaje enviado ✓");cerrarEscribir();cargarLeads()}
+      else toast(j.error||"No se pudo enviar");
+    }catch(e){toast("Error de conexión")}
+  }
   async function cargarDemo(){
     if(!confirm("¿Cargar 20 propiedades de ejemplo? (No borra las que ya tengas)"))return;
     try{
@@ -925,8 +960,10 @@
 
   document.getElementById("leadOverlay").addEventListener("click",e=>{if(e.target.id==="leadOverlay")cerrarModal()});
   document.getElementById("propOverlay").addEventListener("click",e=>{if(e.target.id==="propOverlay")cerrar()});
+  document.getElementById("escribirOverlay").addEventListener("click",e=>{if(e.target.id==="escribirOverlay")cerrarEscribir()});
   document.getElementById("agentOverlay").addEventListener("click",e=>{if(e.target.id==="agentOverlay")cerrarAgente()});
   document.getElementById("zoneOverlay").addEventListener("click",e=>{if(e.target.id==="zoneOverlay")cerrarZona()});
 </script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("/sw.js").catch(()=>{})})}</script>
 </body>
 </html>
