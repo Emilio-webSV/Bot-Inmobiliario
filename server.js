@@ -25,7 +25,7 @@ import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./visi
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
-import { buscarPropiedades, contextoPropiedades, marcarEnviada, seedPropiedadesDemo } from "./properties.js";
+import { buscarPropiedades, contextoPropiedades, marcarEnviada, seedPropiedadesDemo, cargarPropiedadesDemoForzado } from "./properties.js";
 import { iniciarCronJobs, enviarReporteAhora, revisarLeadsCalientesAhora } from "./followups.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -753,6 +753,13 @@ app.post("/api/properties", (req, res) => {
   if (!checarAdmin(req, res)) return;
   const prop = createProperty(req.body || {});
   res.json({ ok: true, property: prop });
+});
+
+// Cargar 20 propiedades de ejemplo a demanda (para demos). No borra las que ya haya.
+app.post("/api/demo-propiedades", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const agregadas = cargarPropiedadesDemoForzado();
+  res.json({ ok: true, agregadas });
 });
 
 // Actualizar propiedad

@@ -102,9 +102,7 @@ export function marcarEnviada(telefono, propId) {
 }
 
 // Crea propiedades de ejemplo si no hay ninguna (para que el demo funcione solo)
-export function seedPropiedadesDemo() {
-  const db = loadDB();
-  if ((db.properties || []).length > 0) return;
+function listaPropiedadesDemo() {
   const IMG = {
     depto: [
       "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800",
@@ -131,7 +129,7 @@ export function seedPropiedadesDemo() {
     id, titulo, zona, tipo, operacion, precio, recamaras, banos, m2, descripcion,
     imagenes: imgs, disponible: true, creado: new Date().toISOString(),
   });
-  db.properties = [
+  return [
     // POLANCO (lujo)
     P("pd01","Depto de lujo en Polanco","polanco","departamento","venta",5200000,2,2,95,"Edificio con amenidades premium, listo para habitar. Ubicación inmejorable.",IMG.depto),
     P("pd02","Penthouse en Polanco","polanco","departamento","venta",9800000,3,3,180,"Penthouse con roof garden privado y vista panorámica. Acabados de lujo.",IMG.depto2),
@@ -159,7 +157,27 @@ export function seedPropiedadesDemo() {
     P("pd19","Depto en torre Santa Fe","santafe","departamento","venta",5600000,2,2,100,"En torre corporativa con amenidades. Plusvalía asegurada.",IMG.depto),
     P("pd20","Depto amplio en Santa Fe (renta)","santafe","departamento","renta",35000,3,2,130,"Departamento amplio y amueblado, cerca de los corporativos.",IMG.depto2),
   ];
+}
+
+// Al arrancar: solo crea las demo si la base está vacía (no toca datos de un cliente real).
+export function seedPropiedadesDemo() {
+  const db = loadDB();
+  if ((db.properties || []).length > 0) return;
+  db.properties = listaPropiedadesDemo();
   saveDB(db);
   console.log("[properties] " + db.properties.length + " propiedades demo creadas.");
+}
+
+// A demanda (botón del CRM): agrega las 20 demo que falten, SIN borrar las que ya haya.
+export function cargarPropiedadesDemoForzado() {
+  const db = loadDB();
+  db.properties = db.properties || [];
+  const existentes = new Set(db.properties.map((p) => p.id));
+  let agregadas = 0;
+  for (const prop of listaPropiedadesDemo()) {
+    if (!existentes.has(prop.id)) { db.properties.push(prop); agregadas++; }
+  }
+  saveDB(db);
+  return agregadas;
 }
 

@@ -369,7 +369,7 @@
 
       <!-- PROPIEDADES -->
       <section id="view-props" class="view hidden">
-        <div class="toolbar"><h3 id="count">Propiedades</h3><button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button></div>
+        <div class="toolbar"><h3 id="count">Propiedades</h3><div style="display:flex;gap:8px"><button class="btn ghost" onclick="cargarDemo()">🏠 Cargar 20 de ejemplo</button><button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button></div></div>
         <div id="grid" class="grid"></div>
       </section>
 
@@ -816,6 +816,16 @@
           <div class="acts"><button class="btn ghost" onclick='editar(${JSON.stringify(p)})'>Editar</button><button class="btn danger" onclick="borrar('${p.id}')">Borrar</button></div></div>`;
       }).join("");
     }catch(e){toast("Error al cargar")}
+  }
+  async function cargarDemo(){
+    if(!confirm("¿Cargar 20 propiedades de ejemplo? (No borra las que ya tengas)"))return;
+    try{
+      const r=await fetch("/api/demo-propiedades",{method:"POST",headers:JH()});
+      if(r.status===401){toast("Contraseña incorrecta");return}
+      const j=await r.json();
+      toast(j.agregadas>0?`${j.agregadas} propiedades cargadas ✓`:"Ya estaban cargadas");
+      cargarProps();
+    }catch(e){toast("Error de conexión")}
   }
   function abrirNueva(){editandoId=null;imagenesForm=[];renderThumbs();document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","direccion","imagenes","video"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_estado").value="disponible";document.getElementById("propOverlay").classList.add("show")}
   function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_direccion").value=p.direccion||"";document.getElementById("f_imagenes").value="";imagenesForm=(p.imagenes||[]).slice();renderThumbs();document.getElementById("f_video").value=p.video||"";document.getElementById("f_estado").value=p.estado||(p.disponible===false?"vendido":"disponible");document.getElementById("propOverlay").classList.add("show")}
