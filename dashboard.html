@@ -285,6 +285,9 @@
   .thumb button{position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:50%;background:rgba(20,25,40,.75);color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0}
   .thumb button:hover{background:var(--red,#d9534f)}
   .chatimg{display:block;max-width:180px;max-height:180px;border-radius:10px;margin-bottom:5px;cursor:pointer;border:1px solid rgba(0,0,0,.08)}
+  .chatdoc{display:inline-block;background:rgba(224,169,60,.18);color:#12213a;padding:7px 11px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;margin-bottom:4px}
+  .chatbar .attach{background:transparent;border:none;font-size:19px;padding:0 6px;cursor:pointer;opacity:.7}
+  .chatbar .attach:hover{opacity:1}
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
   .kpi{background:var(--glass);border:1px solid var(--glass-bd);border-radius:14px;padding:15px 17px}
   .kpi .l{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
@@ -434,7 +437,7 @@
         <div class="notesbox" id="mNotes"></div>
       </div>
     </div>
-    <div class="chatbar" id="chatbar"><input id="chatInput" placeholder="Escribe un mensaje al cliente..." onkeydown="if(event.key==='Enter')enviarChat()" /><button onclick="enviarChat()">Enviar</button></div>
+    <div class="chatbar" id="chatbar"><input type="file" id="chatFile" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="enviarArchivoChat(this.files)"><button class="attach" onclick="document.getElementById('chatFile').click()" title="Adjuntar imagen o archivo">📎</button><input id="chatInput" placeholder="Escribe un mensaje al cliente..." onkeydown="if(event.key==='Enter')enviarChat()" /><button onclick="enviarChat()">Enviar</button></div>
     <div class="actions" id="mActions"></div>
   </div>
 </div>
@@ -715,10 +718,16 @@
       const tick=h.rol==='bot'?' <span class="tick">✓✓</span>':'';
       let cuerpo="", extra="";
       const m=(h.texto||"").match(/\[img:([^\]]+)\]/);
+      const d=(h.texto||"").match(/\[doc:([^\]|]+)\|([^\]]+)\]/);
       if(m){
         // Mensaje con imagen/sticker: la mostramos y limpiamos el texto interno.
         extra=`<img src="${escapeHtml(m[1])}" class="chatimg" onclick="window.open('${escapeHtml(m[1])}','_blank')">`;
         let t=(h.texto||"").replace(/\[img:[^\]]+\]/,"").replace(/\([^)]*\)/g,"").trim();
+        cuerpo=escapeHtml(t);
+      } else if(d){
+        // Documento/archivo: lo mostramos como enlace descargable.
+        extra=`<a href="${escapeHtml(d[1])}" target="_blank" class="chatdoc">📎 ${escapeHtml(d[2])}</a>`;
+        let t=(h.texto||"").replace(/\[doc:[^\]]+\]/,"").trim();
         cuerpo=escapeHtml(t);
       } else {
         cuerpo=escapeHtml(h.texto||"");
@@ -741,6 +750,23 @@
   async function guardarNotas(tel){const etiquetas=val("leadTags").split(",").map(s=>s.trim()).filter(Boolean);const notas=document.getElementById("leadNotes").value;await fetch(`/api/leads/${tel}/notas`,{method:"POST",headers:JH(),body:JSON.stringify({notas,etiquetas})});toast("Guardado ✓");cargarLeads()}
   async function guardarCita(tel){const v=document.getElementById("leadCita").value;const iso=v?new Date(v).toISOString():null;await fetch(`/api/leads/${tel}/cita`,{method:"POST",headers:JH(),body:JSON.stringify({cita:iso})});toast("Cita guardada ✓");abrirModal(tel);cargarLeads()}
   async function enviarChat(){const t=val("chatInput");if(!t||!leadActual)return;document.getElementById("chatInput").value="";await fetch(`/api/leads/${leadActual}/enviar`,{method:"POST",headers:JH(),body:JSON.stringify({texto:t})});await abrirModal(leadActual);cargarLeads()}
+  async function enviarArchivoChat(files){
+    if(!files||!files.length||!leadActual)return;
+    const file=files[0];
+    document.getElementById("chatFile").value="";
+    const esImg=file.type&&file.type.startsWith("image/");
+    toast("Enviando…");
+    try{
+      const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file);});
+      const up=await fetch("/api/upload",{method:"POST",headers:JH(),body:JSON.stringify({data,filename:file.name})});
+      const uj=await up.json();
+      if(!uj||!uj.url){toast(uj&&uj.error?uj.error:"No se pudo subir");return}
+      const r=await fetch(`/api/leads/${leadActual}/enviar-media`,{method:"POST",headers:JH(),body:JSON.stringify({url:uj.url,tipo:esImg?"imagen":"documento",filename:file.name})});
+      const j=await r.json();
+      if(j.ok){await abrirModal(leadActual);cargarLeads()}
+      else toast(j.error||"No se pudo enviar");
+    }catch(e){toast("Error al enviar el archivo")}
+  }
   async function setEstado(tel,estado){await fetch(`/api/leads/${tel}/estado`,{method:"POST",headers:JH(),body:JSON.stringify({estado})});abrirModal(tel);cargarLeads()}
   async function registrarVenta(tel){
     const propiedadId=document.getElementById("ventaProp").value;

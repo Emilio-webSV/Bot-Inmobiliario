@@ -19,7 +19,7 @@ import {
   getZones, createZone, updateZone, deleteZone, zonaEnUso, seedZonasDemo,
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
-import { enviarTexto, enviarImagen, enviarTextoOPlantilla, enviarPlantilla } from "./whatsapp.js";
+import { enviarTexto, enviarImagen, enviarTextoOPlantilla, enviarPlantilla, enviarDocumento } from "./whatsapp.js";
 import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal } from "./canales.js";
 import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./vision.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
@@ -716,6 +716,34 @@ app.post("/api/leads/:telefono/enviar", async (req, res) => {
   await enviarTextoCanal(lead.canal, req.params.telefono, texto);
   pushHistorial(req.params.telefono, "bot", texto);
   upsertLead(req.params.telefono, { humanoEnControl: true });
+  res.json({ ok: true });
+});
+
+// El asesor manda una IMAGEN o ARCHIVO al cliente desde el CRM. La foto/archivo ya
+// se subió antes con /api/upload, aquí solo se manda por WhatsApp y se registra.
+app.post("/api/leads/:telefono/enviar-media", async (req, res) => {
+  const tel = req.params.telefono;
+  const lead = getLead(tel);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  let url = String(req.body?.url || "");
+  const tipo = req.body?.tipo === "documento" ? "documento" : "imagen";
+  const caption = String(req.body?.caption || "").trim();
+  const filename = String(req.body?.filename || "archivo").slice(0, 80);
+  if (!url) return res.status(400).json({ error: "Sin archivo" });
+
+  // WhatsApp necesita una URL pública (con dominio). Si viene relativa, la completamos.
+  const urlPublica = url.startsWith("http") ? url : `${process.env.PUBLIC_URL || `https://${req.get("host")}`}${url}`;
+
+  let r;
+  if (tipo === "documento") r = await enviarDocumento(tel, urlPublica, filename, caption);
+  else r = await enviarImagen(tel, urlPublica, caption);
+
+  if (r && r.error) return res.json({ ok: false, error: "WhatsApp rechazó el envío (¿fuera de las 24 h, o URL no pública?)." });
+
+  // Guardamos en el historial para verlo en el chat del CRM.
+  const marca = tipo === "documento" ? `📎 [doc:${url}|${filename}]` : `📷 [img:${url}]`;
+  pushHistorial(tel, "bot", `${marca}${caption ? " " + caption : ""}`);
+  upsertLead(tel, { humanoEnControl: true });
   res.json({ ok: true });
 });
 
