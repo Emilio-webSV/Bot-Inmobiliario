@@ -12,9 +12,27 @@ import { contextoZona, listaZonasNombres } from "./zones.js";
 import { getAgents } from "./store.js";
 import { resumenNoDisponible } from "./availability.js";
 
-const MODELO = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-const API_KEY = process.env.GROQ_API_KEY;
-const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+// ---------------------------------------------------------------------------
+// PROVEEDOR DEL CEREBRO (switch con UNA sola variable: IA_PROVIDER)
+//   IA_PROVIDER=groq    -> usa Groq (Llama).           [default]
+//   IA_PROVIDER=gemini  -> usa Google Gemini (gratis, límites mucho más altos).
+// Ambos hablan el MISMO formato (OpenAI-compatible), por eso el código es igual.
+// ---------------------------------------------------------------------------
+const PROVIDER = (process.env.IA_PROVIDER || "groq").toLowerCase();
+
+const CFG = PROVIDER === "gemini"
+  ? {
+      nombre: "gemini",
+      apiKey: process.env.GEMINI_API_KEY,
+      endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    }
+  : {
+      nombre: "groq",
+      apiKey: process.env.GROQ_API_KEY,
+      endpoint: "https://api.groq.com/openai/v1/chat/completions",
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+    };
 
 function construirSystemPrompt({ config, lead, propiedadesCtx }) {
   const p = lead.perfil || {};
@@ -250,7 +268,15 @@ DATOS QUE YA SABES DEL CLIENTE:
 
 function construirMensajes({ config, lead, propiedadesCtx }) {
   const mensajes = [
-    { role: "system", content: construirSystemPrompt({ config, lead, propiedadesCtx }) },
+    // Colapsamos líneas en blanco de más (las secciones condicionales vacías dejan
+    // huecos que gastan tokens sin aportar nada). NO cambia ninguna instrucción.
+    {
+      role: "system",
+      content: construirSystemPrompt({ config, lead, propiedadesCtx })
+        .replace(/[ \t]+$/gm, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim(),
+    },
   ];
   // Solo mandamos los últimos mensajes (no TODO el historial). Con esto la
   // conversación se mantiene ligera y NO se excede el límite de Groq (lo que
@@ -266,13 +292,13 @@ function construirMensajes({ config, lead, propiedadesCtx }) {
 }
 
 export async function generarRespuesta({ config, lead, propiedadesCtx }) {
-  if (!API_KEY) {
-    console.warn("[groq] Falta GROQ_API_KEY. Devuelvo respuesta de respaldo.");
+  if (!CFG.apiKey) {
+    console.warn(`[${CFG.nombre}] Falta la API key (${CFG.nombre === "gemini" ? "GEMINI_API_KEY" : "GROQ_API_KEY"}). Devuelvo respuesta de respaldo.`);
     return "¡Hola! Gracias por escribir. En un momento te atiendo. 🙂";
   }
 
   const body = {
-    model: MODELO,
+    model: CFG.model,
     messages: construirMensajes({ config, lead, propiedadesCtx }),
     temperature: 0.6,
     max_tokens: 300,
@@ -282,10 +308,10 @@ export async function generarRespuesta({ config, lead, propiedadesCtx }) {
   // pasajero), reintenta una vez antes de rendirse. Así evita los "detalle técnico".
   for (let intento = 1; intento <= 2; intento++) {
     try {
-      const res = await fetch(ENDPOINT, {
+      const res = await fetch(CFG.endpoint, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${API_KEY}`,
+          Authorization: `Bearer ${CFG.apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
@@ -293,7 +319,7 @@ export async function generarRespuesta({ config, lead, propiedadesCtx }) {
 
       if (!res.ok) {
         const errTxt = await res.text();
-        console.error(`[groq] Error API (intento ${intento}):`, res.status, errTxt);
+        console.error(`[${CFG.nombre}] Error API (intento ${intento}):`, res.status, errTxt);
         if (intento < 2) { await new Promise((r) => setTimeout(r, 800)); continue; }
         return "Dame un segundo y me escribes de nuevo, por favor 🙂";
       }
@@ -302,7 +328,7 @@ export async function generarRespuesta({ config, lead, propiedadesCtx }) {
       const texto = data?.choices?.[0]?.message?.content;
       return texto?.trim() || "¿Me puedes dar un poco más de detalle? 🙂";
     } catch (err) {
-      console.error(`[groq] Excepción (intento ${intento}):`, err.message);
+      console.error(`[${CFG.nombre}] Excepción (intento ${intento}):`, err.message);
       if (intento < 2) { await new Promise((r) => setTimeout(r, 800)); continue; }
       return "Dame un segundo y me escribes de nuevo, por favor 🙂";
     }

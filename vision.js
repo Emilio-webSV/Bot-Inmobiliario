@@ -5,8 +5,27 @@
 // (Llama 4, misma API que el resto del bot, NO necesita otra API key).
 // ---------------------------------------------------------------------------
 
-const API_KEY = process.env.GROQ_API_KEY;
-const MODELO_VISION = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
+// Proveedor de VISIÓN (mismo switch que el chat: IA_PROVIDER).
+const PROVIDER = (process.env.IA_PROVIDER || "groq").toLowerCase();
+const GROQ_KEY = process.env.GROQ_API_KEY;
+
+const VIS = PROVIDER === "gemini"
+  ? {
+      nombre: "gemini",
+      apiKey: process.env.GEMINI_API_KEY,
+      endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      model: process.env.GEMINI_VISION_MODEL || "gemini-2.5-flash",
+    }
+  : {
+      nombre: "groq",
+      apiKey: GROQ_KEY,
+      endpoint: "https://api.groq.com/openai/v1/chat/completions",
+      model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
+    };
+
+// Las NOTAS DE VOZ (transcripción) SIEMPRE usan Groq Whisper: es gratis, rapidísimo
+// y sus límites van aparte (no tocan tu cuota de tokens del chat). Por eso conviene
+// dejar tu GROQ_API_KEY puesta aunque el cerebro esté en Gemini.
 const MODELO_STT = process.env.GROQ_STT_MODEL || "whisper-large-v3-turbo";
 const GRAPH = "https://graph.facebook.com/v19.0";
 
@@ -44,7 +63,7 @@ export async function descargarMediaWhatsApp(mediaId) {
 //   - { url }           (foto con URL pública, ej. adjunto de Messenger/IG)
 // Devuelve una descripción corta en español, "NO_PROPIEDAD", o null si falla.
 export async function analizarImagen(imagen) {
-  if (!API_KEY || !imagen) return null;
+  if (!VIS.apiKey || !imagen) return null;
   const url = imagen.url
     ? imagen.url
     : `data:${imagen.mime || "image/jpeg"};base64,${imagen.base64}`;
@@ -61,11 +80,11 @@ export async function analizarImagen(imagen) {
     "'NO_PROPIEDAD: un meme gracioso', 'NO_PROPIEDAD: una selfie').";
 
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const res = await fetch(VIS.endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${VIS.apiKey}` },
       body: JSON.stringify({
-        model: MODELO_VISION,
+        model: VIS.model,
         messages: [
           {
             role: "user",
@@ -80,7 +99,7 @@ export async function analizarImagen(imagen) {
       }),
     });
     if (!res.ok) {
-      console.error("[vision] Groq respondió", res.status);
+      console.error(`[vision] ${VIS.nombre} respondió`, res.status);
       return null;
     }
     const data = await res.json();
@@ -96,7 +115,7 @@ export async function analizarImagen(imagen) {
 // puede ser { base64, mime } (nota de voz de WhatsApp) o { url } (adjunto de
 // Messenger/IG). Devuelve el texto, o null si no se pudo.
 export async function transcribirAudio(audio) {
-  if (!API_KEY || !audio) return null;
+  if (!GROQ_KEY || !audio) return null;
   try {
     let buffer, mime;
     if (audio.url) {
@@ -126,7 +145,7 @@ export async function transcribirAudio(audio) {
 
     const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${API_KEY}` }, // NO seteamos Content-Type: fetch pone el boundary
+      headers: { Authorization: `Bearer ${GROQ_KEY}` }, // NO seteamos Content-Type: fetch pone el boundary
       body: form,
     });
     if (!res.ok) {
