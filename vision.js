@@ -5,23 +5,30 @@
 // (Llama 4, misma API que el resto del bot, NO necesita otra API key).
 // ---------------------------------------------------------------------------
 
-// Proveedor de VISIÓN (mismo switch que el chat: IA_PROVIDER).
+// Proveedor de VISIÓN (mismo switch que el chat: IA_PROVIDER) + plan B automático.
 const PROVIDER = (process.env.IA_PROVIDER || "groq").toLowerCase();
 const GROQ_KEY = process.env.GROQ_API_KEY;
 
-const VIS = PROVIDER === "gemini"
-  ? {
+function makeVisCfg(nombre) {
+  if (nombre === "gemini") {
+    return {
       nombre: "gemini",
       apiKey: process.env.GEMINI_API_KEY,
       endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      model: process.env.GEMINI_VISION_MODEL || "gemini-2.5-flash",
-    }
-  : {
-      nombre: "groq",
-      apiKey: GROQ_KEY,
-      endpoint: "https://api.groq.com/openai/v1/chat/completions",
-      model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
+      model: process.env.GEMINI_VISION_MODEL || "gemini-3.5-flash",
     };
+  }
+  return {
+    nombre: "groq",
+    apiKey: GROQ_KEY,
+    endpoint: "https://api.groq.com/openai/v1/chat/completions",
+    model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
+  };
+}
+
+const VIS_PRIMARY = PROVIDER === "gemini" ? "gemini" : "groq";
+const VIS_SECONDARY = VIS_PRIMARY === "gemini" ? "groq" : "gemini";
+const VIS_PROVIDERS = [makeVisCfg(VIS_PRIMARY), makeVisCfg(VIS_SECONDARY)].filter((c) => c.apiKey);
 
 // Las NOTAS DE VOZ (transcripción) SIEMPRE usan Groq Whisper: es gratis, rapidísimo
 // y sus límites van aparte (no tocan tu cuota de tokens del chat). Por eso conviene
@@ -63,7 +70,7 @@ export async function descargarMediaWhatsApp(mediaId) {
 //   - { url }           (foto con URL pública, ej. adjunto de Messenger/IG)
 // Devuelve una descripción corta en español, "NO_PROPIEDAD", o null si falla.
 export async function analizarImagen(imagen) {
-  if (!VIS.apiKey || !imagen) return null;
+  if (!VIS_PROVIDERS.length || !imagen) return null;
   const url = imagen.url
     ? imagen.url
     : `data:${imagen.mime || "image/jpeg"};base64,${imagen.base64}`;
@@ -79,36 +86,44 @@ export async function analizarImagen(imagen) {
     "seguido de MUY pocas palabras diciendo qué es (ej. 'NO_PROPIEDAD: un gatito', " +
     "'NO_PROPIEDAD: un meme gracioso', 'NO_PROPIEDAD: una selfie').";
 
-  try {
-    const res = await fetch(VIS.endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${VIS.apiKey}` },
-      body: JSON.stringify({
-        model: VIS.model,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url } },
-            ],
-          },
+  const payload = {
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url } },
         ],
-        max_tokens: 200,
-        temperature: 0.3,
-      }),
-    });
-    if (!res.ok) {
-      console.error(`[vision] ${VIS.nombre} respondió`, res.status);
-      return null;
+      },
+    ],
+    max_tokens: 200,
+    temperature: 0.3,
+  };
+
+  // Plan B: intenta el proveedor principal de visión y, si falla o se satura,
+  // pasa al de respaldo. Si ninguno pudo, devuelve null (el bot sigue sin foto).
+  for (const cfg of VIS_PROVIDERS) {
+    try {
+      const res = await fetch(cfg.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.apiKey}` },
+        body: JSON.stringify({ model: cfg.model, ...payload }),
+      });
+      if (!res.ok) {
+        console.error(`[vision] ${cfg.nombre} respondió`, res.status);
+        continue; // probamos el proveedor de respaldo
+      }
+      const data = await res.json();
+      const txt = data?.choices?.[0]?.message?.content?.trim();
+      if (txt) {
+        if (cfg.nombre !== VIS_PRIMARY) console.warn(`[vision] ⚠️ Foto analizada con proveedor de RESPALDO (${cfg.nombre}).`);
+        return txt;
+      }
+    } catch (e) {
+      console.error(`[vision] Error analizando imagen (${cfg.nombre}):`, e.message);
     }
-    const data = await res.json();
-    const txt = data?.choices?.[0]?.message?.content?.trim();
-    return txt || null;
-  } catch (e) {
-    console.error("[vision] Error analizando imagen:", e.message);
-    return null;
   }
+  return null;
 }
 
 // Transcribe una nota de voz a texto con Groq Whisper (misma API key). `audio`

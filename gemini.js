@@ -18,21 +18,30 @@ import { resumenNoDisponible } from "./availability.js";
 //   IA_PROVIDER=gemini  -> usa Google Gemini (gratis, límites mucho más altos).
 // Ambos hablan el MISMO formato (OpenAI-compatible), por eso el código es igual.
 // ---------------------------------------------------------------------------
-const PROVIDER = (process.env.IA_PROVIDER || "groq").toLowerCase();
-
-const CFG = PROVIDER === "gemini"
-  ? {
+function makeCfg(nombre) {
+  if (nombre === "gemini") {
+    return {
       nombre: "gemini",
       apiKey: process.env.GEMINI_API_KEY,
       endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-    }
-  : {
-      nombre: "groq",
-      apiKey: process.env.GROQ_API_KEY,
-      endpoint: "https://api.groq.com/openai/v1/chat/completions",
-      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
     };
+  }
+  return {
+    nombre: "groq",
+    apiKey: process.env.GROQ_API_KEY,
+    endpoint: "https://api.groq.com/openai/v1/chat/completions",
+    model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+  };
+}
+
+// PLAN B AUTOMÁTICO: intentamos el proveedor principal (IA_PROVIDER) y, si se
+// satura (503), se llena (429) o falla, pasamos SOLO para ese mensaje al otro
+// proveedor de respaldo. Así una demo nunca se cae por un bache de Google/Groq.
+// Solo se usan los proveedores que tengan su API key puesta.
+const PRIMARY = (process.env.IA_PROVIDER || "groq").toLowerCase() === "gemini" ? "gemini" : "groq";
+const SECONDARY = PRIMARY === "gemini" ? "groq" : "gemini";
+const PROVIDERS = [makeCfg(PRIMARY), makeCfg(SECONDARY)].filter((c) => c.apiKey);
 
 function construirSystemPrompt({ config, lead, propiedadesCtx }) {
   const p = lead.perfil || {};
@@ -292,45 +301,52 @@ function construirMensajes({ config, lead, propiedadesCtx }) {
 }
 
 export async function generarRespuesta({ config, lead, propiedadesCtx }) {
-  if (!CFG.apiKey) {
-    console.warn(`[${CFG.nombre}] Falta la API key (${CFG.nombre === "gemini" ? "GEMINI_API_KEY" : "GROQ_API_KEY"}). Devuelvo respuesta de respaldo.`);
+  if (!PROVIDERS.length) {
+    console.warn("[ia] No hay ninguna API key configurada (GEMINI_API_KEY / GROQ_API_KEY). Devuelvo respaldo.");
     return "¡Hola! Gracias por escribir. En un momento te atiendo. 🙂";
   }
 
-  const body = {
-    model: CFG.model,
-    messages: construirMensajes({ config, lead, propiedadesCtx }),
-    temperature: 0.6,
-    max_tokens: 300,
-  };
+  const messages = construirMensajes({ config, lead, propiedadesCtx });
 
-  // Intenta hasta 2 veces: si Groq falla por un instante (rate limit o error
-  // pasajero), reintenta una vez antes de rendirse. Así evita los "detalle técnico".
-  for (let intento = 1; intento <= 2; intento++) {
-    try {
-      const res = await fetch(CFG.endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${CFG.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
+  // Recorremos los proveedores en orden (principal, luego respaldo). Cada uno se
+  // reintenta 2 veces por si fue un bache instantáneo; si aun así falla, saltamos
+  // al siguiente proveedor. Si TODOS fallan, mandamos un mensaje suave.
+  for (const cfg of PROVIDERS) {
+    const body = { model: cfg.model, messages, temperature: 0.6, max_tokens: 300 };
 
-      if (!res.ok) {
-        const errTxt = await res.text();
-        console.error(`[${CFG.nombre}] Error API (intento ${intento}):`, res.status, errTxt);
+    for (let intento = 1; intento <= 2; intento++) {
+      try {
+        const res = await fetch(cfg.endpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${cfg.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const errTxt = await res.text();
+          console.error(`[${cfg.nombre}] Error API (intento ${intento}):`, res.status, errTxt);
+          if (intento < 2) { await new Promise((r) => setTimeout(r, 800)); continue; }
+          break; // este proveedor no respondió -> probamos el de respaldo
+        }
+
+        const data = await res.json();
+        const texto = data?.choices?.[0]?.message?.content;
+        if (cfg.nombre !== PRIMARY) {
+          console.warn(`[ia] ⚠️ Respondí con el proveedor de RESPALDO (${cfg.nombre}) porque el principal (${PRIMARY}) no estaba disponible.`);
+        }
+        return texto?.trim() || "¿Me puedes dar un poco más de detalle? 🙂";
+      } catch (err) {
+        console.error(`[${cfg.nombre}] Excepción (intento ${intento}):`, err.message);
         if (intento < 2) { await new Promise((r) => setTimeout(r, 800)); continue; }
-        return "Dame un segundo y me escribes de nuevo, por favor 🙂";
+        break; // pasamos al proveedor de respaldo
       }
-
-      const data = await res.json();
-      const texto = data?.choices?.[0]?.message?.content;
-      return texto?.trim() || "¿Me puedes dar un poco más de detalle? 🙂";
-    } catch (err) {
-      console.error(`[${CFG.nombre}] Excepción (intento ${intento}):`, err.message);
-      if (intento < 2) { await new Promise((r) => setTimeout(r, 800)); continue; }
-      return "Dame un segundo y me escribes de nuevo, por favor 🙂";
     }
   }
+
+  // Si llegamos aquí, ningún proveedor pudo responder.
+  console.error("[ia] Todos los proveedores fallaron.");
+  return "Dame un segundo y me escribes de nuevo, por favor 🙂";
 }
