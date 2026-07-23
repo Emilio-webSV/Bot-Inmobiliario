@@ -115,17 +115,53 @@ function mensajeDuplicado(id) {
   return false;
 }
 
-// --- Agrupador de mensajes ---
+// --- Agrupador de mensajes (INTELIGENTE) ---
 // La gente en WhatsApp escribe en varios mensajitos seguidos ("Hola" / "busco
-// casa" / "en Polanco"). Si contestáramos uno por uno, mandaríamos 3 respuestas
-// sueltas y sin contexto. Por eso esperamos unos segundos: si el cliente sigue
-// escribiendo, se reinicia la espera, y al final se responde UNA sola vez con
-// todo el contexto junto. Se ajusta con la variable ESPERA_AGRUPAR_MS.
-const ESPERA_AGRUPAR_MS = Number(process.env.ESPERA_AGRUPAR_MS ?? 8000);
+// casa" / "en Polanco"). Antes esperábamos SIEMPRE unos segundos, lo que hacía
+// que hasta un mensaje completo tardara en contestarse. Ahora es más listo:
+//   - Si el mensaje SE VE COMPLETO (una pregunta, una frase cerrada) -> contesta
+//     casi de inmediato (espera corta, ESPERA_CORTA_MS).
+//   - Si SE VE QUE VA A SEGUIR (un saludo suelto, termina en "y", ",", ":", muy
+//     cortito...) -> espera más (ESPERA_LARGA_MS, 10s) por si manda otro.
+// Si mientras espera llega otro mensaje, se re-evalúa con el nuevo y se junta todo.
+// Análisis por texto (rápido, sin llamada extra a la IA).
+const ESPERA_LARGA_MS = Number(process.env.ESPERA_LARGA_MS ?? process.env.ESPERA_AGRUPAR_MS ?? 10000);
+const ESPERA_CORTA_MS = Number(process.env.ESPERA_CORTA_MS ?? 2000);
 const pendientes = new Map(); // telefono -> { textos, nombre, canal, timer }
 
+// ¿El último mensaje parece que el cliente AÚN NO termina de escribir?
+// true  -> conviene esperar más (va a seguir).  false -> ya se puede contestar.
+function pareceIncompleto(texto) {
+  const t = String(texto || "").trim();
+  if (!t) return false;
+  const lower = t.toLowerCase();
+
+  // "..." al final sugiere que sigue.
+  if (/(\.\.\.|…)$/.test(t)) return true;
+  // Termina en un signo de cierre claro (. ! ?) -> se ve COMPLETO.
+  if (/[.!?]$/.test(t)) return false;
+  // Termina en coma, dos puntos, punto y coma o guion -> va a seguir.
+  if (/[,:;\-]$/.test(t)) return true;
+
+  const palabras = lower.split(/\s+/).filter(Boolean);
+
+  // Frases de apertura típicas que solas casi siempre llevan a otro mensaje.
+  if (/^(hola|hey|buenas|buenos dias|buenas tardes|buenas noches|oye|oiga|mira|disculpa|perdon|perdón|una pregunta|tengo una duda|qué onda|que onda|holi)$/i.test(lower)) return true;
+
+  // Muy cortito y sin puntuación -> probablemente aún no termina.
+  if (palabras.length <= 2 && t.length <= 15) return true;
+
+  // Termina en una palabra "colgante" (conector, preposición o arranque de idea)
+  // que casi nunca cierra un mensaje.
+  const colgantes = new Set(["y","e","o","u","pero","porque","pues","que","de","del","en","con","para","por","la","el","los","las","un","una","unos","unas","mi","mis","tu","tus","su","sus","se","al","a","o","sea","es","son","esta","está","como","cuando","donde","cual","cuál","quiero","busco","necesito","tengo","quería","queria","quisiera","me","te","lo","le","les","muy","más","mas","tan","también","tambien","ademas","además","si","sí","entonces"]);
+  const ult = palabras[palabras.length - 1];
+  if (colgantes.has(ult)) return true;
+
+  return false;
+}
+
 function encolarMensaje(telefono, texto, nombre, canal) {
-  if (ESPERA_AGRUPAR_MS <= 0) {
+  if (ESPERA_LARGA_MS <= 0) {
     return procesarMensaje(telefono, texto, nombre, canal).catch((e) =>
       console.error("[procesar]", e.message)
     );
@@ -134,14 +170,19 @@ function encolarMensaje(telefono, texto, nombre, canal) {
   b.textos.push(texto);
   if (nombre) b.nombre = nombre;
   b.canal = canal;
-  if (b.timer) clearTimeout(b.timer); // sigue escribiendo: reiniciamos la espera
+  if (b.timer) clearTimeout(b.timer); // llegó otro: reiniciamos y re-evaluamos
+
+  // Cuánto esperar según el ÚLTIMO mensaje: si se ve completo, poquito; si parece
+  // que va a seguir, los 10s.
+  const espera = pareceIncompleto(texto) ? ESPERA_LARGA_MS : ESPERA_CORTA_MS;
+
   b.timer = setTimeout(() => {
     pendientes.delete(telefono);
     const juntos = b.textos.join("\n");
     procesarMensaje(telefono, juntos, b.nombre, b.canal).catch((e) =>
       console.error("[procesar]", e.message)
     );
-  }, ESPERA_AGRUPAR_MS);
+  }, espera);
   pendientes.set(telefono, b);
 }
 
@@ -341,6 +382,23 @@ function extraerNombre(texto) {
   return { nombre, textoLimpio: texto.replace(m[0], "").trim() };
 }
 
+// RED DE SEGURIDAD FINAL: quita CUALQUIER etiqueta interna que se cuele en la
+// respuesta antes de enviarla al cliente — esté bien formada, mal formada, vacía
+// o truncada (ej. "[CITA:]", "[CITA: sábado]", "[NOMBRE: Juan", "[CITA: 2026-..."
+// cortada por el límite de tokens). Solo toca lo que esté ENTRE CORCHETES, así que
+// NUNCA borra la palabra normal "cita" o "nombre" de una frase real del cliente.
+function limpiarEtiquetas(texto) {
+  return String(texto || "")
+    .replace(/\[\s*CITA\b[^\]]*\]/gi, "")   // [CITA: ...] completa (o vacía)
+    .replace(/\[\s*CITA\b[^\]]*$/gi, "")    // [CITA: ... truncada (sin cierre)
+    .replace(/\[\s*NOMBRE\b[^\]]*\]/gi, "") // [NOMBRE: ...] completa
+    .replace(/\[\s*NOMBRE\b[^\]]*$/gi, "")  // [NOMBRE: ... truncada
+    .replace(/[ \t]{2,}/g, " ")                // dobles espacios que queden
+    .replace(/[ \t]+([.,;:!?])/g, "$1")         // espacio suelto antes de un signo
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 // Arma un link de "Agregar a Google Calendar" (un toque y la cita queda en el
 // calendario del asesor/dueño). No requiere conectar cuentas: es una URL.
 function gcalLink(iso, titulo, detalles) {
@@ -474,6 +532,9 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     respuesta = nm.textoLimpio;
     if (nm.nombre) upsertLead(telefono, { nombre: nm.nombre });
   }
+
+  // Limpieza final: que NUNCA se le escape una etiqueta interna al cliente.
+  respuesta = limpiarEtiquetas(respuesta);
 
   await enviarTextoCanal(canal, telefono, respuesta);
   pushHistorial(telefono, "bot", respuesta);
