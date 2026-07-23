@@ -416,6 +416,14 @@
           <div class="phead"><h3>Próximas citas</h3></div>
           <div id="agendaHost"><div class="empty" style="border:none">Cargando…</div></div>
         </div>
+        <div class="panel" style="margin-top:16px">
+          <div class="phead" style="display:flex;justify-content:space-between;align-items:center">
+            <h3>🚫 Horarios no disponibles</h3>
+            <button class="btn gold" onclick="abrirBloqueo()">+ Bloquear horario</button>
+          </div>
+          <p class="sub" style="padding:0 16px 4px">Marca cuándo un asesor no puede recibir visitas. El bot no ofrecerá ni agendará en esas horas.</p>
+          <div id="blocksHost"><div class="empty" style="border:none">Cargando…</div></div>
+        </div>
       </section>
     </main>
   </div>
@@ -498,6 +506,21 @@
       <div class="full checkrow"><input id="z_activa" type="checkbox" checked /><label style="margin:0">Activa (el bot la ofrece)</label></div>
     </div>
     <div class="factions"><button class="btn ghost" onclick="cerrarZona()">Cancelar</button><button class="btn primary" onclick="guardarZona()">Guardar</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="bloqueoOverlay">
+  <div class="modal">
+    <div class="mhead"><h3>Bloquear un horario</h3><button class="close" onclick="cerrarBloqueo()">×</button></div>
+    <div class="form">
+      <div class="full"><label>¿Quién no está disponible?</label><select id="b_agente"></select></div>
+      <div><label>Fecha</label><input type="date" id="b_fecha" /></div>
+      <div><label>&nbsp;</label><label style="font-weight:400;display:flex;align-items:center;gap:7px;padding-top:6px"><input type="checkbox" id="b_todo" onchange="toggleTodoDia()" style="width:auto"> Todo el día</label></div>
+      <div><label>Desde</label><input type="time" id="b_inicio" value="09:00" /></div>
+      <div><label>Hasta</label><input type="time" id="b_fin" value="19:00" /></div>
+      <div class="full"><label>Motivo <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input id="b_motivo" placeholder="Ej. junta, día libre, cita externa" /></div>
+    </div>
+    <div class="factions"><button class="btn ghost" onclick="cerrarBloqueo()">Cancelar</button><button class="btn primary" onclick="guardarBloqueo()">Bloquear</button></div>
   </div>
 </div>
 
@@ -828,6 +851,7 @@
     return "https://calendar.google.com/calendar/render?"+p.toString();
   }
   async function cargarAgenda(){
+    cargarBloqueos();
     try{
       const data=await(await fetch("/api/leads",{headers:AH()})).json();
       agentesById=data.agentesById||{};
@@ -865,6 +889,64 @@
       }).join("");
     }catch(e){toast("Error al cargar")}
   }
+  // ---- Bloqueos de horario ----
+  async function cargarBloqueos(){
+    const host=document.getElementById("blocksHost");
+    if(!host)return;
+    try{
+      const d=await(await fetch("/api/blocks",{headers:AH()})).json();
+      const ags={}; (d.agents||[]).forEach(a=>ags[a.id]=a.nombre);
+      const bs=d.blocks||[];
+      if(!bs.length){host.innerHTML='<div class="empty" style="border:none"><p>Sin horarios bloqueados</p><p class="sub">Todos los asesores están disponibles en el horario normal.</p></div>';return}
+      host.innerHTML=`<table><thead><tr><th>Asesor</th><th>Fecha</th><th>Horario</th><th class="hide-sm">Motivo</th><th></th></tr></thead><tbody>${bs.map(b=>{
+        const dia=new Date(b.fecha+"T12:00:00").toLocaleDateString("es-MX",{weekday:"short",day:"2-digit",month:"short"});
+        const todo=b.horaInicio==="00:00"&&b.horaFin==="23:59";
+        const quien=b.agenteId?(ags[b.agenteId]||"—"):"Toda la agencia";
+        return `<tr><td><b>${escapeHtml(quien)}</b></td><td>${dia}</td><td>${todo?"Todo el día":escapeHtml(b.horaInicio+" – "+b.horaFin)}</td><td class="hide-sm">${escapeHtml(b.motivo||"—")}</td><td style="text-align:right"><button class="btn ghost" onclick="borrarBloqueo('${b.id}')">Quitar</button></td></tr>`;
+      }).join("")}</tbody></table>`;
+    }catch(e){host.innerHTML='<div class="empty" style="border:none">No se pudo cargar</div>'}
+  }
+  async function abrirBloqueo(){
+    try{
+      const d=await(await fetch("/api/blocks",{headers:AH()})).json();
+      const sel=document.getElementById("b_agente");
+      sel.innerHTML='<option value="">Toda la agencia</option>'+(d.agents||[]).map(a=>`<option value="${a.id}">${escapeHtml(a.nombre)}</option>`).join("");
+    }catch(e){}
+    const hoy=new Date();hoy.setMinutes(hoy.getMinutes()-hoy.getTimezoneOffset());
+    document.getElementById("b_fecha").value=hoy.toISOString().slice(0,10);
+    document.getElementById("b_todo").checked=false;
+    document.getElementById("b_inicio").value="09:00";
+    document.getElementById("b_fin").value="19:00";
+    document.getElementById("b_motivo").value="";
+    toggleTodoDia();
+    document.getElementById("bloqueoOverlay").classList.add("show");
+  }
+  function cerrarBloqueo(){document.getElementById("bloqueoOverlay").classList.remove("show")}
+  function toggleTodoDia(){
+    const t=document.getElementById("b_todo").checked;
+    document.getElementById("b_inicio").disabled=t;
+    document.getElementById("b_fin").disabled=t;
+  }
+  async function guardarBloqueo(){
+    const fecha=document.getElementById("b_fecha").value;
+    if(!fecha){toast("Elige una fecha");return}
+    const todo=document.getElementById("b_todo").checked;
+    const body={agenteId:document.getElementById("b_agente").value||null,fecha,
+      horaInicio:todo?"00:00":document.getElementById("b_inicio").value,
+      horaFin:todo?"23:59":document.getElementById("b_fin").value,
+      motivo:document.getElementById("b_motivo").value};
+    if(!todo&&body.horaFin<=body.horaInicio){toast("La hora final debe ser mayor");return}
+    try{
+      const r=await fetch("/api/blocks",{method:"POST",headers:JH(),body:JSON.stringify(body)});
+      if(!r.ok){toast("No se pudo guardar");return}
+      toast("Horario bloqueado ✓");cerrarBloqueo();cargarBloqueos();
+    }catch(e){toast("Error de conexión")}
+  }
+  async function borrarBloqueo(id){
+    if(!confirm("¿Quitar este bloqueo? El asesor volverá a estar disponible."))return;
+    try{await fetch("/api/blocks/"+id,{method:"DELETE",headers:JH()});cargarBloqueos()}catch(e){toast("Error")}
+  }
+
   function abrirEscribir(){document.getElementById("e_tel").value="";document.getElementById("e_nombre").value="";document.getElementById("escribirOverlay").classList.add("show")}
   function cerrarEscribir(){document.getElementById("escribirOverlay").classList.remove("show")}
   async function enviarApertura(){
@@ -987,6 +1069,7 @@
   document.getElementById("leadOverlay").addEventListener("click",e=>{if(e.target.id==="leadOverlay")cerrarModal()});
   document.getElementById("propOverlay").addEventListener("click",e=>{if(e.target.id==="propOverlay")cerrar()});
   document.getElementById("escribirOverlay").addEventListener("click",e=>{if(e.target.id==="escribirOverlay")cerrarEscribir()});
+  document.getElementById("bloqueoOverlay").addEventListener("click",e=>{if(e.target.id==="bloqueoOverlay")cerrarBloqueo()});
   document.getElementById("agentOverlay").addEventListener("click",e=>{if(e.target.id==="agentOverlay")cerrarAgente()});
   document.getElementById("zoneOverlay").addEventListener("click",e=>{if(e.target.id==="zoneOverlay")cerrarZona()});
 </script>

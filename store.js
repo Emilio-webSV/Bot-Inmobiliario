@@ -22,6 +22,7 @@ const DEFAULT_DB = {
   agents: [],       // [ { id, nombre, telefono, zonas: [], activo } ]
   properties: [],   // [ { id, titulo, zona, tipo, operacion, precio, ... } ]
   zones: [],        // [ { id, nombre, aliases: [], precioM2, nota, activa } ]
+  blocks: [],       // [ { id, agenteId, fecha, horaInicio, horaFin, motivo } ] horarios NO disponibles
   config: {
     nombreAgencia: "Inmobiliaria Demo",
     tono: "profesional y cálido", // formal | relajado | lujoso
@@ -200,6 +201,49 @@ export function deleteAgent(id) {
   db.agents = (db.agents || []).filter((a) => a.id !== id);
   saveDB(db);
   return db.agents.length < antes;
+}
+
+// ---- Bloqueos de horario (cuándo NO puede un asesor) -----------------------
+// Sirven para que el bot no agende visitas en horas donde el asesor no está
+// disponible (junta, día libre, otra cita fuera del sistema, etc.).
+
+export function getBlocks() {
+  // Limpia automáticamente los bloqueos que ya pasaron (más de 1 día atrás).
+  const db = loadDB();
+  const hoy = new Date();
+  hoy.setDate(hoy.getDate() - 1);
+  const corte = hoy.toISOString().slice(0, 10);
+  const vigentes = (db.blocks || []).filter((b) => b.fecha >= corte);
+  if (vigentes.length !== (db.blocks || []).length) {
+    db.blocks = vigentes;
+    saveDB(db);
+  }
+  return vigentes;
+}
+
+export function createBlock(data) {
+  const db = loadDB();
+  db.blocks = db.blocks || [];
+  const bloque = {
+    id: "blk_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    agenteId: data.agenteId || null,        // null = aplica a TODA la agencia
+    fecha: data.fecha,                       // "YYYY-MM-DD"
+    horaInicio: data.horaInicio || "09:00",  // "HH:MM"
+    horaFin: data.horaFin || "19:00",
+    motivo: (data.motivo || "").trim(),
+    creado: new Date().toISOString(),
+  };
+  db.blocks.push(bloque);
+  saveDB(db);
+  return bloque;
+}
+
+export function deleteBlock(id) {
+  const db = loadDB();
+  const antes = (db.blocks || []).length;
+  db.blocks = (db.blocks || []).filter((b) => b.id !== id);
+  saveDB(db);
+  return db.blocks.length < antes;
 }
 
 // ---- Helpers de propiedades -----------------------------------------------

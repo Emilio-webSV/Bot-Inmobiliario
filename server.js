@@ -16,6 +16,7 @@ import {
   loadDB, upsertLead, pushHistorial, getLead, getAllLeads, getConfig, saveDB, deleteLead,
   getProperties, getProperty, createProperty, updateProperty, deleteProperty,
   getAgents, updateConfig, createAgent, updateAgent, deleteAgent,
+  getBlocks, createBlock, deleteBlock,
   getZones, createZone, updateZone, deleteZone, zonaEnUso, seedZonasDemo,
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
@@ -27,6 +28,7 @@ import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
 import { buscarPropiedades, contextoPropiedades, marcarEnviada, seedPropiedadesDemo, cargarPropiedadesDemoForzado } from "./properties.js";
 import { iniciarCronJobs, enviarReporteAhora, revisarLeadsCalientesAhora } from "./followups.js";
+import { revisarDisponibilidad } from "./availability.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -113,6 +115,36 @@ function mensajeDuplicado(id) {
   return false;
 }
 
+// --- Agrupador de mensajes ---
+// La gente en WhatsApp escribe en varios mensajitos seguidos ("Hola" / "busco
+// casa" / "en Polanco"). Si contestáramos uno por uno, mandaríamos 3 respuestas
+// sueltas y sin contexto. Por eso esperamos unos segundos: si el cliente sigue
+// escribiendo, se reinicia la espera, y al final se responde UNA sola vez con
+// todo el contexto junto. Se ajusta con la variable ESPERA_AGRUPAR_MS.
+const ESPERA_AGRUPAR_MS = Number(process.env.ESPERA_AGRUPAR_MS ?? 8000);
+const pendientes = new Map(); // telefono -> { textos, nombre, canal, timer }
+
+function encolarMensaje(telefono, texto, nombre, canal) {
+  if (ESPERA_AGRUPAR_MS <= 0) {
+    return procesarMensaje(telefono, texto, nombre, canal).catch((e) =>
+      console.error("[procesar]", e.message)
+    );
+  }
+  const b = pendientes.get(telefono) || { textos: [], nombre: null, canal };
+  b.textos.push(texto);
+  if (nombre) b.nombre = nombre;
+  b.canal = canal;
+  if (b.timer) clearTimeout(b.timer); // sigue escribiendo: reiniciamos la espera
+  b.timer = setTimeout(() => {
+    pendientes.delete(telefono);
+    const juntos = b.textos.join("\n");
+    procesarMensaje(telefono, juntos, b.nombre, b.canal).catch((e) =>
+      console.error("[procesar]", e.message)
+    );
+  }, ESPERA_AGRUPAR_MS);
+  pendientes.set(telefono, b);
+}
+
 app.post("/webhook", async (req, res) => {
   // Respondemos 200 de inmediato para que Meta no reintente
   res.sendStatus(200);
@@ -145,14 +177,14 @@ app.post("/webhook", async (req, res) => {
         const media = await descargarMediaWhatsApp(mensaje.sticker?.id);
         const url = guardarMediaLocal(media);
         const tok = url ? `[img:${url}] ` : "";
-        await procesarMensaje(mensaje.from, `😄 ${tok}(El cliente te mandó un sticker)`, nombre, "whatsapp");
+        encolarMensaje(mensaje.from, `😄 ${tok}(El cliente te mandó un sticker)`, nombre, "whatsapp");
         return;
       }
       if (mensaje.type !== "text") {
         await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // ubicación, contacto, etc.
         return;
       }
-      await procesarMensaje(mensaje.from, mensaje.text.body, nombre, "whatsapp");
+      encolarMensaje(mensaje.from, mensaje.text.body, nombre, "whatsapp");
       return;
     }
 
@@ -166,7 +198,7 @@ app.post("/webhook", async (req, res) => {
           if (mensajeDuplicado(msg.mid)) continue; // duplicado, ya lo procesamos
           const remitente = ev.sender?.id;
           if (!remitente) continue;
-          if (msg.text) await procesarMensaje(remitente, msg.text, null, canal);
+          if (msg.text) encolarMensaje(remitente, msg.text, null, canal);
           else {
             const img = (msg.attachments || []).find((a) => a.type === "image" && a.payload?.url);
             const aud = (msg.attachments || []).find((a) => a.type === "audio" && a.payload?.url);
@@ -214,7 +246,7 @@ async function manejarAudio(remitente, nombre, canal, audio) {
   if (texto && texto.trim().length > 1) {
     // El bot "escuchó" la nota. La pasamos a su cerebro como mensaje del cliente,
     // con una marca al inicio para que en el CRM se vea que fue nota de voz.
-    await procesarMensaje(remitente, `🎙️ ${texto.trim()}`, nombre, canal);
+    encolarMensaje(remitente, `🎙️ ${texto.trim()}`, nombre, canal);
     return;
   }
 
@@ -259,14 +291,14 @@ async function manejarImagen(remitente, nombre, canal, imagen, caption) {
   if (desc && /NO_PROPIEDAD/i.test(desc)) {
     const quees = desc.replace(/.*NO_PROPIEDAD:?\s*/i, "").trim() || "algo";
     const texto = `📷 ${tok}(El cliente te mandó una foto que NO es una propiedad; se ve: ${quees}. Reacciona MUY breve con buena onda y de inmediato regresa la conversación a ayudarlo a encontrar una propiedad.)`;
-    await procesarMensaje(remitente, texto, nombre, canal);
+    encolarMensaje(remitente, texto, nombre, canal);
     return;
   }
 
   if (desc) {
     const cap = caption ? ` El cliente escribió junto a la foto: "${caption}".` : "";
     const texto = `📷 ${tok}(El cliente te envió una foto de una propiedad que le interesa. En la foto se ve: ${desc}.${cap})`;
-    await procesarMensaje(remitente, texto, nombre, canal);
+    encolarMensaje(remitente, texto, nombre, canal);
     return;
   }
 
@@ -397,24 +429,42 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   if (cita) {
     respuesta = cita.textoLimpio; // quita la etiqueta antes de mandársela al cliente
     if (cita.iso) { // solo si pasó la validación (no pasado, dentro de horario)
-      const esReagenda = lead.citaProgramada && lead.citaProgramada !== cita.iso;
-      upsertLead(telefono, { citaProgramada: cita.iso, seguimientos: { recordatorioCita: false } });
-      const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-      const link = gcalLink(cita.iso, `Cita: ${lead.nombre || telefono}`, `Visita agendada por el asistente. Cliente: ${lead.nombre || telefono} (${telefono}).`);
-      const titulo = esReagenda ? "🔄 Cita REAGENDADA" : "📅 Cita agendada";
-      let cuerpo = `Cliente: ${lead.nombre || telefono}\n`;
-      if (esReagenda) {
-        const antesTxt = new Date(lead.citaProgramada).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-        cuerpo += `Antes: ${antesTxt}\nAhora: ${fechaTxt}`;
+      // Red de seguridad extra: ¿ese horario está bloqueado o ya ocupado?
+      // (El bot ya sabe los bloqueos por su prompt, pero puede equivocarse.)
+      const choque = revisarDisponibilidad(cita.iso, lead.agenteAsignado || null);
+      if (choque) {
+        const hTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", hour: "2-digit", minute: "2-digit" });
+        respuesta = `Uy, justo ${hTxt} no tengo disponibilidad 😕 (${choque.motivo}). ¿Te acomoda otro horario? Dime cuál te queda mejor y lo agendamos. 🗓️`;
+        console.log(`[cita] Rechazada por disponibilidad: ${cita.iso} — ${choque.motivo}`);
       } else {
-        cuerpo += fechaTxt;
+      const yaTenia = lead.citaProgramada;
+      const esReagenda = yaTenia && yaTenia !== cita.iso;
+      const esMismaCita = yaTenia && yaTenia === cita.iso;
+
+      // Solo avisamos cuando de verdad hay algo nuevo: la primera vez que se
+      // agenda, o cuando el cliente la MUEVE a otra fecha. Si solo se vuelve a
+      // mencionar la misma cita en la plática, NO se manda otra notificación
+      // (antes se repetía y confundía al dueño y al cliente).
+      if (!esMismaCita) {
+        upsertLead(telefono, { citaProgramada: cita.iso, seguimientos: { recordatorioCita: false } });
+        const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+        const link = gcalLink(cita.iso, `Cita: ${lead.nombre || telefono}`, `Visita agendada por el asistente. Cliente: ${lead.nombre || telefono} (${telefono}).`);
+        const titulo = esReagenda ? "🔄 Cita REAGENDADA" : "📅 Cita agendada";
+        let cuerpo = `Cliente: ${lead.nombre || telefono}\n`;
+        if (esReagenda) {
+          const antesTxt = new Date(yaTenia).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+          cuerpo += `Antes: ${antesTxt}\nAhora: ${fechaTxt}`;
+        } else {
+          cuerpo += fechaTxt;
+        }
+        const aviso = `${titulo}\n${cuerpo}\n\n➕ Agrégala a tu calendario:\n${link}`;
+        const dueno = process.env.OWNER_PHONE;
+        if (dueno) await enviarTextoOPlantilla(dueno, aviso, process.env.WA_TPL_ALERTA, [titulo.replace(/[^\p{L}\s]/gu, "").trim(), `${lead.nombre || telefono} - ${fechaTxt}`]).catch(() => {});
+        // También al asesor asignado, si tiene teléfono (y no es el mismo del dueño)
+        const ag = lead.agenteAsignado ? (getAgents() || []).find((a) => a.id === lead.agenteAsignado) : null;
+        if (ag && ag.telefono && ag.telefono !== dueno) await enviarTextoOPlantilla(ag.telefono, aviso, process.env.WA_TPL_ALERTA, [titulo.replace(/[^\p{L}\s]/gu, "").trim(), `${lead.nombre || telefono} - ${fechaTxt}`]).catch(() => {});
       }
-      const aviso = `${titulo}\n${cuerpo}\n\n➕ Agrégala a tu calendario:\n${link}`;
-      const dueno = process.env.OWNER_PHONE;
-      if (dueno) await enviarTextoOPlantilla(dueno, aviso, process.env.WA_TPL_ALERTA, [titulo.replace(/[^\p{L}\s]/gu, "").trim(), `${lead.nombre || telefono} - ${fechaTxt}`]).catch(() => {});
-      // También al asesor asignado, si tiene teléfono (y no es el mismo del dueño)
-      const ag = lead.agenteAsignado ? (getAgents() || []).find((a) => a.id === lead.agenteAsignado) : null;
-      if (ag && ag.telefono && ag.telefono !== dueno) await enviarTextoOPlantilla(ag.telefono, aviso, process.env.WA_TPL_ALERTA, [titulo.replace(/[^\p{L}\s]/gu, "").trim(), `${lead.nombre || telefono} - ${fechaTxt}`]).catch(() => {});
+      } // cierra el else de disponibilidad
     }
   }
 
@@ -847,6 +897,24 @@ app.put("/api/config", (req, res) => {
 });
 
 // Agentes
+// ---- Bloqueos de horario (cuándo NO puede un asesor) ----
+app.get("/api/blocks", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  res.json({ blocks: getBlocks(), agents: getAgents() });
+});
+
+app.post("/api/blocks", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const b = req.body || {};
+  if (!b.fecha) return res.status(400).json({ error: "Falta la fecha" });
+  res.json({ ok: true, block: createBlock(b) });
+});
+
+app.delete("/api/blocks/:id", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  res.json({ ok: deleteBlock(req.params.id) });
+});
+
 app.get("/api/agents", (req, res) => {
   res.json({ agents: getAgents() });
 });
