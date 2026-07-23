@@ -312,7 +312,11 @@ export async function generarRespuesta({ config, lead, propiedadesCtx }) {
   // reintenta 2 veces por si fue un bache instantáneo; si aun así falla, saltamos
   // al siguiente proveedor. Si TODOS fallan, mandamos un mensaje suave.
   for (const cfg of PROVIDERS) {
-    const body = { model: cfg.model, messages, temperature: 0.6, max_tokens: 300 };
+    const body = { model: cfg.model, messages, temperature: 0.6, max_tokens: 1024 };
+    // Gemini 3.x "piensa" por defecto y se come los tokens antes de responder
+    // (por eso salían respuestas cortadas o vacías). Le bajamos el pensamiento al
+    // mínimo: para chatear no lo necesita. A Groq NO se le manda este parámetro.
+    if (cfg.nombre === "gemini") body.reasoning_effort = "low";
 
     for (let intento = 1; intento <= 2; intento++) {
       try {

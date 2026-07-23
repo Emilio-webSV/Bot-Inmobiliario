@@ -96,7 +96,7 @@ export async function analizarImagen(imagen) {
         ],
       },
     ],
-    max_tokens: 200,
+    max_tokens: 600,
     temperature: 0.3,
   };
 
@@ -104,10 +104,12 @@ export async function analizarImagen(imagen) {
   // pasa al de respaldo. Si ninguno pudo, devuelve null (el bot sigue sin foto).
   for (const cfg of VIS_PROVIDERS) {
     try {
+      const bodyVis = { model: cfg.model, ...payload };
+      if (cfg.nombre === "gemini") bodyVis.reasoning_effort = "low"; // no gastar tokens "pensando"
       const res = await fetch(cfg.endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.apiKey}` },
-        body: JSON.stringify({ model: cfg.model, ...payload }),
+        body: JSON.stringify(bodyVis),
       });
       if (!res.ok) {
         console.error(`[vision] ${cfg.nombre} respondió`, res.status);

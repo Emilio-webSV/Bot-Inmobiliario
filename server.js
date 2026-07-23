@@ -13,7 +13,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 
 import {
-  loadDB, upsertLead, pushHistorial, getLead, getAllLeads, getConfig, saveDB, deleteLead,
+  loadDB, upsertLead, pushHistorial, actualizarEstadoMensaje, getLead, getAllLeads, getConfig, saveDB, deleteLead,
   getProperties, getProperty, createProperty, updateProperty, deleteProperty,
   getAgents, updateConfig, createAgent, updateAgent, deleteAgent,
   getBlocks, createBlock, deleteBlock,
@@ -125,8 +125,11 @@ function mensajeDuplicado(id) {
 //     cortito...) -> espera más (ESPERA_LARGA_MS, 10s) por si manda otro.
 // Si mientras espera llega otro mensaje, se re-evalúa con el nuevo y se junta todo.
 // Análisis por texto (rápido, sin llamada extra a la IA).
-const ESPERA_LARGA_MS = Number(process.env.ESPERA_LARGA_MS ?? process.env.ESPERA_AGRUPAR_MS ?? 10000);
-const ESPERA_CORTA_MS = Number(process.env.ESPERA_CORTA_MS ?? 2000);
+// INSTANTÁNEO por defecto (0 = contesta de inmediato, sin agrupar). Si algún día
+// quieres reactivar el agrupador inteligente, pon ESPERA_LARGA_MS y ESPERA_CORTA_MS
+// (en milisegundos) mayores a 0 en Railway.
+const ESPERA_LARGA_MS = Number(process.env.ESPERA_LARGA_MS ?? 0);
+const ESPERA_CORTA_MS = Number(process.env.ESPERA_CORTA_MS ?? 0);
 const pendientes = new Map(); // telefono -> { textos, nombre, canal, timer }
 
 // ¿El último mensaje parece que el cliente AÚN NO termina de escribir?
@@ -186,6 +189,16 @@ function encolarMensaje(telefono, texto, nombre, canal) {
   pendientes.set(telefono, b);
 }
 
+// Envía por el canal y registra en el historial guardando el ID del mensaje de
+// WhatsApp (wamid) y su estado inicial "enviado". Con eso el CRM puede mostrar
+// las palomitas (enviado ✓ / entregado ✓✓ / leído ✓✓ azul).
+async function enviarYRegistrar(canal, telefono, texto, rol = "bot") {
+  const r = await enviarTextoCanal(canal, telefono, texto);
+  const msgId = r?.messages?.[0]?.id || null;
+  pushHistorial(telefono, rol, texto, msgId ? { estado: "enviado", msgId } : {});
+  return r;
+}
+
 app.post("/webhook", async (req, res) => {
   // Respondemos 200 de inmediato para que Meta no reintente
   res.sendStatus(200);
@@ -197,6 +210,18 @@ app.post("/webhook", async (req, res) => {
     // --- WhatsApp ---
     if (obj === "whatsapp_business_account" || body?.entry?.[0]?.changes) {
       const value = body?.entry?.[0]?.changes?.[0]?.value;
+
+      // Estados de mensajes salientes (palomitas): WhatsApp avisa enviado/entregado/leído.
+      const statuses = value?.statuses;
+      if (Array.isArray(statuses) && statuses.length) {
+        const mapa = { sent: "enviado", delivered: "entregado", read: "leido" };
+        for (const stt of statuses) {
+          const nuevo = mapa[stt?.status];
+          if (nuevo && stt?.id) actualizarEstadoMensaje(stt.id, nuevo);
+        }
+        return;
+      }
+
       const mensaje = value?.messages?.[0];
       if (!mensaje) return;
       if (mensajeDuplicado(mensaje.id)) return; // ya lo procesamos, no repitas
@@ -267,8 +292,7 @@ async function manejarNoTexto(remitente, nombre, canal) {
   pushHistorial(remitente, "user", "[imagen/archivo recibido]");
   if (lead.humanoEnControl) return; // si un asesor ya está atendiendo, no respondas
   const msg = "¡Gracias! 😄 Oye, mejor cuéntame qué andas buscando —zona, presupuesto, recámaras— y te encuentro algo padre. 🏠";
-  await enviarTextoCanal(canal, remitente, msg);
-  pushHistorial(remitente, "bot", msg);
+  await enviarYRegistrar(canal, remitente, msg);
 }
 
 // El cliente mandó una NOTA DE VOZ. La transcribimos con Whisper y la tratamos
@@ -294,8 +318,7 @@ async function manejarAudio(remitente, nombre, canal, audio) {
   // No se pudo transcribir: respuesta con gracia.
   pushHistorial(remitente, "user", "[🎙️ nota de voz]");
   const msg = "¡Gracias por tu nota de voz! 🙂 No alcancé a escucharla bien. ¿Me cuentas por aquí qué estás buscando (zona, presupuesto, recámaras)?";
-  await enviarTextoCanal(canal, remitente, msg);
-  pushHistorial(remitente, "bot", msg);
+  await enviarYRegistrar(canal, remitente, msg);
 }
 // Guarda un archivo que llegó del cliente (foto/sticker) en el disco, para poder
 // mostrarlo en el CRM. Devuelve una URL relativa (/uploads/xxx) o null.
@@ -346,8 +369,7 @@ async function manejarImagen(remitente, nombre, canal, imagen, caption) {
   // No se pudo analizar, pero si la guardamos igual la mostramos en el CRM.
   pushHistorial(remitente, "user", `📷 ${tok}${caption || ""}`.trim());
   const msg = "¡Gracias por la foto! 🙂 Se me complicó abrirla, pero cuéntame qué estás buscando —zona, presupuesto, recámaras— y te ayudo igual. 🏠";
-  await enviarTextoCanal(canal, remitente, msg);
-  pushHistorial(remitente, "bot", msg);
+  await enviarYRegistrar(canal, remitente, msg);
 }
 
 // Detecta la etiqueta oculta [CITA: YYYY-MM-DD HH:MM] que pone el bot al agendar.
@@ -450,8 +472,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
       lead = upsertLead(telefono, { agenteAsignado: agente.id });
     }
     const respuesta = "Entiendo perfectamente 🙏 Voy a pasar tu caso ahora mismo con uno de nuestros asesores para atenderte personalmente. En un momento te contactan.";
-    await enviarTextoCanal(canal, telefono, respuesta);
-    pushHistorial(telefono, "bot", respuesta);
+    await enviarYRegistrar(canal, telefono, respuesta);
 
     // Avisar al dueño / agente
     const dueno = process.env.OWNER_PHONE;
@@ -536,8 +557,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   // Limpieza final: que NUNCA se le escape una etiqueta interna al cliente.
   respuesta = limpiarEtiquetas(respuesta);
 
-  await enviarTextoCanal(canal, telefono, respuesta);
-  pushHistorial(telefono, "bot", respuesta);
+  await enviarYRegistrar(canal, telefono, respuesta);
 
   // 6) Manda las fotos de las propiedades que el bot acaba de presentar.
   //    Si es UNA sola propiedad, manda varias fotos de ella (hasta 4). Si son
@@ -824,8 +844,7 @@ app.post("/api/leads/:telefono/enviar", async (req, res) => {
   if (!lead) return res.status(404).json({ error: "No encontrado" });
   const texto = String(req.body?.texto || "").trim();
   if (!texto) return res.status(400).json({ error: "Texto vacío" });
-  await enviarTextoCanal(lead.canal, req.params.telefono, texto);
-  pushHistorial(req.params.telefono, "bot", texto);
+  await enviarYRegistrar(lead.canal, req.params.telefono, texto);
   upsertLead(req.params.telefono, { humanoEnControl: true });
   res.json({ ok: true });
 });

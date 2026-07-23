@@ -118,15 +118,39 @@ export function upsertLead(telefono, patch) {
   return db.leads[telefono];
 }
 
-export function pushHistorial(telefono, rol, texto) {
+export function pushHistorial(telefono, rol, texto, extra = {}) {
   const db = loadDB();
   const lead = db.leads[telefono];
   if (!lead) return;
-  lead.historial.push({ rol, texto, ts: new Date().toISOString() });
+  // `extra` puede traer { estado, msgId } para las palomitas del CRM.
+  lead.historial.push({ rol, texto, ts: new Date().toISOString(), ...extra });
   // Mantener historial manejable (últimos 40 mensajes)
   if (lead.historial.length > 40) lead.historial = lead.historial.slice(-40);
   if (rol === "bot") lead.ultimaRespuestaBot = new Date().toISOString();
   saveDB(db);
+}
+
+// Palomitas: WhatsApp avisa por webhook cuando un mensaje que enviamos fue
+// entregado o leído. Aquí buscamos ese mensaje por su ID (wamid) en el historial
+// y subimos su estado. Nunca lo bajamos (enviado < entregado < leido).
+const ORDEN_ESTADO = { enviado: 1, entregado: 2, leido: 3 };
+export function actualizarEstadoMensaje(msgId, estado) {
+  if (!msgId || !ORDEN_ESTADO[estado]) return false;
+  const db = loadDB();
+  for (const tel in db.leads) {
+    const h = db.leads[tel].historial || [];
+    for (let i = h.length - 1; i >= 0; i--) {
+      if (h[i].msgId === msgId) {
+        const actual = ORDEN_ESTADO[h[i].estado] || 0;
+        if (ORDEN_ESTADO[estado] > actual) {
+          h[i].estado = estado;
+          saveDB(db);
+        }
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 // ---- Helpers de agentes ---------------------------------------------------

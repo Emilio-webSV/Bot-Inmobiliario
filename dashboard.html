@@ -185,7 +185,8 @@
   .msg.user{background:#fff;border-top-left-radius:2px}
   .msg.bot{background:#d9fdd3;margin-left:auto;border-top-right-radius:2px}
   .msg .t{display:block;font-size:10px;color:#667781;margin-top:1px;text-align:right;line-height:1}
-  .msg .tick{color:#53bdeb;font-size:10px}
+  .msg .tick{color:#8696a0;font-size:10px}
+  .msg .tick.leido{color:#53bdeb}
   .chatbar{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--line);background:#fff}
   .chatbar input{flex:1;font-family:inherit;font-size:13px;padding:9px 13px;border:1px solid var(--line);border-radius:20px;color:var(--ink)}
   .chatbar button{font-family:inherit;font-size:13px;font-weight:600;padding:9px 18px;border-radius:20px;border:none;background:var(--gold);color:#fff;cursor:pointer}
@@ -691,7 +692,53 @@
     document.getElementById("viewGest").classList.toggle("hidden",chat);
     document.getElementById("chatbar").style.display=chat?"flex":"none";
   }
-  async function abrirModal(telefono){
+  // Refresca el chat abierto cada 5s para ver las palomitas (entregado/leído) en vivo.
+  async function refrescarChatAbierto(){
+    if(!leadActual)return;
+    const ov=document.getElementById("leadOverlay");
+    if(!ov||!ov.classList.contains("show"))return;
+    try{
+      const r=await fetch("/api/leads/"+leadActual,{headers:AH()});
+      if(!r.ok)return;
+      const l=await r.json();
+      const sc=document.querySelector(".mscroll");
+      const cerca=sc?(sc.scrollHeight-sc.scrollTop-sc.clientHeight<80):true;
+      const prev=sc?sc.scrollTop:0;
+      pintarChat(l);
+      const sc2=document.querySelector(".mscroll");
+      if(sc2)sc2.scrollTop=cerca?sc2.scrollHeight:prev;
+    }catch(e){}
+  }
+  setInterval(refrescarChatAbierto,5000);
+
+  // Pinta el hilo de mensajes del lead en el CRM (se reutiliza en el auto-refresco).
+  function pintarChat(l){
+    document.getElementById("mChat").innerHTML=(l.historial||[]).map(h=>{
+      const hora=new Date(h.ts).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
+      // Palomitas: enviado ✓ (gris), entregado ✓✓ (gris), leído ✓✓ (azul).
+      const tickTxt={enviado:'✓',entregado:'✓✓',leido:'✓✓'}[h.estado]||'✓✓';
+      const tick=h.rol==='bot'?` <span class="tick${h.estado==='leido'?' leido':''}">${tickTxt}</span>`:'';
+      let cuerpo="", extra="";
+      const m=(h.texto||"").match(/\[img:([^\]]+)\]/);
+      const d=(h.texto||"").match(/\[doc:([^\]|]+)\|([^\]]+)\]/);
+      if(m){
+        // Mensaje con imagen/sticker: la mostramos y limpiamos el texto interno.
+        extra=`<img src="${escapeHtml(m[1])}" class="chatimg" onclick="window.open('${escapeHtml(m[1])}','_blank')">`;
+        let t=(h.texto||"").replace(/\[img:[^\]]+\]/,"").replace(/\([^)]*\)/g,"").trim();
+        cuerpo=escapeHtml(t);
+      } else if(d){
+        // Documento/archivo: lo mostramos como enlace descargable.
+        extra=`<a href="${escapeHtml(d[1])}" target="_blank" class="chatdoc">📎 ${escapeHtml(d[2])}</a>`;
+        let t=(h.texto||"").replace(/\[doc:[^\]]+\]/,"").trim();
+        cuerpo=escapeHtml(t);
+      } else {
+        cuerpo=escapeHtml(h.texto||"");
+      }
+      return `<div class="msg ${h.rol}">${extra}${cuerpo}<span class="t">${hora}${tick}</span></div>`;
+    }).join("")||'<p class="sub" style="padding:30px;text-align:center">Sin mensajes todavía.</p>';
+  }
+
+  async function abrirModal(telefono,noScroll=false){
     leadActual=telefono;
     const r=await fetch("/api/leads/"+telefono,{headers:AH()});
     if(r.status===401){volverAlGate();return;}
@@ -736,27 +783,7 @@
       <button class="savenote" onclick="guardarNotas('${l.telefono}')">Guardar notas</button>`;
     document.getElementById("leadTags").value=(l.etiquetas||[]).join(", ");
     document.getElementById("leadNotes").value=l.notas||"";
-    document.getElementById("mChat").innerHTML=(l.historial||[]).map(h=>{
-      const hora=new Date(h.ts).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
-      const tick=h.rol==='bot'?' <span class="tick">✓✓</span>':'';
-      let cuerpo="", extra="";
-      const m=(h.texto||"").match(/\[img:([^\]]+)\]/);
-      const d=(h.texto||"").match(/\[doc:([^\]|]+)\|([^\]]+)\]/);
-      if(m){
-        // Mensaje con imagen/sticker: la mostramos y limpiamos el texto interno.
-        extra=`<img src="${escapeHtml(m[1])}" class="chatimg" onclick="window.open('${escapeHtml(m[1])}','_blank')">`;
-        let t=(h.texto||"").replace(/\[img:[^\]]+\]/,"").replace(/\([^)]*\)/g,"").trim();
-        cuerpo=escapeHtml(t);
-      } else if(d){
-        // Documento/archivo: lo mostramos como enlace descargable.
-        extra=`<a href="${escapeHtml(d[1])}" target="_blank" class="chatdoc">📎 ${escapeHtml(d[2])}</a>`;
-        let t=(h.texto||"").replace(/\[doc:[^\]]+\]/,"").trim();
-        cuerpo=escapeHtml(t);
-      } else {
-        cuerpo=escapeHtml(h.texto||"");
-      }
-      return `<div class="msg ${h.rol}">${extra}${cuerpo}<span class="t">${hora}${tick}</span></div>`;
-    }).join("")||'<p class="sub" style="padding:30px;text-align:center">Sin mensajes todavía.</p>';
+pintarChat(l);
     const botCtrl=l.humanoEnControl
       ? `<button class="btn primary" onclick="devolverControl('${l.telefono}')">↩ Reactivar bot</button>`
       : `<button class="btn ghost" onclick="tomarControl('${l.telefono}')">Pausar bot</button>`;
@@ -766,7 +793,7 @@
       : `<a class="btn ghost" style="text-decoration:none;text-align:center" href="https://business.facebook.com/latest/inbox" target="_blank">Abrir ${canalNombre[canal]}</a>`;
     document.getElementById("mActions").innerHTML=`${botCtrl}${responderBtn}`;
     document.getElementById("leadOverlay").classList.add("show");
-    const sc=document.querySelector(".mscroll"); if(sc) sc.scrollTop=sc.scrollHeight;
+    const sc=document.querySelector(".mscroll"); if(sc&&!noScroll) sc.scrollTop=sc.scrollHeight;
   }
   function isoToLocalInput(iso){if(!iso)return"";const d=new Date(iso);const off=d.getTimezoneOffset()*60000;return new Date(d.getTime()-off).toISOString().slice(0,16)}
   async function asignar(tel,agenteId){await fetch(`/api/leads/${tel}/asignar`,{method:"POST",headers:JH(),body:JSON.stringify({agenteId})});cargarLeads()}
