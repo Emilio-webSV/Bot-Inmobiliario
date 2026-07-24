@@ -993,7 +993,10 @@ pintarChat(l);
     try{
       const r=await fetch("/api/blocks",{method:"POST",headers:JH(),body:JSON.stringify(body)});
       if(!r.ok){toast("No se pudo guardar");return}
-      toast("Horario bloqueado ✓");cerrarBloqueo();cargarBloqueos();
+      const jr=await r.json().catch(()=>({}));
+      const n=jr.citasAfectadas||0;
+      toast(n>0?`Horario bloqueado ✓ — se avisó a ${n} cliente(s) para reagendar`:"Horario bloqueado ✓");
+      cerrarBloqueo();cargarBloqueos();
     }catch(e){toast("Error de conexión")}
   }
   async function borrarBloqueo(id){

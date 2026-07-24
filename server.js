@@ -28,7 +28,7 @@ import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
 import { buscarPropiedades, contextoPropiedades, marcarEnviada, seedPropiedadesDemo, cargarPropiedadesDemoForzado, backfillCoordsDemo } from "./properties.js";
 import { iniciarCronJobs, enviarReporteAhora, revisarLeadsCalientesAhora } from "./followups.js";
-import { revisarDisponibilidad } from "./availability.js";
+import { revisarDisponibilidad, citasAfectadasPorBloqueo, asesorAlternativoLibre } from "./availability.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -1052,11 +1052,48 @@ app.get("/api/blocks", (req, res) => {
   res.json({ blocks: getBlocks(), agents: getAgents() });
 });
 
-app.post("/api/blocks", (req, res) => {
+// Cuando se bloquea un horario, avisa a los clientes cuya cita cae en ese hueco:
+// les ofrece otro asesor a la misma hora (si hay) u otro horario, libera la cita
+// para que el bot la renegocie, y avisa al dueño.
+async function procesarConflictosBloqueo(bloque, afectadas) {
+  const config = getConfig();
+  const dueno = process.env.OWNER_PHONE;
+  const agBloq = bloque.agenteId ? (getAgents() || []).find((x) => x.id === bloque.agenteId) : null;
+  const nombreAgBloq = agBloq ? agBloq.nombre : "el asesor";
+  const avisos = [];
+  for (const af of afectadas) {
+    const lead = getLead(af.telefono);
+    if (!lead) continue;
+    const fechaTxt = new Date(af.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+    // ¿Hay otro asesor libre a la MISMA hora? (solo si el bloqueo fue de un asesor específico)
+    const alt = bloque.agenteId ? asesorAlternativoLibre(af.iso, bloque.agenteId, lead.perfil && lead.perfil.zona) : null;
+    const nom = lead.nombre ? ` ${lead.nombre}` : "";
+    const msg = alt
+      ? `¡Hola${nom}! 👋 Tuvimos un ajuste en la agenda y ${nombreAgBloq} ya no podrá atenderte el ${fechaTxt} 😕. Te puedo atender a la MISMA hora con ${alt.nombre}. ¿Te parece? Si prefieres, también te busco otro horario. Dime y lo dejamos listo 🗓️`
+      : `¡Hola${nom}! 👋 Tuvimos un ajuste en la agenda y ya no podremos atender tu visita del ${fechaTxt} 😕. ¿Te acomoda otro horario? Dime cuál te queda mejor y lo reagendamos enseguida 🗓️`;
+    // Liberamos la cita para que, cuando el cliente responda, el bot la renegocie.
+    upsertLead(af.telefono, { citaProgramada: null, seguimientos: { ...(lead.seguimientos || {}), recordatorioCita: false } });
+    await enviarTextoOPlantilla(af.telefono, msg, process.env.WA_TPL_SEGUIMIENTO, [config.nombreAgencia || "la agencia", `reagendar visita del ${fechaTxt}`]).catch(() => {});
+    pushHistorial(af.telefono, "bot", msg);
+    avisos.push(`${lead.nombre || af.telefono} (${fechaTxt})${alt ? ` -> ofrecido ${alt.nombre}` : ""}`);
+  }
+  if (dueno && avisos.length) {
+    const resumen = `⚠️ Bloqueo con conflicto de citas
+${nombreAgBloq} tenía ${avisos.length} cita(s) en ese horario. Se avisó a el/los cliente(s) para reagendar:
+- ${avisos.join("\n- ")}`;
+    await enviarTextoOPlantilla(dueno, resumen, process.env.WA_TPL_ALERTA, ["Bloqueo con conflicto de citas", `${nombreAgBloq}: ${avisos.length} cita(s)`]).catch(() => {});
+  }
+}
+
+app.post("/api/blocks", async (req, res) => {
   if (!checarAdmin(req, res)) return;
   const b = req.body || {};
   if (!b.fecha) return res.status(400).json({ error: "Falta la fecha" });
-  res.json({ ok: true, block: createBlock(b) });
+  const block = createBlock(b);
+  const afectadas = citasAfectadasPorBloqueo(block);
+  res.json({ ok: true, block, citasAfectadas: afectadas.length });
+  // En segundo plano: avisar y reagendar (no bloquea la respuesta al CRM).
+  if (afectadas.length) procesarConflictosBloqueo(block, afectadas).catch((e) => console.error("[bloqueo] conflicto:", e.message));
 });
 
 app.delete("/api/blocks/:id", (req, res) => {

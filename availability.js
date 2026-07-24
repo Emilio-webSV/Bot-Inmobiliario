@@ -100,3 +100,37 @@ export function resumenNoDisponible(dias = 10) {
   if (!lineas.length) return "";
   return `\nHORARIOS NO DISPONIBLES (NO ofrezcas ni agendes en estos horarios):\n${lineas.join("\n")}\n  Si el cliente pide una de esas horas, dile con naturalidad que justo a esa hora no hay disponibilidad y ofrécele otra cercana.`;
 }
+
+
+// Dado un bloqueo recién creado, devuelve las citas YA agendadas que caen dentro
+// de ese horario (y que por tanto quedan en conflicto). [{ telefono, iso, agenteId }]
+export function citasAfectadasPorBloqueo(bloque) {
+  const afectadas = [];
+  const ini = aMinutos(bloque.horaInicio);
+  const fin = aMinutos(bloque.horaFin);
+  for (const [tel, l] of Object.entries(loadDB().leads || {})) {
+    if (!l.citaProgramada) continue;
+    // Un bloqueo de un asesor específico solo afecta a las citas de ESE asesor.
+    if (bloque.agenteId && l.agenteAsignado !== bloque.agenteId) continue;
+    const p = partesFecha(l.citaProgramada);
+    if (p.fecha !== bloque.fecha) continue;
+    const m = aMinutos(p.hora);
+    if (m >= ini && m < fin) {
+      afectadas.push({ telefono: tel, iso: l.citaProgramada, agenteId: l.agenteAsignado || null });
+    }
+  }
+  return afectadas;
+}
+
+// Busca un asesor ACTIVO (distinto al excluido) que esté libre a esa misma hora.
+// Prioriza a los que cubren la zona del cliente. Devuelve el asesor o null.
+export function asesorAlternativoLibre(iso, excluirId = null, zona = null) {
+  const activos = (getAgents() || []).filter((x) => x.activo !== false && x.id !== excluirId);
+  const ordenados = zona
+    ? [...activos.filter((x) => (x.zonas || []).includes(zona)), ...activos.filter((x) => !(x.zonas || []).includes(zona))]
+    : activos;
+  for (const ag of ordenados) {
+    if (revisarDisponibilidad(iso, ag.id, null) === null) return ag;
+  }
+  return null;
+}
