@@ -103,6 +103,20 @@ export async function enviarVideo(to, urlVideo, caption = "") {
   return enviar(body, to);
 }
 
+export async function enviarUbicacion(to, lat, lng, nombre = "", direccion = "") {
+  if (!TOKEN || !PHONE_ID) {
+    console.warn(`[whatsapp] (Simulado ubicación) -> ${to}: ${lat},${lng}`);
+    return { simulado: true };
+  }
+  const body = {
+    messaging_product: "whatsapp",
+    to,
+    type: "location",
+    location: { latitude: Number(lat), longitude: Number(lng), name: nombre, address: direccion },
+  };
+  return enviar(body, to);
+}
+
 export async function enviarDocumento(to, urlDoc, filename = "archivo", caption = "") {
   if (!TOKEN || !PHONE_ID) {
     console.warn(`[whatsapp] (Simulado documento) -> ${to}: ${urlDoc}`);

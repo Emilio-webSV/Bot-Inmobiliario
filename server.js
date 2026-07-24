@@ -21,7 +21,7 @@ import {
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
 import { enviarTexto, enviarImagen, enviarTextoOPlantilla, enviarPlantilla, enviarDocumento } from "./whatsapp.js";
-import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal } from "./canales.js";
+import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal, enviarUbicacionCanal } from "./canales.js";
 import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./vision.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
@@ -366,8 +366,9 @@ async function manejarImagen(remitente, nombre, canal, imagen, caption) {
     return;
   }
 
-  // No se pudo analizar, pero si la guardamos igual la mostramos en el CRM.
-  pushHistorial(remitente, "user", `📷 ${tok}${caption || ""}`.trim());
+  // No se pudo analizar. La guardamos para el CRM y dejamos marca de que NO se
+  // vio su contenido (así el modelo no la inventa si luego preguntan por ella).
+  pushHistorial(remitente, "user", `📷 ${tok}${caption || ""} (no se pudo ver el contenido de la foto)`.trim());
   const msg = "¡Gracias por la foto! 🙂 Se me complicó abrirla, pero cuéntame qué estás buscando —zona, presupuesto, recámaras— y te ayudo igual. 🏠";
   await enviarYRegistrar(canal, remitente, msg);
 }
@@ -404,6 +405,21 @@ function extraerNombre(texto) {
   return { nombre, textoLimpio: texto.replace(m[0], "").trim() };
 }
 
+// Detecta [ASESOR: Nombre] que el bot pone cuando el cliente elige asesor.
+// Devuelve el id del asesor (si coincide con la lista) y el texto ya sin etiqueta.
+function extraerAsesor(texto) {
+  const m = texto.match(/\[ASESOR:\s*([^\]]+)\]/i);
+  if (!m) return null;
+  const nombre = m[1].trim();
+  const nl = nombre.toLowerCase();
+  const ag = (getAgents() || []).find((a) => a.nombre && (
+    a.nombre.toLowerCase() === nl ||
+    a.nombre.toLowerCase().includes(nl) ||
+    nl.includes(a.nombre.toLowerCase())
+  ));
+  return { agenteId: ag ? ag.id : null, nombre, textoLimpio: texto.replace(m[0], "").trim() };
+}
+
 // RED DE SEGURIDAD FINAL: quita CUALQUIER etiqueta interna que se cuele en la
 // respuesta antes de enviarla al cliente — esté bien formada, mal formada, vacía
 // o truncada (ej. "[CITA:]", "[CITA: sábado]", "[NOMBRE: Juan", "[CITA: 2026-..."
@@ -415,6 +431,9 @@ function limpiarEtiquetas(texto) {
     .replace(/\[\s*CITA\b[^\]]*$/gi, "")    // [CITA: ... truncada (sin cierre)
     .replace(/\[\s*NOMBRE\b[^\]]*\]/gi, "") // [NOMBRE: ...] completa
     .replace(/\[\s*NOMBRE\b[^\]]*$/gi, "")  // [NOMBRE: ... truncada
+    .replace(/\[\s*MOSTRAR\s*\]?/gi, "")     // etiqueta interna de mostrar propiedad
+    .replace(/\[\s*UBICACION\b[^\]]*\]?/gi, "")
+    .replace(/\[\s*ASESOR\b[^\]]*\]?/gi, "")
     .replace(/[ \t]{2,}/g, " ")                // dobles espacios que queden
     .replace(/[ \t]+([.,;:!?])/g, "$1")         // espacio suelto antes de un signo
     .replace(/\n{3,}/g, "\n\n")
@@ -503,6 +522,20 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   // 5) Genera respuesta con el bot (ya conoce las propiedades reales)
   let respuesta = await generarRespuesta({ config, lead, propiedadesCtx });
 
+  // 5a) ¿El cliente eligió asesor? [ASESOR: Nombre] -> asignarlo ANTES de validar
+  //     la cita, para revisar la disponibilidad de ESE asesor.
+  const asesorPick = extraerAsesor(respuesta);
+  if (asesorPick) {
+    respuesta = asesorPick.textoLimpio;
+    if (asesorPick.agenteId && asesorPick.agenteId !== lead.agenteAsignado) {
+      lead = upsertLead(telefono, { agenteAsignado: asesorPick.agenteId });
+    }
+  }
+
+  // 5a-bis) ¿El bot quiere mostrar UNA propiedad o mandar la ubicación?
+  const quiereMostrar = /\[MOSTRAR\]/i.test(respuesta);
+  const quiereUbicacion = /\[UBICACION\]/i.test(respuesta);
+
   // 5b) ¿El bot agendó una cita? Detecta la etiqueta oculta [CITA: YYYY-MM-DD HH:MM]
   const cita = extraerCita(respuesta);
   if (cita) {
@@ -510,7 +543,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     if (cita.iso) { // solo si pasó la validación (no pasado, dentro de horario)
       // Red de seguridad extra: ¿ese horario está bloqueado o ya ocupado?
       // (El bot ya sabe los bloqueos por su prompt, pero puede equivocarse.)
-      const choque = revisarDisponibilidad(cita.iso, lead.agenteAsignado || null);
+      const choque = revisarDisponibilidad(cita.iso, lead.agenteAsignado || null, telefono);
       if (choque) {
         const hTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", hour: "2-digit", minute: "2-digit" });
         respuesta = `Uy, justo ${hTxt} no tengo disponibilidad 😕 (${choque.motivo}). ¿Te acomoda otro horario? Dime cuál te queda mejor y lo agendamos. 🗓️`;
@@ -562,24 +595,35 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   // 6) Manda las fotos de las propiedades que el bot acaba de presentar.
   //    Si es UNA sola propiedad, manda varias fotos de ella (hasta 4). Si son
   //    varias opciones, manda 1 foto de cada una para no saturar.
-  if (nuevas.length && lead.perfil.zona) {
+  // Solo mandamos fotos cuando el bot lo pidió con [MOSTRAR], y UNA sola propiedad
+  // (la siguiente sin enviar), sin el link de mapa. Nunca varias de golpe.
+  if (quiereMostrar && nuevas.length && lead.perfil.zona) {
+    const prop = nuevas[0];
     const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
-    const maxFotos = nuevas.length === 1 ? 4 : 1;
-    for (const prop of nuevas) {
-      const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prop.titulo + " Ciudad de México")}`;
-      const caption = `🏡 ${prop.titulo}\n${fmt(prop.precio)}${prop.operacion === "renta" ? "/mes" : ""} · ${prop.recamaras} rec · ${prop.banos} baños · ${prop.m2} m²\n📍 Ubicación: ${maps}`;
-      const fotos = (prop.imagenes || []).slice(0, maxFotos);
-      for (let i = 0; i < fotos.length; i++) {
-        // Solo la primera foto lleva el texto (precio, specs); las demás van sin caption.
-        await enviarImagenCanal(canal, telefono, fotos[i], i === 0 ? caption : "");
-      }
-      pushHistorial(telefono, "bot", `[${fotos.length} foto(s) enviada(s)] ${prop.titulo}`);
-      marcarEnviada(telefono, prop.id);
-      // Si la propiedad tiene video, también se lo mandamos.
-      if (prop.video) {
-        await enviarVideoCanal(canal, telefono, prop.video, `🎥 Video: ${prop.titulo}`).catch(() => {});
-        pushHistorial(telefono, "bot", `[video enviado] ${prop.titulo}`);
-      }
+    const caption = `🏡 ${prop.titulo}\n${fmt(prop.precio)}${prop.operacion === "renta" ? "/mes" : ""} · ${prop.recamaras} rec · ${prop.banos} baños · ${prop.m2} m²`;
+    const fotos = (prop.imagenes || []).slice(0, 4);
+    for (let i = 0; i < fotos.length; i++) {
+      await enviarImagenCanal(canal, telefono, fotos[i], i === 0 ? caption : "");
+    }
+    pushHistorial(telefono, "bot", `[${fotos.length} foto(s) enviada(s)] ${prop.titulo}`);
+    marcarEnviada(telefono, prop.id);
+    upsertLead(telefono, { ultimaPropiedadMostrada: prop.id });
+    if (prop.video) {
+      await enviarVideoCanal(canal, telefono, prop.video, `🎥 Video: ${prop.titulo}`).catch(() => {});
+      pushHistorial(telefono, "bot", `[video enviado] ${prop.titulo}`);
+    }
+  }
+
+  // 6b) Ubicación (PIN de WhatsApp) si el bot lo pidió con [UBICACION], de la
+  //     última propiedad mostrada. Si no hay coordenadas, manda la dirección.
+  if (quiereUbicacion) {
+    const lp = getLead(telefono);
+    const prop = lp && lp.ultimaPropiedadMostrada ? getProperty(lp.ultimaPropiedadMostrada) : null;
+    if (prop && prop.lat && prop.lng) {
+      await enviarUbicacionCanal(canal, telefono, prop.lat, prop.lng, prop.titulo, prop.direccion || "").catch(() => {});
+      pushHistorial(telefono, "bot", `[📍 ubicación enviada] ${prop.titulo}`);
+    } else if (prop && prop.direccion) {
+      await enviarYRegistrar(canal, telefono, `📍 ${prop.titulo}\n${prop.direccion}`);
     }
   }
 

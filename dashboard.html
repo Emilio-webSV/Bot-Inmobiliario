@@ -319,6 +319,26 @@
 <style data-fix>
   /* mantiene legible el texto del sidebar en móvil (sidebar horizontal) */
   @media (max-width:820px){.sbrand p{display:none}}
+
+  /* ====== MÓVIL / PWA (celular) ====== */
+  @media (max-width:680px){
+    .main{padding:14px 12px 64px}
+    .metrics{grid-template-columns:repeat(2,1fr);gap:10px}
+    .kpis{grid-template-columns:repeat(2,1fr);gap:10px}
+    .anagrid{grid-template-columns:1fr}
+    .form{grid-template-columns:1fr;padding:16px}
+    .frow{grid-template-columns:1fr}
+    /* iOS hace zoom al enfocar inputs con letra <16px: lo evitamos */
+    input,select,textarea{font-size:16px}
+    /* Tablas: dejar scroll horizontal en vez de romper el layout */
+    #tableHost{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    thead th,tbody td{padding:9px 12px;font-size:12.5px}
+    /* Modales a pantalla completa en el teléfono */
+    .overlay{padding:0}
+    .modal{max-width:100%;border-radius:0}
+    .modal.lead{max-width:100%;max-height:100dvh;height:100dvh;border-radius:0}
+    .profile{grid-template-columns:1fr 1fr;padding:14px 16px}
+  }
 </style>
 </head>
 <body>
@@ -466,6 +486,7 @@
       <div class="full"><label>Metros cuadrados (m²)</label><input id="f_m2" type="number" placeholder="95" /></div>
       <div class="full"><label>Descripción</label><textarea id="f_descripcion" rows="2" placeholder="Edificio con amenidades..."></textarea></div>
       <div class="full"><label>Dirección <span style="font-weight:400;color:var(--muted)">(se comparte solo si el cliente la pide)</span></label><input id="f_direccion" placeholder="Av. Insurgentes Sur 1234, Del Valle" /></div>
+      <div class="full"><label>Ubicación en el mapa <span style="font-weight:400;color:var(--muted)">(opcional — para mandar el pin por WhatsApp. En Google Maps: clic derecho en el punto exacto → clic en las coordenadas para copiarlas)</span></label><div style="display:flex;gap:10px"><input id="f_lat" placeholder="Latitud (ej. 19.4326)" style="flex:1" /><input id="f_lng" placeholder="Longitud (ej. -99.1332)" style="flex:1" /></div></div>
       <div class="full"><label>Fotos de la propiedad <span style="font-weight:400;color:var(--muted)">(selecciona varias de tu computadora)</span></label>
         <div class="uploadbox" onclick="document.getElementById('f_files').click()">📁 Da clic aquí para elegir fotos (puedes seleccionar varias a la vez)</div>
         <input type="file" id="f_files" accept="image/*" multiple style="display:none" onchange="subirFotos(this.files)">
@@ -997,13 +1018,13 @@ pintarChat(l);
       cargarProps();
     }catch(e){toast("Error de conexión")}
   }
-  function abrirNueva(){editandoId=null;imagenesForm=[];renderThumbs();document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","direccion","imagenes","video"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_estado").value="disponible";document.getElementById("propOverlay").classList.add("show")}
-  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_direccion").value=p.direccion||"";document.getElementById("f_imagenes").value="";imagenesForm=(p.imagenes||[]).slice();renderThumbs();document.getElementById("f_video").value=p.video||"";document.getElementById("f_estado").value=p.estado||(p.disponible===false?"vendido":"disponible");document.getElementById("propOverlay").classList.add("show")}
+  function abrirNueva(){editandoId=null;imagenesForm=[];renderThumbs();document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","direccion","lat","lng","imagenes","video"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_estado").value="disponible";document.getElementById("propOverlay").classList.add("show")}
+  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_direccion").value=p.direccion||"";document.getElementById("f_lat").value=p.lat||"";document.getElementById("f_lng").value=p.lng||"";document.getElementById("f_imagenes").value="";imagenesForm=(p.imagenes||[]).slice();renderThumbs();document.getElementById("f_video").value=p.video||"";document.getElementById("f_estado").value=p.estado||(p.disponible===false?"vendido":"disponible");document.getElementById("propOverlay").classList.add("show")}
   function cerrar(){document.getElementById("propOverlay").classList.remove("show")}
   async function guardar(){
     const urlsPegadas=val("f_imagenes").split("\n").map(s=>s.trim()).filter(Boolean);
     const imagenes=[...new Set([...imagenesForm,...urlsPegadas])];
-    const body={titulo:val("f_titulo"),zona:document.getElementById("f_zona").value,tipo:document.getElementById("f_tipo").value,operacion:document.getElementById("f_operacion").value,precio:val("f_precio"),recamaras:val("f_recamaras"),banos:val("f_banos"),m2:val("f_m2"),descripcion:val("f_descripcion"),direccion:val("f_direccion"),imagenes,video:val("f_video"),estado:document.getElementById("f_estado").value};
+    const body={titulo:val("f_titulo"),zona:document.getElementById("f_zona").value,tipo:document.getElementById("f_tipo").value,operacion:document.getElementById("f_operacion").value,precio:val("f_precio"),recamaras:val("f_recamaras"),banos:val("f_banos"),m2:val("f_m2"),descripcion:val("f_descripcion"),direccion:val("f_direccion"),lat:val("f_lat"),lng:val("f_lng"),imagenes,video:val("f_video"),estado:document.getElementById("f_estado").value};
     if(!body.titulo){toast("Ponle un título");return}
     const url=editandoId?"/api/properties/"+editandoId:"/api/properties";
     try{const r=await fetch(url,{method:editandoId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrar();toast(editandoId?"Actualizada ✓":"Agregada ✓");cargarProps()}catch(e){toast("Error de conexión")}

@@ -35,7 +35,7 @@ export function partesFecha(iso) {
 
 // ¿La hora pedida choca con un bloqueo o con otra cita del mismo asesor?
 // Devuelve null si está libre, o { motivo } explicando por qué no se puede.
-export function revisarDisponibilidad(iso, agenteId = null) {
+export function revisarDisponibilidad(iso, agenteId = null, telefonoExcluir = null) {
   const { fecha, hora } = partesFecha(iso);
   const min = aMinutos(hora);
 
@@ -55,9 +55,9 @@ export function revisarDisponibilidad(iso, agenteId = null) {
   // 2) Citas ya agendadas del mismo asesor (no encimar). Se considera que una
   //    visita dura 1 hora.
   if (agenteId) {
-    const leads = Object.values(loadDB().leads || {});
-    for (const l of leads) {
+    for (const [tel, l] of Object.entries(loadDB().leads || {})) {
       if (!l.citaProgramada || l.agenteAsignado !== agenteId) continue;
+      if (telefonoExcluir && tel === telefonoExcluir) continue; // NO chocar con la propia cita del cliente
       const p = partesFecha(l.citaProgramada);
       if (p.fecha !== fecha) continue;
       const otro = aMinutos(p.hora);

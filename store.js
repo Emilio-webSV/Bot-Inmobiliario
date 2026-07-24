@@ -294,6 +294,8 @@ export function createProperty(data) {
     m2: Number(data.m2) || 0,
     descripcion: data.descripcion || "",
     direccion: data.direccion || "",   // dirección exacta (se comparte si el cliente la pide)
+    lat: (data.lat !== undefined && data.lat !== "" && data.lat !== null) ? Number(data.lat) : null, // coordenadas para el PIN
+    lng: (data.lng !== undefined && data.lng !== "" && data.lng !== null) ? Number(data.lng) : null,
     imagenes: Array.isArray(data.imagenes) ? data.imagenes.filter(Boolean) : [],
     video: data.video || "",            // link a un video (opcional)
     estado: data.estado || (data.disponible === false ? "vendido" : "disponible"), // disponible | apartado | vendido
@@ -321,6 +323,8 @@ export function updateProperty(id, data) {
     imagenes: data.imagenes !== undefined
       ? (Array.isArray(data.imagenes) ? data.imagenes.filter(Boolean) : actual.imagenes)
       : actual.imagenes,
+    lat: data.lat !== undefined ? (data.lat === "" || data.lat === null ? null : Number(data.lat)) : (actual.lat ?? null),
+    lng: data.lng !== undefined ? (data.lng === "" || data.lng === null ? null : Number(data.lng)) : (actual.lng ?? null),
     estado: data.estado !== undefined ? data.estado : (actual.estado || "disponible"),
     disponible: data.estado !== undefined ? data.estado === "disponible"
       : (data.disponible !== undefined ? data.disponible !== false : actual.disponible),

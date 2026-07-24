@@ -76,15 +76,12 @@ cercano: preséntalo como la mejor opción y acércalo al cierre. NUNCA inventes
 precios ni propiedades, pero SÍ puedes ofrecer negociar el precio de las reales.`;
 
   const lista = mostrar && mostrar.length ? mostrar : [];
-  if (lista.length === 1) {
-    txt += `\n\nVAS A MOSTRARLE AHORITA esta propiedad (su foto se envía enseguida): "${lista[0].titulo}".
-Háblale de ESA en específico (nombre, precio y por qué le puede gustar) y di que le mandas la foto.`;
-  } else if (lista.length > 1) {
-    txt += `\n\nVAS A MOSTRARLE AHORITA estas ${lista.length} opciones (se le envían sus fotos enseguida): ${lista
-      .map((p) => `"${p.titulo}" (${fmt(p.precio)})`)
-      .join(", ")}.
-Preséntalas como un CONJUNTO: di algo como "te paso unas opciones que te pueden interesar 👇" y
-menciona cada una breve por nombre y precio. NO te claves en una sola ni inventes otras.`;
+  if (lista.length) {
+    txt += `\n\nCUANDO el cliente ACEPTE ver una opción, muéstrale UNA SOLA: la más
+recomendable ahora es "${lista[0].titulo}" (${fmt(lista[0].precio)}). Habla de ESA
+(nombre, precio y por qué le queda) y pon la etiqueta [MOSTRAR] al final de tu
+mensaje para que el sistema le envíe SUS fotos. NUNCA muestres varias a la vez;
+si el cliente quiere otra después, se la muestras una a una.`;
   }
   return txt;
 }
