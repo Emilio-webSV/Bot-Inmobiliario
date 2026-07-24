@@ -714,6 +714,42 @@
     document.getElementById("chatbar").style.display=chat?"flex":"none";
   }
   // Refresca el chat abierto cada 5s para ver las palomitas (entregado/leído) en vivo.
+  // Modal enfocado con los puntos clave de la cita y un resumen de la conversación.
+  async function verDetallesCita(tel){
+    let l;
+    try{ const r=await fetch("/api/leads/"+tel,{headers:AH()}); if(!r.ok){toast("No se pudo cargar");return} l=await r.json(); }
+    catch(e){ toast("Error de conexión"); return; }
+    const p=l.perfil||{};
+    const citaTxt=l.citaProgramada?new Date(l.citaProgramada).toLocaleString("es-MX",{weekday:"long",day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"}):"—";
+    const ag=(agentesList||[]).find(a=>a.id===l.agenteAsignado);
+    const limpia=(t)=>String(t||"").replace(/\[(img|vid|doc):[^\]]*\]/g,"").replace(/\([^)]*\)/g,"").replace(/[🎙️📷🎞️]/g,"").trim();
+    const msgs=(l.historial||[]).slice(-10).map(h=>{const t=limpia(h.texto); if(!t)return""; const quien=h.rol==="bot"?"Bot/Asesor":"Cliente"; return `<div style="margin-bottom:6px"><b style="color:${h.rol==='bot'?'#2563eb':'#111'}">${quien}:</b> ${escapeHtml(t)}</div>`;}).filter(Boolean).join("")||'<span class="sub">Sin mensajes.</span>';
+    const fila=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)"><span class="sub">${k}</span><b style="text-align:right">${v}</b></div>`;
+    let ov=document.getElementById("citaOverlay");
+    if(!ov){ov=document.createElement("div");ov.id="citaOverlay";ov.className="overlay";ov.addEventListener("click",e=>{if(e.target.id==="citaOverlay")ov.classList.remove("show")});document.body.appendChild(ov);}
+    ov.innerHTML=`<div class="modal" style="max-width:540px;max-height:88vh;overflow:auto">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">📋 Detalles de la cita</h3>
+        <button class="calbtn" style="border:none;cursor:pointer" onclick="document.getElementById('citaOverlay').classList.remove('show')">✕</button>
+      </div>
+      <div style="padding:16px 22px">
+        ${fila("🗓️ Cita",citaTxt)}
+        ${fila("👤 Cliente",escapeHtml(l.nombre||"Sin nombre"))}
+        ${fila("📱 Contacto",l.telefono)}
+        ${fila("🧑‍💼 Asesor",ag?ag.nombre:"Sin asignar")}
+        ${fila("📍 Zona",p.zona?(zonaNombre[p.zona]||p.zona):"—")}
+        ${fila("💰 Presupuesto",p.presupuesto?fmtMXN(p.presupuesto):"—")}
+        ${fila("🛏️ Recámaras",p.recamaras||"—")}
+        ${fila("🎯 Propósito",p.proposito||"—")}
+        ${fila("🌡️ Temperatura",(l.temperatura||"—")+" ("+(l.score||0)+")")}
+        <div style="margin-top:16px"><div class="sub" style="margin-bottom:8px;font-weight:600">💬 Resumen de la conversación</div>
+        <div style="font-size:13px;line-height:1.4;max-height:220px;overflow:auto;background:var(--bg,#f7f9fb);padding:12px;border-radius:10px">${msgs}</div></div>
+        <button class="btn ghost" style="margin-top:14px;width:100%" onclick="document.getElementById('citaOverlay').classList.remove('show');abrirModal('${l.telefono}')">Abrir chat completo →</button>
+      </div>
+    </div>`;
+    ov.classList.add("show");
+  }
+
   async function refrescarChatAbierto(){
     if(!leadActual)return;
     const ov=document.getElementById("leadOverlay");
@@ -786,10 +822,12 @@
     const opts=['<option value="">Sin asignar</option>'].concat(agentesList.map(a=>`<option value="${a.id}" ${l.agenteAsignado===a.id?'selected':''}>${a.nombre}</option>`)).join("");
     const propOpts='<option value="">— elige la propiedad vendida —</option>'+propsList.map(pr=>`<option value="${pr.id}" data-precio="${pr.precio||0}">${pr.titulo} (${fmtMXN(pr.precio||0)})</option>`).join("");
     const propVendida=l.venta&&l.venta.propiedadId?propsList.find(x=>x.id===l.venta.propiedadId):null;
+    const asesorVentaOpts=(agentesList||[]).map(a=>`<option value="${a.id}" ${l.agenteAsignado===a.id?"selected":""}>${a.nombre}</option>`).join("");
     const ventaBlock=l.venta?`
       <div class="mrow"><label>💰 Venta</label><div style="font-size:13.5px;flex:1"><b style="color:#16a34a;font-size:15px">${fmtMXN(l.venta.monto||0)}</b>${propVendida?` · ${propVendida.titulo}`:""}<button class="savenote" style="margin-left:10px" onclick="deshacerVenta('${l.telefono}')">Deshacer</button></div></div>`
       :`<div class="mrow"><label>💰 Registrar venta</label><div style="display:flex;flex-direction:column;gap:7px;flex:1">
         <select id="ventaProp" onchange="document.getElementById('ventaMonto').value=this.options[this.selectedIndex].dataset.precio||''">${propOpts}</select>
+        <select id="ventaAsesor" title="Asesor que vendió">${asesorVentaOpts||'<option value=\"\">— asesor —</option>'}</select>
         <div style="display:flex;gap:7px"><input id="ventaMonto" type="number" placeholder="Monto final de venta $" style="flex:1"/><button class="cerrar" onclick="registrarVenta('${l.telefono}')">Registrar venta ✓</button></div>
         <span class="rsub" style="margin:0">Marca el lead como cerrado y la propiedad como vendida.</span></div></div>`;
     document.getElementById("mManage").innerHTML=`
@@ -849,7 +887,8 @@ pintarChat(l);
     const propiedadId=document.getElementById("ventaProp").value;
     const monto=Number(document.getElementById("ventaMonto").value)||0;
     if(!monto){toast("Pon el monto de la venta");return}
-    const r=await fetch(`/api/leads/${tel}/venta`,{method:"POST",headers:JH(),body:JSON.stringify({propiedadId,monto})});
+    const agenteId=(document.getElementById("ventaAsesor")||{}).value||"";
+    const r=await fetch(`/api/leads/${tel}/venta`,{method:"POST",headers:JH(),body:JSON.stringify({propiedadId,monto,agenteId})});
     if(r.status===401){toast("Contraseña incorrecta");return}
     toast("¡Venta registrada! 🎉");abrirModal(tel);cargarLeads()
   }
@@ -919,7 +958,7 @@ pintarChat(l);
         const agente=l.agenteAsignado?(agentesById[l.agenteAsignado]||"—"):"Sin asignar";
         const zona=l.perfil?.zona?(zonaNombre[l.perfil.zona]||l.perfil.zona):"—";
         const cal=gcalUrl(l.citaProgramada,"Cita: "+(l.nombre||l.telefono),"Cliente: "+(l.nombre||l.telefono)+" ("+l.telefono+")");
-        return `<tr onclick='abrirModal("${l.telefono}")'><td><b style="${pasada?'color:var(--muted)':''}">${fecha}</b>${pasada?' <span class="sub">(pasada)</span>':''}</td><td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div></td><td class="hide-sm">${zona}</td><td class="hide-sm sub">${agente}</td><td><a href="${cal}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="calbtn">➕ Calendar</a></td></tr>`;
+        return `<tr onclick='abrirModal("${l.telefono}")'><td><b style="${pasada?'color:var(--muted)':''}">${fecha}</b>${pasada?' <span class="sub">(pasada)</span>':''}</td><td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div></td><td class="hide-sm">${zona}</td><td class="hide-sm sub">${agente}</td><td style="white-space:nowrap"><button class="calbtn" style="border:none;cursor:pointer;margin-right:6px" onclick="event.stopPropagation();verDetallesCita('${l.telefono}')">📋 Detalles</button><a href="${cal}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="calbtn">➕ Calendar</a></td></tr>`;
       }).join("")}</tbody></table>`;
     }catch(e){document.getElementById("agendaHost").innerHTML='<div class="empty" style="border:none">Error al cargar</div>'}
   }

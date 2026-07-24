@@ -556,7 +556,10 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
 
   // 5a-bis) ¿El bot quiere mostrar UNA propiedad o mandar la ubicación?
   const quiereMostrar = /\[MOSTRAR\]/i.test(respuesta);
-  const quiereUbicacion = /\[UBICACION\]/i.test(respuesta);
+  // Red de seguridad: si el CLIENTE pidió la ubicación (aunque el modelo no ponga
+  // la etiqueta), igual mandamos el PIN.
+  const clientePidioUbicacion = /(d[oó]nde\s+(est|se\s+ubic|qued|se\s+encuentr)|c[oó]mo\s+(llego|llegar|se\s+llega)|(m[aá]ndam|p[aá]sam|env[ií]am|comp[aá]rt).{0,18}ubicaci|ubicaci[oó]n\s+exacta|direcci[oó]n\s+exacta|en\s+qu[eé]\s+(calle|parte\s+exacta))/i.test(texto || "");
+  const quiereUbicacion = /\[UBICACION\]/i.test(respuesta) || clientePidioUbicacion;
 
   // 5b) ¿El bot agendó una cita? Detecta la etiqueta oculta [CITA: YYYY-MM-DD HH:MM]
   const cita = extraerCita(respuesta);
@@ -780,16 +783,18 @@ app.post("/api/leads/:telefono/venta", (req, res) => {
   const propiedadId = req.body?.propiedadId || null;
   const monto = Number(req.body?.monto) || 0;
   const fecha = new Date().toISOString();
-  const agente = (getAgents() || []).find((a) => a.id === lead.agenteAsignado);
+  // El asesor vendedor: el que se elija al registrar la venta, o el asignado al lead.
+  const agenteId = req.body?.agenteId || lead.agenteAsignado || null;
+  const agente = (getAgents() || []).find((a) => a.id === agenteId);
   upsertLead(req.params.telefono, {
     estado: "cerrado",
-    venta: { propiedadId, monto, fecha, agenteId: lead.agenteAsignado || null },
+    venta: { propiedadId, monto, fecha, agenteId },
   });
   if (propiedadId) {
     updateProperty(propiedadId, {
       estado: "vendido",
       venta: {
-        agenteId: lead.agenteAsignado || null,
+        agenteId,
         agenteNombre: agente ? agente.nombre : null,
         monto,
         fecha,
