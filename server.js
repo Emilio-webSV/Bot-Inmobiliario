@@ -26,7 +26,7 @@ import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./visi
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
-import { buscarPropiedades, contextoPropiedades, marcarEnviada, seedPropiedadesDemo, cargarPropiedadesDemoForzado } from "./properties.js";
+import { buscarPropiedades, contextoPropiedades, marcarEnviada, seedPropiedadesDemo, cargarPropiedadesDemoForzado, backfillCoordsDemo } from "./properties.js";
 import { iniciarCronJobs, enviarReporteAhora, revisarLeadsCalientesAhora } from "./followups.js";
 import { revisarDisponibilidad } from "./availability.js";
 
@@ -246,6 +246,13 @@ app.post("/webhook", async (req, res) => {
         encolarMensaje(mensaje.from, `😄 ${tok}(El cliente te mandó un sticker)`, nombre, "whatsapp");
         return;
       }
+      if (mensaje.type === "video") {
+        // GIFs y videos cortos llegan como "video". Los bajamos para verlos en el
+        // CRM y el bot reacciona con buena onda.
+        const media = await descargarMediaWhatsApp(mensaje.video?.id);
+        await manejarVideoGif(mensaje.from, nombre, "whatsapp", media, mensaje.video?.caption);
+        return;
+      }
       if (mensaje.type !== "text") {
         await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // ubicación, contacto, etc.
         return;
@@ -295,6 +302,21 @@ async function manejarNoTexto(remitente, nombre, canal) {
   await enviarYRegistrar(canal, remitente, msg);
 }
 
+// El cliente mandó un GIF o video corto. Lo guardamos para verlo en el CRM y el
+// bot reacciona con naturalidad (sin inventar exactamente qué muestra).
+async function manejarVideoGif(remitente, nombre, canal, media, caption) {
+  let lead = getLead(remitente);
+  if (!lead) lead = upsertLead(remitente, { nombre, canal });
+  const url = guardarMediaLocal(media);
+  const tok = url ? `[vid:${url}] ` : "";
+  if (lead.humanoEnControl) {
+    pushHistorial(remitente, "user", `🎞️ ${tok}${caption || ""}`.trim());
+    return;
+  }
+  const capTxt = caption ? ` Escribió junto al GIF: "${caption}".` : "";
+  encolarMensaje(remitente, `🎞️ ${tok}(El cliente te mandó un GIF o video corto y divertido.${capTxt} Reacciona con buena onda y humor si aplica, SIN inventar exactamente qué muestra, y de inmediato sigue la conversación por donde iba o pregúntale qué está buscando.)`, nombre, canal);
+}
+
 // El cliente mandó una NOTA DE VOZ. La transcribimos con Whisper y la tratamos
 // como si la hubiera escrito (el bot responde a lo que dijo). Si no se pudo
 // escuchar, responde con gracia.
@@ -327,7 +349,7 @@ function guardarMediaLocal(imagen) {
     if (imagen?.url) return imagen.url; // Messenger/Instagram ya dan URL pública
     if (imagen?.base64) {
       const mime = imagen.mime || "image/jpeg";
-      const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : mime.includes("gif") ? "gif" : "jpg";
+      const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : mime.includes("gif") ? "gif" : (mime.includes("mp4") || mime.includes("video")) ? "mp4" : mime.includes("webm") ? "webm" : "jpg";
       const nombre = `rx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       fs.writeFileSync(path.join(UPLOADS_DIR, nombre), Buffer.from(imagen.base64, "base64"));
       return `/uploads/${nombre}`;
@@ -618,12 +640,15 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   //     última propiedad mostrada. Si no hay coordenadas, manda la dirección.
   if (quiereUbicacion) {
     const lp = getLead(telefono);
-    const prop = lp && lp.ultimaPropiedadMostrada ? getProperty(lp.ultimaPropiedadMostrada) : null;
+    let prop = lp && lp.ultimaPropiedadMostrada ? getProperty(lp.ultimaPropiedadMostrada) : null;
+    if (!prop) { const mm = buscarPropiedades(lp, 1); prop = mm[0] || null; } // si no se "mostró" formal, usa la más acorde
     if (prop && prop.lat && prop.lng) {
       await enviarUbicacionCanal(canal, telefono, prop.lat, prop.lng, prop.titulo, prop.direccion || "").catch(() => {});
       pushHistorial(telefono, "bot", `[📍 ubicación enviada] ${prop.titulo}`);
-    } else if (prop && prop.direccion) {
-      await enviarYRegistrar(canal, telefono, `📍 ${prop.titulo}\n${prop.direccion}`);
+    } else if (prop) {
+      // Sin coordenadas: mandamos un link limpio de Maps (mejor que dejarlo sin nada).
+      const q = encodeURIComponent(`${prop.titulo} ${prop.zona || ""} Ciudad de México`);
+      await enviarYRegistrar(canal, telefono, `📍 ${prop.titulo}\nhttps://maps.google.com/?q=${q}`);
     }
   }
 
@@ -1141,7 +1166,8 @@ app.get("/", (req, res) => res.send("Bot inmobiliario activo ✅. Ve a /dashboar
 // ---------------------------------------------------------------------------
 app.listen(PORT, () => {
   seedAgentesDemo();       // crea agentes de ejemplo si no hay
-  seedPropiedadesDemo();   // crea propiedades de ejemplo si no hay
+  seedPropiedadesDemo();
+backfillCoordsDemo();   // crea propiedades de ejemplo si no hay
   seedZonasDemo();         // crea zonas de ejemplo si no hay
   iniciarCronJobs();       // activa seguimientos automáticos
   console.log(`🚀 Bot inmobiliario corriendo en puerto ${PORT}`);

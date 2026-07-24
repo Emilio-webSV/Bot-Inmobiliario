@@ -7,6 +7,37 @@
 
 import { getProperties, loadDB, saveDB } from "./store.js";
 
+// Coordenadas aproximadas del centro de cada colonia (para el PIN de ubicación).
+// En propiedades reales, el dueño pone las exactas en el CRM.
+const ZONA_COORDS = {
+  polanco: [19.4333, -99.1936], chapultepec: [19.4204, -99.2160],
+  reforma: [19.4270, -99.1677], condesa: [19.4110, -99.1710],
+  delvalle: [19.3905, -99.1650], santafe: [19.3600, -99.2600],
+};
+
+// Rellena coordenadas de las propiedades DEMO (id "pd...") que aún no las tengan,
+// según su zona. Así los pines funcionan aunque ya estuvieran guardadas de antes.
+// NO toca propiedades reales del cliente (esas llevan coords exactas del CRM).
+export function backfillCoordsDemo() {
+  const db = loadDB();
+  db.meta = db.meta || {};
+  if (db.meta.demoUnicasV1) return; // ya se aplicó una vez; no vuelve a pisar tus ediciones
+  const canon = {};
+  for (const c of listaPropiedadesDemo()) canon[c.id] = c;
+  let n = 0;
+  for (const prop of (db.properties || [])) {
+    const c = canon[prop.id];
+    if (!c) continue; // no es una propiedad demo -> no se toca
+    prop.imagenes = c.imagenes;
+    prop.lat = c.lat;
+    prop.lng = c.lng;
+    n++;
+  }
+  db.meta.demoUnicasV1 = true;
+  saveDB(db);
+  if (n) console.log(`[properties] ${n} propiedades demo con fotos y ubicación únicas.`);
+}
+
 // Devuelve las mejores propiedades disponibles para el perfil del lead.
 // ESTRICTO: si el cliente dijo una zona, SOLO devuelve propiedades de esa zona
 // (nunca de otra). Si aún no hay zona, no adivina: devuelve [].
@@ -100,60 +131,82 @@ export function marcarEnviada(telefono, propId) {
 
 // Crea propiedades de ejemplo si no hay ninguna (para que el demo funcione solo)
 function listaPropiedadesDemo() {
-  const IMG = {
-    depto: [
-      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
-    ],
-    depto2: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
-      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800",
-    ],
-    casa: [
-      "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800",
-      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800",
-      "https://images.unsplash.com/photo-1576941089067-2de3c901e126?w=800",
-    ],
-    casa2: [
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800",
-      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800",
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800",
-    ],
-  };
-  const P = (id, titulo, zona, tipo, operacion, precio, recamaras, banos, m2, descripcion, imgs) => ({
-    id, titulo, zona, tipo, operacion, precio, recamaras, banos, m2, descripcion,
-    imagenes: imgs, disponible: true, creado: new Date().toISOString(),
-  });
-  return [
-    // POLANCO (lujo)
-    P("pd01","Depto de lujo en Polanco","polanco","departamento","venta",5200000,2,2,95,"Edificio con amenidades premium, listo para habitar. Ubicación inmejorable.",IMG.depto),
-    P("pd02","Penthouse en Polanco","polanco","departamento","venta",9800000,3,3,180,"Penthouse con roof garden privado y vista panorámica. Acabados de lujo.",IMG.depto2),
-    P("pd03","Depto amueblado en Polanco (renta)","polanco","departamento","renta",48000,2,2,90,"Totalmente amueblado, ideal para ejecutivos. Incluye mantenimiento.",IMG.depto),
-    // CHAPULTEPEC / LOMAS
-    P("pd04","Casa con jardín en Lomas","chapultepec","casa","venta",14500000,4,4,420,"Casa amplia con jardín, seguridad privada y espacio para 3 autos.",IMG.casa),
-    P("pd05","Residencia en Lomas","chapultepec","casa","venta",22000000,5,5,600,"Residencia de lujo con alberca, jardín y cuarto de servicio.",IMG.casa2),
-    P("pd06","Depto amplio en Chapultepec","chapultepec","departamento","venta",7300000,3,2,150,"Departamento amplio con vista al bosque, muy iluminado.",IMG.depto2),
-    // REFORMA / CUAUHTÉMOC
-    P("pd07","Departamento moderno en Reforma","reforma","departamento","venta",3100000,1,1,60,"Torre nueva con vista a la ciudad, ideal para inversión o primer hogar.",IMG.depto),
-    P("pd08","Depto 2 recámaras en Reforma","reforma","departamento","venta",4600000,2,2,88,"Torre con gimnasio y coworking. Excelente plusvalía.",IMG.depto2),
-    P("pd09","Estudio en Reforma (renta)","reforma","departamento","renta",18000,1,1,45,"Estudio moderno, perfecto para profesionista. Incluye amenidades.",IMG.depto),
-    P("pd10","Depto en torre Cuauhtémoc","reforma","departamento","venta",5400000,2,2,98,"Departamento en piso alto con vista despejada. Estrena.",IMG.depto2),
-    // CONDESA / ROMA
-    P("pd11","Loft en Condesa","condesa","departamento","venta",4200000,1,1,70,"Loft con estilo en edificio art déco. Zona de cafés y parques.",IMG.depto),
-    P("pd12","Depto con terraza en Roma","condesa","departamento","venta",5900000,2,2,105,"Departamento con terraza privada, ideal para quien busca estilo.",IMG.depto2),
-    P("pd13","Depto para Airbnb en Condesa","condesa","departamento","venta",3800000,1,1,55,"Excelente para renta corta. Ya operando con buen rendimiento.",IMG.depto),
-    P("pd14","Departamento en Roma Norte (renta)","condesa","departamento","renta",26000,2,1,80,"En el corazón de Roma Norte, cerca de todo. Amueblado.",IMG.depto2),
-    // DEL VALLE / NÁPOLES
-    P("pd15","Casa familiar en Del Valle","delvalle","casa","venta",6800000,3,3,220,"Casa familiar con jardín, cerca de escuelas y parques. Muy tranquila.",IMG.casa),
-    P("pd16","Depto familiar en Del Valle","delvalle","departamento","venta",4100000,3,2,110,"Departamento amplio, ideal para familia. Excelente conectividad.",IMG.depto),
-    P("pd17","Depto en Nápoles","delvalle","departamento","venta",3500000,2,2,85,"Bien ubicado, listo para habitar. Buena zona en crecimiento.",IMG.depto2),
-    P("pd18","Casa en Del Valle (renta)","delvalle","casa","renta",32000,3,2,200,"Casa en renta con jardín, ideal para familia. Zona segura.",IMG.casa2),
-    // SANTA FE
-    P("pd19","Depto en torre Santa Fe","santafe","departamento","venta",5600000,2,2,100,"En torre corporativa con amenidades. Plusvalía asegurada.",IMG.depto),
-    P("pd20","Depto amplio en Santa Fe (renta)","santafe","departamento","renta",35000,3,2,130,"Departamento amplio y amueblado, cerca de los corporativos.",IMG.depto2),
+  // FOTO PRINCIPAL única por propiedad (20 distintas). La primera es la que se
+  // manda/ve primero, así cada propiedad se ve diferente.
+  const UNICA = [
+    "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800",
+    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
+    "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800",
+    "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800",
+    "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800",
+    "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800",
+    "https://images.unsplash.com/photo-1576941089067-2de3c901e126?w=800",
+    "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800",
+    "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800",
+    "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800",
+    "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800",
+    "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800",
+    "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?w=800",
+    "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800",
+    "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800",
+    "https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=800",
+    "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800",
+    "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800",
   ];
+  // Fotos de respaldo (confiables) para completar el álbum de cada propiedad.
+  const RESPALDO = [
+    "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800",
+    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
+    "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800",
+    "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800",
+    "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800",
+    "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800",
+    "https://images.unsplash.com/photo-1576941089067-2de3c901e126?w=800",
+    "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800",
+    "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800",
+    "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800",
+  ];
+  // [id, título, zona, tipo, operación, precio, recámaras, baños, m2, descripción]
+  const base = [
+    ["pd01","Depto de lujo en Polanco","polanco","departamento","venta",5200000,2,2,95,"Edificio con amenidades premium, listo para habitar. Ubicación inmejorable."],
+    ["pd02","Penthouse en Polanco","polanco","departamento","venta",9800000,3,3,180,"Penthouse con roof garden privado y vista panorámica. Acabados de lujo."],
+    ["pd03","Depto amueblado en Polanco (renta)","polanco","departamento","renta",48000,2,2,90,"Totalmente amueblado, ideal para ejecutivos. Incluye mantenimiento."],
+    ["pd04","Casa con jardín en Lomas","chapultepec","casa","venta",14500000,4,4,420,"Casa amplia con jardín, seguridad privada y espacio para 3 autos."],
+    ["pd05","Residencia en Lomas","chapultepec","casa","venta",22000000,5,5,600,"Residencia de lujo con alberca, jardín y cuarto de servicio."],
+    ["pd06","Depto amplio en Chapultepec","chapultepec","departamento","venta",7300000,3,2,150,"Departamento amplio con vista al bosque, muy iluminado."],
+    ["pd07","Departamento moderno en Reforma","reforma","departamento","venta",3100000,1,1,60,"Torre nueva con vista a la ciudad, ideal para inversión o primer hogar."],
+    ["pd08","Depto 2 recámaras en Reforma","reforma","departamento","venta",4600000,2,2,88,"Torre con gimnasio y coworking. Excelente plusvalía."],
+    ["pd09","Estudio en Reforma (renta)","reforma","departamento","renta",18000,1,1,45,"Estudio moderno, perfecto para profesionista. Incluye amenidades."],
+    ["pd10","Depto en torre Cuauhtémoc","reforma","departamento","venta",5400000,2,2,98,"Departamento en piso alto con vista despejada. Estrena."],
+    ["pd11","Loft en Condesa","condesa","departamento","venta",4200000,1,1,70,"Loft con estilo en edificio art déco. Zona de cafés y parques."],
+    ["pd12","Depto con terraza en Roma","condesa","departamento","venta",5900000,2,2,105,"Departamento con terraza privada, ideal para quien busca estilo."],
+    ["pd13","Depto para Airbnb en Condesa","condesa","departamento","venta",3800000,1,1,55,"Excelente para renta corta. Ya operando con buen rendimiento."],
+    ["pd14","Departamento en Roma Norte (renta)","condesa","departamento","renta",26000,2,1,80,"En el corazón de Roma Norte, cerca de todo. Amueblado."],
+    ["pd15","Casa familiar en Del Valle","delvalle","casa","venta",6800000,3,3,220,"Casa familiar con jardín, cerca de escuelas y parques. Muy tranquila."],
+    ["pd16","Depto familiar en Del Valle","delvalle","departamento","venta",4100000,3,2,110,"Departamento amplio, ideal para familia. Excelente conectividad."],
+    ["pd17","Depto en Nápoles","delvalle","departamento","venta",3500000,2,2,85,"Bien ubicado, listo para habitar. Buena zona en crecimiento."],
+    ["pd18","Casa en Del Valle (renta)","delvalle","casa","renta",32000,3,2,200,"Casa en renta con jardín, ideal para familia. Zona segura."],
+    ["pd19","Depto en torre Santa Fe","santafe","departamento","venta",5600000,2,2,100,"En torre corporativa con amenidades. Plusvalía asegurada."],
+    ["pd20","Depto amplio en Santa Fe (renta)","santafe","departamento","renta",35000,3,2,130,"Departamento amplio y amueblado, cerca de los corporativos."],
+  ];
+  return base.map((b, i) => {
+    const [id, titulo, zona, tipo, operacion, precio, recamaras, banos, m2, descripcion] = b;
+    const bc = ZONA_COORDS[zona] || [null, null];
+    // Offset único por propiedad (se mantiene dentro de ~1 km del centro de la zona).
+    const offLat = (((i * 37) % 21) - 10) * 0.0008;
+    const offLng = (((i * 53) % 21) - 10) * 0.0008;
+    return {
+      id, titulo, zona, tipo, operacion, precio, recamaras, banos, m2, descripcion,
+      imagenes: [UNICA[i], RESPALDO[(i + 3) % 12], RESPALDO[(i + 7) % 12]],
+      lat: bc[0] != null ? +(bc[0] + offLat).toFixed(5) : null,
+      lng: bc[1] != null ? +(bc[1] + offLng).toFixed(5) : null,
+      disponible: true, creado: new Date().toISOString(),
+    };
+  });
 }
 
 // Al arrancar: solo crea las demo si la base está vacía (no toca datos de un cliente real).

@@ -742,6 +742,7 @@
       let cuerpo="", extra="";
       const m=(h.texto||"").match(/\[img:([^\]]+)\]/);
       const d=(h.texto||"").match(/\[doc:([^\]|]+)\|([^\]]+)\]/);
+      const vid=(h.texto||"").match(/\[vid:([^\]]+)\]/);
       if(m){
         // Mensaje con imagen/sticker: la mostramos y limpiamos el texto interno.
         extra=`<img src="${escapeHtml(m[1])}" class="chatimg" onclick="window.open('${escapeHtml(m[1])}','_blank')">`;
@@ -751,6 +752,11 @@
         // Documento/archivo: lo mostramos como enlace descargable.
         extra=`<a href="${escapeHtml(d[1])}" target="_blank" class="chatdoc">📎 ${escapeHtml(d[2])}</a>`;
         let t=(h.texto||"").replace(/\[doc:[^\]]+\]/,"").trim();
+        cuerpo=escapeHtml(t);
+      } else if(vid){
+        // GIF o video corto: se muestra reproducible en el chat del CRM.
+        extra=`<video src="${escapeHtml(vid[1])}" class="chatimg" controls muted loop playsinline preload="metadata"></video>`;
+        let t=(h.texto||"").replace(/\[vid:[^\]]+\]/,"").replace(/\([^)]*\)/g,"").trim();
         cuerpo=escapeHtml(t);
       } else {
         cuerpo=escapeHtml(h.texto||"");
