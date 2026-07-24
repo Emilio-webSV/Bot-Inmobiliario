@@ -366,11 +366,11 @@ async function manejarImagen(remitente, nombre, canal, imagen, caption) {
     return;
   }
 
-  // No se pudo analizar. La guardamos para el CRM y dejamos marca de que NO se
-  // vio su contenido (así el modelo no la inventa si luego preguntan por ella).
-  pushHistorial(remitente, "user", `📷 ${tok}${caption || ""} (no se pudo ver el contenido de la foto)`.trim());
-  const msg = "¡Gracias por la foto! 🙂 Se me complicó abrirla, pero cuéntame qué estás buscando —zona, presupuesto, recámaras— y te ayudo igual. 🏠";
-  await enviarYRegistrar(canal, remitente, msg);
+  // No se pudo analizar: en vez de un mensaje enlatado que REINICIA la charla, se
+  // lo pasamos al modelo con contexto para que responda natural y SIN inventar
+  // (la foto igual queda guardada para verla en el CRM).
+  const capTxt = caption ? ` El cliente escribió junto a la imagen: "${caption}".` : "";
+  encolarMensaje(remitente, `📷 ${tok}(El cliente te mandó una imagen pero el sistema NO pudo ver su contenido.${capTxt} NO inventes ni describas qué muestra. Reacciona breve y con buena onda, y SIGUE la conversación por donde iba: si ya estaban agendando o calificando, continúa con eso; si no, pregúntale con naturalidad qué está buscando.)`, nombre, canal);
 }
 
 // Detecta la etiqueta oculta [CITA: YYYY-MM-DD HH:MM] que pone el bot al agendar.

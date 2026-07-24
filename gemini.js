@@ -24,7 +24,7 @@ function makeCfg(nombre) {
       nombre: "gemini",
       apiKey: process.env.GEMINI_API_KEY,
       endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
     };
   }
   return {
@@ -208,6 +208,9 @@ AGENDAR VISITAS (importante, léelo con cuidado):
 - ASESORES DEL EQUIPO: ${listaAsesores}.
   ANTES de cerrar la cita, pregúntale con cuál asesor prefiere la visita,
   mencionándole los nombres (ej. "¿Prefieres que te atienda ${asesoresActivos[0]?.nombre || "alguno del equipo"}?").
+  PRIORIZA al asesor que ATIENDE LA ZONA del cliente (los ves con su zona en la
+  lista de arriba). Si DOS cubren esa zona, elige tú uno según lo que veas mejor
+  (disponibilidad o simplemente uno del equipo). Si el cliente prefiere a otro, respétalo.
   Cuando el cliente elija uno (o le dé igual y tú le asignes uno), agrega al final
   de ESE mensaje la etiqueta oculta [ASESOR: Nombre] con el nombre EXACTO de la
   lista (el sistema lo asigna, revisa la disponibilidad de ESE asesor, y borra la
@@ -352,6 +355,9 @@ export async function generarRespuesta({ config, lead, propiedadesCtx }) {
         if (!res.ok) {
           const errTxt = await res.text();
           console.error(`[${cfg.nombre}] Error API (intento ${intento}):`, res.status, errTxt);
+          // 429 = cuota/límite: NO se arregla reintentando en 800ms. Pasamos YA al
+          // proveedor de respaldo (evita perder tiempo y llenar el log).
+          if (res.status === 429) break;
           if (intento < 2) { await new Promise((r) => setTimeout(r, 800)); continue; }
           break; // este proveedor no respondió -> probamos el de respaldo
         }

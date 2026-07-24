@@ -15,7 +15,7 @@ function makeVisCfg(nombre) {
       nombre: "gemini",
       apiKey: process.env.GEMINI_API_KEY,
       endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      model: process.env.GEMINI_VISION_MODEL || "gemini-3.5-flash",
+      model: process.env.GEMINI_VISION_MODEL || "gemini-3.5-flash-lite",
     };
   }
   return {
