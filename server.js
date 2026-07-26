@@ -27,7 +27,7 @@ import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
 import { buscarPropiedades, contextoPropiedades, marcarEnviada, seedPropiedadesDemo, cargarPropiedadesDemoForzado, backfillCoordsDemo } from "./properties.js";
-import { iniciarCronJobs, enviarReporteAhora, revisarLeadsCalientesAhora } from "./followups.js";
+import { iniciarCronJobs, enviarReporteAhora, revisarLeadsCalientesAhora , enviarReporteAsesoresAhora } from "./followups.js";
 import { revisarDisponibilidad, citasAfectadasPorBloqueo, asesorAlternativoLibre } from "./availability.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -50,13 +50,40 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123"; // protección 
 // El webhook (/webhook) NO pasa por aquí (lo llama Meta, va aparte).
 // Las páginas /dashboard y /admin se sirven, pero sin contraseña no muestran datos.
 // ---------------------------------------------------------------------------
+// Identifica quién entra: el DUEÑO (con ADMIN_PASSWORD) o un ASESOR (con su PIN).
+// Devuelve null si la credencial no es válida.
+function quienEs(req) {
+  const pass = String(req.headers["x-admin-password"] || req.query.pass || "");
+  if (!pass) return null;
+  if (pass === ADMIN_PASSWORD) return { rol: "dueno", id: null, nombre: "Dueño" };
+  const ag = (getAgents() || []).find((a) => a.activo !== false && a.pin && String(a.pin) === pass);
+  if (ag) return { rol: "asesor", id: ag.id, nombre: ag.nombre };
+  return null;
+}
+
 app.use("/api", (req, res, next) => {
-  const pass = req.headers["x-admin-password"] || req.query.pass;
-  if (pass !== ADMIN_PASSWORD) {
-    return res.status(401).json({ error: "No autorizado" });
-  }
+  const yo = quienEs(req);
+  if (!yo) return res.status(401).json({ error: "No autorizado" });
+  req.yo = yo;
   next();
 });
+
+// ¿Este lead le pertenece a quien está viendo? El dueño ve todos.
+function esMiLead(req, lead) {
+  if (!req.yo || req.yo.rol === "dueno") return true;
+  return lead && lead.agenteAsignado === req.yo.id;
+}
+// Filtra una lista de leads según el rol.
+function misLeads(req, leads) {
+  if (!req.yo || req.yo.rol === "dueno") return leads;
+  return leads.filter((l) => l.agenteAsignado === req.yo.id);
+}
+// Bloquea acciones de administración a los asesores.
+function soloDueno(req, res) {
+  if (req.yo && req.yo.rol === "dueno") return true;
+  res.status(403).json({ error: "Solo el dueño puede hacer esto" });
+  return false;
+}
 
 // Subir una foto (llega en base64 desde el navegador). La guarda en el disco y
 // devuelve su URL pública, lista para usarse en una propiedad.
@@ -689,9 +716,14 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
 // ---------------------------------------------------------------------------
 
 // Lista de leads + agentes + métricas para el panel
+// Quién soy (para que el CRM adapte la vista al rol)
+app.get("/api/whoami", (req, res) => {
+  res.json({ rol: req.yo.rol, id: req.yo.id, nombre: req.yo.nombre });
+});
+
 app.get("/api/leads", (req, res) => {
   const db = loadDB();
-  const leads = Object.values(db.leads).sort((a, b) => b.score - a.score);
+  const leads = misLeads(req, Object.values(db.leads)).sort((a, b) => b.score - a.score);
   const agentesById = Object.fromEntries(db.agents.map((a) => [a.id, a.nombre]));
 
   const metricas = {
@@ -743,6 +775,7 @@ app.get("/api/leads/export", (req, res) => {
 app.get("/api/leads/:telefono", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   res.json(lead);
 });
 
@@ -750,6 +783,7 @@ app.get("/api/leads/:telefono", (req, res) => {
 app.post("/api/leads/:telefono/tomar-control", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   upsertLead(req.params.telefono, { humanoEnControl: true });
   res.json({ ok: true });
 });
@@ -758,14 +792,17 @@ app.post("/api/leads/:telefono/tomar-control", (req, res) => {
 app.post("/api/leads/:telefono/devolver-control", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   upsertLead(req.params.telefono, { humanoEnControl: false });
   res.json({ ok: true });
 });
 
 // Asignar (o reasignar) el lead a un asesor
 app.post("/api/leads/:telefono/asignar", (req, res) => {
+  if (!soloDueno(req, res)) return;
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   const agenteId = req.body?.agenteId || null;
   upsertLead(req.params.telefono, { agenteAsignado: agenteId });
   res.json({ ok: true });
@@ -775,6 +812,7 @@ app.post("/api/leads/:telefono/asignar", (req, res) => {
 app.post("/api/leads/:telefono/estado", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   const estado = req.body?.estado;
   const validos = ["sin_atender", "en_atencion", "cerrado", "perdido"];
   if (!validos.includes(estado)) return res.status(400).json({ error: "Estado inválido" });
@@ -790,6 +828,7 @@ app.post("/api/leads/:telefono/estado", (req, res) => {
 app.post("/api/leads/:telefono/venta", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   const propiedadId = req.body?.propiedadId || null;
   const monto = Number(req.body?.monto) || 0;
   const fecha = new Date().toISOString();
@@ -821,6 +860,7 @@ app.post("/api/leads/:telefono/venta", (req, res) => {
 app.post("/api/leads/:telefono/venta/deshacer", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   const propId = lead.venta?.propiedadId;
   upsertLead(req.params.telefono, { estado: "en_atencion", venta: null });
   if (propId) updateProperty(propId, { estado: "disponible", venta: null });
@@ -830,7 +870,7 @@ app.post("/api/leads/:telefono/venta/deshacer", (req, res) => {
 // Analítica de ventas: embudo, por asesor, por zona y totales.
 app.get("/api/analytics", (req, res) => {
   const db = loadDB();
-  const leads = Object.values(db.leads);
+  const leads = misLeads(req, Object.values(db.leads));
   const props = db.properties || [];
   const propById = Object.fromEntries(props.map((p) => [p.id, p]));
   const agentes = db.agents || [];
@@ -896,6 +936,7 @@ app.get("/api/analytics", (req, res) => {
 app.post("/api/leads/:telefono/notas", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   const patch = {};
   if (req.body?.notas !== undefined) patch.notas = String(req.body.notas);
   if (req.body?.etiquetas !== undefined) {
@@ -911,6 +952,7 @@ app.post("/api/leads/:telefono/notas", (req, res) => {
 app.post("/api/leads/:telefono/cita", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   let iso = req.body?.cita || null; // viene de un input datetime-local, o null para quitar
   if (iso) {
     const d = new Date(iso);
@@ -926,6 +968,7 @@ app.post("/api/leads/:telefono/cita", (req, res) => {
 app.post("/api/leads/:telefono/enviar", async (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
   const texto = String(req.body?.texto || "").trim();
   if (!texto) return res.status(400).json({ error: "Texto vacío" });
   await enviarYRegistrar(lead.canal, req.params.telefono, texto);
@@ -963,6 +1006,7 @@ app.post("/api/leads/:telefono/enviar-media", async (req, res) => {
 
 // Acciones en lote: borrar o cambiar estado de varios leads seleccionados
 app.post("/api/leads/bulk", (req, res) => {
+  if (!soloDueno(req, res)) return;
   const { accion, telefonos } = req.body || {};
   if (!Array.isArray(telefonos) || !telefonos.length) return res.status(400).json({ error: "Sin leads" });
   let n = 0;
@@ -977,12 +1021,10 @@ app.post("/api/leads/bulk", (req, res) => {
 
 // Revisa la contraseña de admin (protección básica para escrituras)
 function checarAdmin(req, res) {
-  const pass = req.headers["x-admin-password"] || req.query.pass;
-  if (pass !== ADMIN_PASSWORD) {
-    res.status(401).json({ error: "Contraseña incorrecta" });
-    return false;
-  }
-  return true;
+  if (req.yo && req.yo.rol === "dueno") return true;
+  if (req.yo) { res.status(403).json({ error: "Solo el dueño puede hacer esto" }); return false; }
+  res.status(401).json({ error: "Contraseña incorrecta" });
+  return false;
 }
 
 // Listar propiedades (lectura libre, la usa el panel)
@@ -1160,6 +1202,11 @@ app.get("/api/test/reporte", async (req, res) => {
   if (!checarAdmin(req, res)) return;
   const r = await enviarReporteAhora();
   res.json({ ok: true, detalle: r });
+});
+
+app.get("/api/test/reporte-asesores", async (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  res.json({ ok: true, mensaje: await enviarReporteAsesoresAhora() });
 });
 
 app.get("/api/test/alerta-calientes", async (req, res) => {

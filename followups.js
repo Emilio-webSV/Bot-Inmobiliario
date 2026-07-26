@@ -10,7 +10,7 @@
 // ---------------------------------------------------------------------------
 
 import cron from "node-cron";
-import { loadDB, upsertLead, pushHistorial, getConfig } from "./store.js";
+import { loadDB, upsertLead, pushHistorial, getConfig, getAgents } from "./store.js";
 import { enviarTexto, enviarPlantilla, enviarTextoOPlantilla, dentroVentana24h } from "./whatsapp.js";
 import { enviarTextoCanal } from "./canales.js";
 
@@ -173,15 +173,75 @@ export function iniciarCronJobs() {
 
   // Lunes 9:00 AM hora de México
   cron.schedule("0 9 * * 1", reporteSemanal, { timezone: "America/Mexico_City" });
+  // 15 min después, cada asesor recibe SU propio resumen.
+  cron.schedule("15 9 * * 1", reportePorAsesor, { timezone: "America/Mexico_City" });
 
   console.log("[cron] Seguimientos automáticos activos.");
 }
 
 // ---------------------------------------------------------------------------
 // FUNCIONES DE PRUEBA — para dispararlas a mano desde /api/test/...
+
+// Reporte semanal INDIVIDUAL para cada asesor: solo SUS números, para que cada
+// quien vea cómo le va sin revolverse con los demás. Incluye un pequeño ranking
+// (en qué lugar va del equipo por ventas) para motivar sanamente.
+async function reportePorAsesor() {
+  const db = loadDB();
+  const agentes = (getAgents() || []).filter((a) => a.activo !== false && a.telefono);
+  if (!agentes.length) return;
+  const leads = Object.values(db.leads || {});
+  const agencia = getConfig().nombreAgencia || "tu agencia";
+
+  // Ventas de la semana por asesor (para el ranking)
+  const ventasSemana = {};
+  for (const l of leads) {
+    if (l.venta && diasDesde(l.venta.fecha) <= 7) {
+      const id = l.venta.agenteId || l.agenteAsignado;
+      if (id) ventasSemana[id] = (ventasSemana[id] || 0) + 1;
+    }
+  }
+  const ranking = Object.entries(ventasSemana).sort((a, b) => b[1] - a[1]).map(([id]) => id);
+
+  for (const ag of agentes) {
+    const mios = leads.filter((l) => l.agenteAsignado === ag.id);
+    const nuevos = mios.filter((l) => diasDesde(l.creado) <= 7);
+    const calientes = mios.filter((l) => l.temperatura === "caliente" && l.estado !== "cerrado" && l.estado !== "perdido");
+    const sinAtender = mios.filter((l) => (l.estado || "sin_atender") === "sin_atender");
+    const citasProximas = mios.filter((l) => l.citaProgramada && new Date(l.citaProgramada).getTime() > Date.now());
+    const ventas = ventasSemana[ag.id] || 0;
+    const pos = ranking.indexOf(ag.id);
+
+    let msg = `📊 TU SEMANA — ${agencia}\nHola ${ag.nombre} 👋\n\n`;
+    msg += `👥 Tus leads: ${mios.length} (${nuevos.length} nuevos esta semana)\n`;
+    msg += `🔴 Calientes por atender: ${calientes.length}\n`;
+    msg += `🔔 Sin atender: ${sinAtender.length}\n`;
+    msg += `📅 Citas próximas: ${citasProximas.length}\n`;
+    msg += `🏆 Ventas de la semana: ${ventas}`;
+    if (ventas > 0 && pos === 0) msg += `\n\n🥇 ¡Vas #1 del equipo esta semana! Felicidades.`;
+    else if (ventas > 0) msg += `\n\nVas en el lugar #${pos + 1} del equipo. ¡Sigue así!`;
+
+    // Consejo según cómo le va
+    if (calientes.length > 0) msg += `\n\n💡 Tienes ${calientes.length} lead(s) caliente(s) esperándote. Contáctalos hoy: son los que más rápido cierran.`;
+    else if (sinAtender.length > 0) msg += `\n\n💡 Tienes ${sinAtender.length} lead(s) sin atender. Un mensaje rápido puede reactivarlos.`;
+    else if (mios.length === 0) msg += `\n\n💡 Aún no tienes leads asignados. En cuanto entre uno de tu zona, te aviso.`;
+    else msg += `\n\n💡 Vas al corriente. ¡Buen trabajo!`;
+
+    await enviarTextoOPlantilla(ag.telefono, msg, process.env.WA_TPL_ALERTA, ["Tu resumen semanal", `${ag.nombre}: ${mios.length} leads, ${ventas} ventas`]).catch(() => {});
+  }
+  console.log(`[cron] Reporte semanal enviado a ${agentes.length} asesor(es).`);
+}
+
 // ---------------------------------------------------------------------------
 
 // Manda el reporte AHORA (sin esperar al lunes)
+// Dispara a mano el reporte individual de cada asesor (para probar).
+export async function enviarReporteAsesoresAhora() {
+  const n = (getAgents() || []).filter((a) => a.activo !== false && a.telefono).length;
+  if (!n) return "No hay asesores con teléfono registrado.";
+  await reportePorAsesor();
+  return `Reporte individual enviado a ${n} asesor(es).`;
+}
+
 export async function enviarReporteAhora() {
   const dueno = process.env.OWNER_PHONE;
   if (!dueno) return "Falta OWNER_PHONE en las variables.";

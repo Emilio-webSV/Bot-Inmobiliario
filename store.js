@@ -183,7 +183,14 @@ export function actualizarEstadoMensaje(msgId, estado) {
 // ---- Helpers de agentes ---------------------------------------------------
 
 export function getAgents() {
-  return loadDB().agents;
+  // Asegura que todo asesor tenga PIN (los creados antes de esta versión no lo tenían).
+  const db = loadDB();
+  let cambio = false;
+  for (const a of (db.agents || [])) {
+    if (!a.pin) { a.pin = String(Math.floor(100000 + Math.random() * 900000)); cambio = true; }
+  }
+  if (cambio) saveDB(db);
+  return db.agents;
 }
 
 export function deleteLead(telefono) {
@@ -223,6 +230,9 @@ export function createAgent(data) {
     telefono: String(data.telefono || "").replace(/\D/g, ""),
     zonas: Array.isArray(data.zonas) ? data.zonas : [],
     activo: data.activo !== false,
+    // PIN para que el asesor entre al CRM y vea SOLO lo suyo. Si no se define,
+    // se genera uno de 6 dígitos.
+    pin: String(data.pin || "").trim() || String(Math.floor(100000 + Math.random() * 900000)),
   };
   db.agents = db.agents || [];
   db.agents.push(agent);
@@ -240,6 +250,10 @@ export function updateAgent(id, data) {
     ...data,
     telefono: data.telefono !== undefined ? String(data.telefono).replace(/\D/g, "") : a.telefono,
     zonas: data.zonas !== undefined ? (Array.isArray(data.zonas) ? data.zonas : a.zonas) : a.zonas,
+    // El PIN no se borra si llega vacío; si el asesor no tenía, se le genera uno.
+    pin: (data.pin !== undefined && String(data.pin).trim())
+      ? String(data.pin).trim()
+      : (a.pin || String(Math.floor(100000 + Math.random() * 900000))),
     id: a.id,
   };
   saveDB(db);

@@ -364,6 +364,54 @@
   .reacbubble{position:absolute;bottom:-13px;left:8px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:1px 7px;font-size:12px;box-shadow:0 1px 3px rgba(0,0,0,.12);line-height:1.5}
   .msg.bot .reacbubble{left:auto;right:8px}
   @media (max-width:680px){.filtrobar{padding:8px 12px 0}}
+
+  /* ====== BOTÓN DE TEMA ====== */
+  .temabtn{margin-top:auto;width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;font-family:inherit;font-size:12.5px;cursor:pointer;text-align:left;transition:background .15s}
+  .temabtn:hover{background:rgba(255,255,255,.08)}
+  .sidebar .temabtn{color:rgba(255,255,255,.75);border-color:rgba(255,255,255,.15)}
+
+  /* ====== TEMA OSCURO ====== */
+  html.dark body{
+    background:radial-gradient(900px 520px at 10% -10%, rgba(52,87,213,.18), transparent 60%),
+      radial-gradient(820px 520px at 100% -5%, rgba(46,158,120,.10), transparent 55%),
+      linear-gradient(180deg,#0d1220 0%,#0a0e18 100%);
+    color:#e6e9f0;
+  }
+  html.dark{
+    --ink:#e6e9f0;--ink-soft:#c3c9d6;--muted:#8d96a8;--line:#252c3d;--canvas:#0d1220;--card:#151b29;
+    --glass:rgba(21,27,41,.72);--glass-strong:rgba(21,27,41,.88);--glass-bd:rgba(255,255,255,.08);
+    --hot-bg:#3a1f1c;--warm-bg:#3a2f18;--cold-bg:#1c2a3a;--green-bg:#16301f;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    --shadow-lg:0 24px 60px rgba(0,0,0,.5);
+  }
+  html.dark .panel,html.dark .modal,html.dark .prop,html.dark .metric,html.dark .kpi,html.dark .card,html.dark .gate{background:var(--card);border-color:var(--line);color:var(--ink)}
+  html.dark input,html.dark select,html.dark textarea{background:#1b2231;color:var(--ink);border-color:var(--line)}
+  html.dark input::placeholder,html.dark textarea::placeholder{color:#6b7385}
+  html.dark thead th{background:#1a2130;color:var(--muted);border-color:var(--line)}
+  html.dark tbody td{border-color:var(--line)}
+  html.dark tbody tr:hover{background:#1a2130}
+  html.dark .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+  html.dark .btn.ghost:hover{background:#1f2735}
+  html.dark .sub,html.dark .empty{color:var(--muted)}
+  html.dark .filtros,html.dark .phead,html.dark .mhead,html.dark .factions,html.dark .profile{border-color:var(--line)}
+  html.dark .filtroinfo{background:#161d2b;color:var(--muted)}
+  html.dark .mscroll{background:#0f141f}
+  html.dark .msg.user{background:#232b3b;color:var(--ink)}
+  html.dark .msg.bot{background:#1e3a2b;color:#dff5e6}
+  html.dark .msg .t{color:#8d96a8}
+  html.dark .reacbubble{background:#232b3b;border-color:var(--line);color:var(--ink)}
+  html.dark .chatbar{background:#151b29;border-color:var(--line)}
+  html.dark .estado.perdido{background:#252c3d;color:var(--muted)}
+  html.dark .chip{background:#232b3b;color:var(--ink-soft)}
+  html.dark .soldby{background:#16301f;color:#b7e6c6}
+
+  /* Modo asesor: sin botones de administración */
+  body.modo-asesor .btn.gold[onclick*="abrirNueva"],
+  body.modo-asesor .btn.gold[onclick*="abrirAgente"],
+  body.modo-asesor .btn.gold[onclick*="abrirZona"],
+  body.modo-asesor .prop .acts,
+  body.modo-asesor .bulkbar{display:none!important}
+  body.modo-asesor .navitem.solo-dueno{display:none!important}
 </style>
 </head>
 <body>
@@ -372,11 +420,11 @@
 <div id="gate" class="gate">
   <div class="dot">◆</div>
   <h2>CRM Inmobiliario</h2>
-  <p>Acceso privado. Escribe la contraseña para entrar.</p>
-  <input id="passInput" type="password" placeholder="Contraseña" onkeydown="if(event.key==='Enter')entrar()" />
+  <p>Acceso privado. Escribe tu contraseña o tu PIN de asesor.</p>
+  <input id="passInput" type="password" placeholder="Contraseña o PIN" onkeydown="if(event.key==='Enter')entrar()" />
   <div style="height:12px"></div>
   <button class="btn gold" style="width:100%" onclick="entrar()">Entrar</button>
-  <p id="gateErr" style="color:var(--red);margin-top:10px;display:none">Contraseña incorrecta</p>
+  <p id="gateErr" style="color:var(--red);margin-top:10px;display:none">Contraseña o PIN incorrecto</p>
 </div>
 
 <!-- APP -->
@@ -397,9 +445,10 @@
       </div>
       <div class="navgroup">
         <div class="gtitle">Gestión</div>
-        <div class="navitem" data-view="agentes" onclick="showView('agentes')"><span class="ic">👥</span> Equipo</div>
-        <div class="navitem" data-view="zonas" onclick="showView('zonas')"><span class="ic">📍</span> Zonas</div>
+        <div class="navitem solo-dueno" data-view="agentes" onclick="showView('agentes')"><span class="ic">👥</span> Equipo</div>
+        <div class="navitem solo-dueno" data-view="zonas" onclick="showView('zonas')"><span class="ic">📍</span> Zonas</div>
       </div>
+      <button class="temabtn" id="temaBtn" onclick="toggleTema()" title="Cambiar tema">🌙 Modo oscuro</button>
       <div class="sidefoot">CRM en vivo · se actualiza solo</div>
     </aside>
 
@@ -592,6 +641,7 @@
     <div class="form">
       <div class="full"><label>Nombre</label><input id="a_nombre" placeholder="María López" /></div>
       <div class="full"><label>WhatsApp <span style="font-weight:400;color:var(--muted)">(con código de país, ej. 5215512345678)</span></label><input id="a_telefono" placeholder="5215512345678" /></div>
+      <div class="full"><label>PIN de acceso al CRM <span style="font-weight:400;color:var(--muted)">(con esto el asesor entra y ve SOLO sus leads. Déjalo vacío para generarlo automático)</span></label><input id="a_pin" placeholder="Ej. 482913" /></div>
       <div class="full"><label>Zonas que cubre</label>
         <div class="zonechecks" id="a_zonas"></div>
       </div>
@@ -648,7 +698,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  let PASS="",agentesById={},agentesList=[],intervalo=null,leadActual=null,seleccion=new Set();
+  let PASS="",YO={rol:"dueno"},agentesById={},agentesList=[],intervalo=null,leadActual=null,seleccion=new Set();
   let editandoId=null,editandoAgenteId=null,editandoZonaId=null;
   let zonasList=[];
   let propsList=[];
@@ -706,10 +756,14 @@
   async function entrar(){
     PASS=document.getElementById("passInput").value.trim();
     if(!PASS)return;
+    const w=await fetch("/api/whoami",{headers:AH()});
+    if(w.status===401){document.getElementById("gateErr").style.display="block";return;}
+    YO=await w.json();
     const r=await fetch("/api/leads",{headers:AH()});
     if(r.status===401){document.getElementById("gateErr").style.display="block";return;}
     document.getElementById("gate").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
+    aplicarRol();
     renderLeads(await r.json());
     if(!intervalo)intervalo=setInterval(()=>{if(!document.getElementById("view-leads").classList.contains("hidden"))cargarLeads();},15000);
   }
@@ -767,6 +821,43 @@
   }
   // ---- Buscador y filtros ----
   let leadsTodos=[];
+  // ---- Roles: el dueño ve todo; el asesor solo lo suyo ----
+  function esDueno(){ return !YO || YO.rol==="dueno"; }
+  function aplicarRol(){
+    const asesor = !esDueno();
+    // Ocultar secciones de administración
+    document.querySelectorAll(".solo-dueno").forEach(el=>el.classList.toggle("hidden",asesor));
+    // Etiqueta de quién entró
+    const sb=document.querySelector(".sbrand div:last-child p");
+    if(sb) sb.textContent = asesor ? ("Asesor · "+(YO.nombre||"")) : "Inmobiliario";
+    // Botones que un asesor no debe usar
+    document.body.classList.toggle("modo-asesor",asesor);
+    if(asesor){
+      // Si estaba en una vista de admin, regresarlo a Leads
+      const activa=document.querySelector(".navitem.active");
+      if(activa && activa.classList.contains("solo-dueno")) showView("leads");
+    }
+  }
+
+  // ---- Tema claro / oscuro ----
+  function aplicarTema(t){
+    document.documentElement.classList.toggle("dark",t==="dark");
+    const b=document.getElementById("temaBtn");
+    if(b) b.innerHTML = t==="dark" ? "☀️ Modo claro" : "🌙 Modo oscuro";
+    const meta=document.querySelector('meta[name="theme-color"]');
+    if(meta) meta.setAttribute("content", t==="dark" ? "#0d1220" : "#12213A");
+  }
+  function toggleTema(){
+    const nuevo=document.documentElement.classList.contains("dark")?"light":"dark";
+    try{localStorage.setItem("crm_tema",nuevo)}catch(e){}
+    aplicarTema(nuevo);
+  }
+  (function(){
+    let t="light";
+    try{t=localStorage.getItem("crm_tema")|| (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}
+    aplicarTema(t);
+  })();
+
   // ---- Filtros desplegables ----
   function toggleFiltros(id,btn){
     const el=document.getElementById(id); if(!el)return;
@@ -1332,6 +1423,7 @@ pintarChat(l);
             <div class="st alerta"><div class="n">${pend}</div><div class="l">Pendientes</div></div>
             <div class="st cita"><div class="n">${citas}</div><div class="l">Citas</div></div>
           </div>
+          <div style="font-size:12px;color:var(--muted);margin:6px 0">🔑 PIN del CRM: <b style="font-family:monospace;font-size:13px;letter-spacing:1px">${a.pin||"—"}</b></div>
           <div class="mx"><button class="btn ghost" onclick='editarAgente(${JSON.stringify(a)})'>Editar</button><button class="btn danger" onclick="borrarAgente('${a.id}')">Borrar</button></div>
         </div>`;
       }).join("");
@@ -1339,11 +1431,11 @@ pintarChat(l);
   }
   function setZonasChecks(z){document.querySelectorAll("#a_zonas input").forEach(c=>c.checked=(z||[]).includes(c.value))}
   function getZonasChecks(){return [...document.querySelectorAll("#a_zonas input:checked")].map(c=>c.value)}
-  function abrirAgente(){editandoAgenteId=null;document.getElementById("agentModalTitle").textContent="Nuevo agente";document.getElementById("a_nombre").value="";document.getElementById("a_telefono").value="";document.getElementById("a_zonas").innerHTML=checksZona();setZonasChecks([]);document.getElementById("a_activo").checked=true;document.getElementById("agentOverlay").classList.add("show")}
-  function editarAgente(a){editandoAgenteId=a.id;document.getElementById("agentModalTitle").textContent="Editar agente";document.getElementById("a_nombre").value=a.nombre||"";document.getElementById("a_telefono").value=a.telefono||"";document.getElementById("a_zonas").innerHTML=checksZona();setZonasChecks(a.zonas||[]);document.getElementById("a_activo").checked=a.activo!==false;document.getElementById("agentOverlay").classList.add("show")}
+  function abrirAgente(){editandoAgenteId=null;document.getElementById("agentModalTitle").textContent="Nuevo agente";document.getElementById("a_nombre").value="";document.getElementById("a_telefono").value="";document.getElementById("a_pin").value="";document.getElementById("a_zonas").innerHTML=checksZona();setZonasChecks([]);document.getElementById("a_activo").checked=true;document.getElementById("agentOverlay").classList.add("show")}
+  function editarAgente(a){editandoAgenteId=a.id;document.getElementById("agentModalTitle").textContent="Editar agente";document.getElementById("a_nombre").value=a.nombre||"";document.getElementById("a_telefono").value=a.telefono||"";document.getElementById("a_pin").value=a.pin||"";document.getElementById("a_zonas").innerHTML=checksZona();setZonasChecks(a.zonas||[]);document.getElementById("a_activo").checked=a.activo!==false;document.getElementById("agentOverlay").classList.add("show")}
   function cerrarAgente(){document.getElementById("agentOverlay").classList.remove("show")}
   async function guardarAgente(){
-    const body={nombre:val("a_nombre"),telefono:val("a_telefono"),zonas:getZonasChecks(),activo:document.getElementById("a_activo").checked};
+    const body={nombre:val("a_nombre"),telefono:val("a_telefono"),pin:val("a_pin"),zonas:getZonasChecks(),activo:document.getElementById("a_activo").checked};
     if(!body.nombre){toast("Ponle nombre al agente");return}
     const url=editandoAgenteId?"/api/agents/"+editandoAgenteId:"/api/agents";
     try{const r=await fetch(url,{method:editandoAgenteId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrarAgente();toast(editandoAgenteId?"Actualizado ✓":"Agregado ✓");cargarAgentes()}catch(e){toast("Error de conexión")}
