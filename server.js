@@ -253,6 +253,15 @@ app.post("/webhook", async (req, res) => {
         await manejarVideoGif(mensaje.from, nombre, "whatsapp", media, mensaje.video?.caption);
         return;
       }
+      if (mensaje.type === "reaction") {
+        // El cliente REACCIONÓ a un mensaje (👍, ❤️...). NO es un mensaje nuevo:
+        // no se responde ni se le pide "más detalle". Solo se anota discreto en el
+        // CRM para que el asesor lo vea.
+        const emoji = mensaje.reaction?.emoji || "👍";
+        const lead0 = getLead(mensaje.from);
+        if (lead0) pushHistorial(mensaje.from, "user", `[reaccion:${emoji}]`);
+        return;
+      }
       if (mensaje.type !== "text") {
         await manejarNoTexto(mensaje.from, nombre, "whatsapp"); // ubicación, contacto, etc.
         return;

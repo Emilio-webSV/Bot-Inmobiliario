@@ -22,7 +22,10 @@ const PATRONES_PIDE_HUMANO = [
   /\bpersona\s+(real|de\s+verdad|f[ií]sica)\b/i,
   /\bgente\s+real\b/i,
   // Pedir explícitamente que lo atienda/pase con alguien
-  /\b(quiero|necesito|puedo|p[aá]same|pasame|com?un[ií]came|contactame|cont[aá]ctame|atiendame|at[ié]ndame)\b[^.]{0,40}\b(asesor|agente|persona|alguien|vendedor|encargado|due[ñn]o)\b/i,
+  /\b(quiero|necesito|requiero|puedo|dame|d[eé]jame|mandame|m[aá]ndame|ponme|ponme\s+con|con[eé]ctame|comun[ií]came|comunicame|as[ií]gname|asigname|enl[aá]zame|transfi[eé]reme|der[ií]vame|derivame|p[aá]same|pasame|contactame|cont[aá]ctame|atiendame|at[ié]ndame|habla|hablen)\b[^.]{0,40}\b(asesor|agente|persona|alguien|vendedor|encargado|due[ñn]o|human[oa])\b/i,
+  // "un asesor ya", "asesor por favor", "agente urgente" (petición corta y directa)
+  /\b(asesor|agente|vendedor|encargado|human[oa])\b[^.]{0,20}\b(ya|ahora|ahorita|urgente|urge|por\s+favor|porfa|porfavor|inmediatamente)\b/i,
+  /\b(ya|ahora|urgente|urge)\b[^.]{0,20}\b(asesor|agente|vendedor|human[oa])\b/i,
   /\bhablar\s+con\s+(una?\s+)?(persona|alguien|asesor|agente|humano|vendedor|encargado)\b/i,
   // Pedir que le llamen
   /\bque\s+me\s+(llamen|marquen|hablen)\b/i,

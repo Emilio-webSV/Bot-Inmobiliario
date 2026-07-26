@@ -339,6 +339,19 @@
     .modal.lead{max-width:100%;max-height:100dvh;height:100dvh;border-radius:0}
     .profile{grid-template-columns:1fr 1fr;padding:14px 16px}
   }
+
+  /* Buscador y filtros de leads */
+  .filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)}
+  .filtros input[type=search]{flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;font-size:13.5px;font-family:inherit;outline:none}
+  .filtros input[type=search]:focus{border-color:#2563eb}
+  .filtros select{padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;background:#fff;cursor:pointer}
+  .filtros .btn{padding:8px 14px;font-size:13px}
+  .filtroinfo{padding:8px 20px;font-size:12.5px;color:var(--muted);background:#f7f9fb;border-bottom:1px solid var(--line)}
+  @media (max-width:680px){
+    .filtros{padding:10px 12px;gap:6px}
+    .filtros input[type=search]{min-width:100%;font-size:16px}
+    .filtros select{flex:1;min-width:0;font-size:15px}
+  }
 </style>
 </head>
 <body>
@@ -394,7 +407,26 @@
           <button class="danger" onclick="bulk('borrar')">🗑 Borrar</button>
         </div>
         <div class="panel">
-          <div class="phead" style="display:flex;justify-content:space-between;align-items:center"><h3>Leads por prioridad</h3><button class="btn gold" onclick="abrirEscribir()">✍️ Escribir a un número</button></div>
+          <div class="phead" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h3>Leads por prioridad</h3><button class="btn gold" onclick="abrirEscribir()">✍️ Escribir a un número</button></div>
+          <div class="filtros" id="filtrosLeads">
+            <input id="buscarLead" type="search" placeholder="🔍 Buscar por nombre, teléfono, nota o etiqueta..." oninput="aplicarFiltros()" />
+            <select id="filtroZona" onchange="aplicarFiltros()"><option value="">📍 Todas las zonas</option></select>
+            <select id="filtroEstado" onchange="aplicarFiltros()">
+              <option value="">Todos los estados</option>
+              <option value="sin_atender">Sin atender</option>
+              <option value="en_atencion">En atención</option>
+              <option value="cerrado">Cerrado</option>
+              <option value="perdido">Perdido</option>
+            </select>
+            <select id="filtroTemp" onchange="aplicarFiltros()">
+              <option value="">Toda temperatura</option>
+              <option value="caliente">🔴 Caliente</option>
+              <option value="tibio">🟡 Tibio</option>
+              <option value="frio">🔵 Frío</option>
+            </select>
+            <button class="btn ghost" onclick="limpiarFiltros()">Limpiar</button>
+          </div>
+          <div id="filtroInfo" class="filtroinfo hidden"></div>
           <div id="tableHost"><div class="empty" style="border:none">Cargando…</div></div>
         </div>
       </section>
@@ -402,6 +434,22 @@
       <!-- PROPIEDADES -->
       <section id="view-props" class="view hidden">
         <div class="toolbar"><h3 id="count">Propiedades</h3><div style="display:flex;gap:8px"><button class="btn ghost" onclick="cargarDemo()">🏠 Cargar 20 de ejemplo</button><button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button></div></div>
+        <div class="filtros" style="border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:#fff">
+          <input id="buscarProp" type="search" placeholder="🔍 Buscar propiedad por título, zona o descripción..." oninput="aplicarFiltrosProps()" />
+          <select id="filtroZonaProp" onchange="aplicarFiltrosProps()"><option value="">📍 Todas las zonas</option></select>
+          <select id="filtroEstadoProp" onchange="aplicarFiltrosProps()">
+            <option value="">Todos los estados</option>
+            <option value="disponible">🟢 Disponible</option>
+            <option value="apartado">🟡 Apartado</option>
+            <option value="vendido">🔴 Vendido</option>
+          </select>
+          <select id="filtroOperProp" onchange="aplicarFiltrosProps()">
+            <option value="">Venta y renta</option>
+            <option value="venta">Venta</option>
+            <option value="renta">Renta</option>
+          </select>
+          <button class="btn ghost" onclick="limpiarFiltrosProps()">Limpiar</button>
+        </div>
         <div id="grid" class="grid"></div>
       </section>
 
@@ -661,7 +709,7 @@
     agentesById=data.agentesById||{};agentesList=data.agentes||[];setZonas(data.zonas);
     if(data.config?.nombreAgencia)document.getElementById("agencyName").textContent=data.config.nombreAgencia;
     if(data.config?.logoUrl){const lg=document.getElementById("brandLogo");lg.src=data.config.logoUrl;lg.classList.remove("hidden");document.getElementById("brandDot").classList.add("hidden");}
-    pintarMetricas(data.metricas,data.leads);pintarTabla(data.leads);
+    pintarMetricas(data.metricas,data.leads);leadsTodos=data.leads||[];poblarZonasFiltro();aplicarFiltros();
     const urgentes=(data.leads||[]).filter(l=>l.escalado&&l.estado!=='en_atencion'&&l.estado!=='cerrado'&&l.estado!=='perdido').length;
     const b=document.getElementById("navLeadsBadge");b.textContent=urgentes;b.classList.toggle("hidden",!urgentes);
     const up=(data.leads||[]).filter(l=>l.citaProgramada&&new Date(l.citaProgramada).getTime()>Date.now()).length;
@@ -680,8 +728,49 @@
       <div class="metric cita"><div class="label">📅 Citas</div><div class="num">${m.citas||0}</div><div class="bar"><i style="width:${((m.citas||0)/total*100)}%"></i></div></div>
       <div class="metric pipe"><div class="label">💰 Pipeline</div><div class="num small">${fmtMXN(m.pipeline)}</div><div class="bar"><i style="width:100%"></i></div></div>`;
   }
-  function pintarTabla(leads){
-    if(!leads.length){document.getElementById("tableHost").innerHTML='<div class="empty" style="border:none"><p>Aún no hay leads</p><p class="sub">En cuanto un cliente escriba, aparecerá aquí.</p></div>';return}
+  // ---- Buscador y filtros ----
+  let leadsTodos=[];
+  function poblarZonasFiltro(){
+    const sel=document.getElementById("filtroZona"); if(!sel)return;
+    const actual=sel.value;
+    const zonas=(zonasList||[]).map(z=>`<option value="${z.id}">${z.nombre||z.id}</option>`).join("");
+    sel.innerHTML='<option value="">📍 Todas las zonas</option>'+zonas;
+    sel.value=actual;
+  }
+  function aplicarFiltros(){
+    const q=(document.getElementById("buscarLead")?.value||"").trim().toLowerCase();
+    const z=document.getElementById("filtroZona")?.value||"";
+    const e=document.getElementById("filtroEstado")?.value||"";
+    const t=document.getElementById("filtroTemp")?.value||"";
+    let res=leadsTodos.filter(l=>{
+      if(z && (l.perfil?.zona||"")!==z) return false;
+      if(e && (l.estado||"sin_atender")!==e) return false;
+      if(t && (l.temperatura||"")!==t) return false;
+      if(q){
+        const heno=[l.nombre,l.telefono,l.notas,(l.etiquetas||[]).join(" "),
+          zonaNombre[l.perfil?.zona]||l.perfil?.zona,
+          agentesById[l.agenteAsignado]||""].filter(Boolean).join(" ").toLowerCase();
+        if(!heno.includes(q)) return false;
+      }
+      return true;
+    });
+    const info=document.getElementById("filtroInfo");
+    const hayFiltro=q||z||e||t;
+    if(info){
+      info.classList.toggle("hidden",!hayFiltro);
+      if(hayFiltro) info.textContent=`Mostrando ${res.length} de ${leadsTodos.length} leads`;
+    }
+    pintarTabla(res,hayFiltro);
+  }
+  function limpiarFiltros(){
+    ["buscarLead","filtroZona","filtroEstado","filtroTemp"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+    aplicarFiltros();
+  }
+
+  function pintarTabla(leads,filtrando){
+    if(!leads.length){document.getElementById("tableHost").innerHTML=filtrando
+      ?'<div class="empty" style="border:none"><p>Sin resultados</p><p class="sub">Prueba con otra búsqueda o limpia los filtros.</p></div>'
+      :'<div class="empty" style="border:none"><p>Aún no hay leads</p><p class="sub">En cuanto un cliente escriba, aparecerá aquí.</p></div>';return}
     const filas=leads.map((l)=>{
       const agente=l.agenteAsignado?(agentesById[l.agenteAsignado]||"—"):"Sin asignar";
       const zona=l.perfil?.zona?(zonaNombre[l.perfil.zona]||l.perfil.zona):"—";
@@ -789,6 +878,10 @@
         extra=`<a href="${escapeHtml(d[1])}" target="_blank" class="chatdoc">📎 ${escapeHtml(d[2])}</a>`;
         let t=(h.texto||"").replace(/\[doc:[^\]]+\]/,"").trim();
         cuerpo=escapeHtml(t);
+      } else if((h.texto||"").match(/^\[reaccion:(.+)\]$/)){
+        // Reacción del cliente: se muestra chiquita, no como mensaje.
+        const em=(h.texto||"").match(/^\[reaccion:(.+)\]$/)[1];
+        return `<div class="msg ${h.rol}" style="background:transparent;box-shadow:none;padding:2px 6px;font-size:11px;color:var(--muted)">Reaccionó ${escapeHtml(em)} · ${hora}</div>`;
       } else if(vid){
         // GIF o video corto: se muestra reproducible en el chat del CRM.
         extra=`<video src="${escapeHtml(vid[1])}" class="chatimg" controls muted loop playsinline preload="metadata"></video>`;
@@ -964,12 +1057,54 @@ pintarChat(l);
   }
 
   /* ---------- PROPIEDADES ---------- */
+  function poblarZonasFiltroProps(){
+    const sel=document.getElementById("filtroZonaProp"); if(!sel)return;
+    const actual=sel.value;
+    sel.innerHTML='<option value="">📍 Todas las zonas</option>'+(zonasList||[]).map(z=>`<option value="${z.id}">${z.nombre||z.id}</option>`).join("");
+    sel.value=actual;
+  }
+  function aplicarFiltrosProps(){
+    const q=(document.getElementById("buscarProp")?.value||"").trim().toLowerCase();
+    const z=document.getElementById("filtroZonaProp")?.value||"";
+    const e=document.getElementById("filtroEstadoProp")?.value||"";
+    const o=document.getElementById("filtroOperProp")?.value||"";
+    const res=(propsList||[]).filter(p=>{
+      const est=p.estado||(p.disponible===false?"vendido":"disponible");
+      if(z && (p.zona||"")!==z) return false;
+      if(e && est!==e) return false;
+      if(o && (p.operacion||"")!==o) return false;
+      if(q){
+        const heno=[p.titulo,p.descripcion,p.direccion,zonaNombre[p.zona]||p.zona,p.tipo,p.operacion].filter(Boolean).join(" ").toLowerCase();
+        if(!heno.includes(q)) return false;
+      }
+      return true;
+    });
+    const hayFiltro=q||z||e||o;
+    document.getElementById("count").textContent=hayFiltro
+      ?`Propiedades (${res.length} de ${propsList.length})`
+      :`Propiedades (${propsList.length})`;
+    pintarProps(res,hayFiltro);
+  }
+  function limpiarFiltrosProps(){
+    ["buscarProp","filtroZonaProp","filtroEstadoProp","filtroOperProp"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+    aplicarFiltrosProps();
+  }
+
   async function cargarProps(){
     try{
       const props=(await(await fetch("/api/properties",{headers:AH()})).json()).properties||[];
-      document.getElementById("count").textContent=`Propiedades (${props.length})`;
+      propsList=props;
+      poblarZonasFiltroProps();
+      aplicarFiltrosProps();
+    }catch(e){document.getElementById("grid").innerHTML='<div class="empty" style="grid-column:1/-1">No pude cargar las propiedades</div>'}
+  }
+
+  function pintarProps(props,filtrando){
+    try{
       const grid=document.getElementById("grid");
-      if(!props.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1">Aún no hay propiedades. Dale a «+ Agregar propiedad».</div>';return}
+      if(!props.length){grid.innerHTML=filtrando
+        ?'<div class="empty" style="grid-column:1/-1">Sin resultados. Prueba otra búsqueda o limpia los filtros.</div>'
+        :'<div class="empty" style="grid-column:1/-1">Aún no hay propiedades. Dale a «+ Agregar propiedad».</div>';return}
       grid.innerHTML=props.map(p=>{
         const img=(p.imagenes&&p.imagenes[0])||"";
         const est=p.estado||(p.disponible===false?"vendido":"disponible");
