@@ -13,7 +13,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 
 import {
-  loadDB, upsertLead, pushHistorial, actualizarEstadoMensaje, getLead, getAllLeads, getConfig, saveDB, deleteLead,
+  loadDB, upsertLead, pushHistorial, actualizarEstadoMensaje, reaccionarMensaje, getLead, getAllLeads, getConfig, saveDB, deleteLead,
   getProperties, getProperty, createProperty, updateProperty, deleteProperty,
   getAgents, updateConfig, createAgent, updateAgent, deleteAgent,
   getBlocks, createBlock, deleteBlock,
@@ -257,9 +257,10 @@ app.post("/webhook", async (req, res) => {
         // El cliente REACCIONÓ a un mensaje (👍, ❤️...). NO es un mensaje nuevo:
         // no se responde ni se le pide "más detalle". Solo se anota discreto en el
         // CRM para que el asesor lo vea.
-        const emoji = mensaje.reaction?.emoji || "👍";
-        const lead0 = getLead(mensaje.from);
-        if (lead0) pushHistorial(mensaje.from, "user", `[reaccion:${emoji}]`);
+        // Se PEGA al mensaje al que reaccionó (como en WhatsApp), no es un mensaje nuevo.
+        const emoji = mensaje.reaction?.emoji || "";
+        const objetivo = mensaje.reaction?.message_id || null;
+        reaccionarMensaje(mensaje.from, objetivo, emoji);
         return;
       }
       if (mensaje.type !== "text") {

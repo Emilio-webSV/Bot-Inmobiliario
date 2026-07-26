@@ -134,6 +134,33 @@ export function pushHistorial(telefono, rol, texto, extra = {}) {
 // entregado o leído. Aquí buscamos ese mensaje por su ID (wamid) en el historial
 // y subimos su estado. Nunca lo bajamos (enviado < entregado < leido).
 const ORDEN_ESTADO = { enviado: 1, entregado: 2, leido: 3 };
+
+// Reacciones estilo WhatsApp: se pegan AL mensaje al que reaccionaron, no se
+// registran como un mensaje nuevo. Si el emoji viene vacío, se quita la reacción.
+export function reaccionarMensaje(telefono, msgId, emoji) {
+  const db = loadDB();
+  const lead = telefono ? db.leads[telefono] : null;
+  const buscarEn = lead ? [lead] : Object.values(db.leads || {});
+  for (const l of buscarEn) {
+    const h = l.historial || [];
+    for (let i = h.length - 1; i >= 0; i--) {
+      if (h[i].msgId === msgId) {
+        if (emoji) h[i].reaccion = emoji; else delete h[i].reaccion;
+        saveDB(db);
+        return true;
+      }
+    }
+  }
+  // Si no encontramos el mensaje (p. ej. reaccionó a uno del propio cliente),
+  // lo marcamos en el último mensaje del lead para que el asesor lo note.
+  if (lead && (lead.historial || []).length) {
+    const h = lead.historial;
+    if (emoji) h[h.length - 1].reaccion = emoji; else delete h[h.length - 1].reaccion;
+    saveDB(db);
+    return true;
+  }
+  return false;
+}
 export function actualizarEstadoMensaje(msgId, estado) {
   if (!msgId || !ORDEN_ESTADO[estado]) return false;
   const db = loadDB();

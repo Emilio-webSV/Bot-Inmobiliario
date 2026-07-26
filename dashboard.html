@@ -352,6 +352,18 @@
     .filtros input[type=search]{min-width:100%;font-size:16px}
     .filtros select{flex:1;min-width:0;font-size:15px}
   }
+
+  .filtrobar{padding:10px 20px 0}
+  .filtrotoggle{font-size:13px}
+  .estadobtn.disponible{color:#16a34a;border-color:#bbf7d0}
+  .estadobtn.apartado{color:#d97706;border-color:#fde68a}
+  .estadobtn.vendido{color:#dc2626;border-color:#fecaca}
+  /* Reacción estilo WhatsApp: burbujita pegada abajo del mensaje */
+  .msg{position:relative}
+  .msg.conreac{margin-bottom:20px}
+  .reacbubble{position:absolute;bottom:-13px;left:8px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:1px 7px;font-size:12px;box-shadow:0 1px 3px rgba(0,0,0,.12);line-height:1.5}
+  .msg.bot .reacbubble{left:auto;right:8px}
+  @media (max-width:680px){.filtrobar{padding:8px 12px 0}}
 </style>
 </head>
 <body>
@@ -408,7 +420,8 @@
         </div>
         <div class="panel">
           <div class="phead" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h3>Leads por prioridad</h3><button class="btn gold" onclick="abrirEscribir()">✍️ Escribir a un número</button></div>
-          <div class="filtros" id="filtrosLeads">
+          <div class="filtrobar"><button class="btn ghost filtrotoggle" onclick="toggleFiltros('filtrosLeads',this)">🔍 Buscar y filtrar ▾</button></div>
+          <div class="filtros hidden" id="filtrosLeads">
             <input id="buscarLead" type="search" placeholder="🔍 Buscar por nombre, teléfono, nota o etiqueta..." oninput="aplicarFiltros()" />
             <select id="filtroZona" onchange="aplicarFiltros()"><option value="">📍 Todas las zonas</option></select>
             <select id="filtroEstado" onchange="aplicarFiltros()">
@@ -433,8 +446,9 @@
 
       <!-- PROPIEDADES -->
       <section id="view-props" class="view hidden">
-        <div class="toolbar"><h3 id="count">Propiedades</h3><div style="display:flex;gap:8px"><button class="btn ghost" onclick="cargarDemo()">🏠 Cargar 20 de ejemplo</button><button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button></div></div>
-        <div class="filtros" style="border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:#fff">
+        <div class="toolbar"><h3 id="count">Propiedades</h3><div style="display:flex;gap:8px"><button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button></div></div>
+        <div class="filtrobar"><button class="btn ghost filtrotoggle" onclick="toggleFiltros('filtrosProps',this)">🔍 Buscar y filtrar ▾</button></div>
+        <div class="filtros hidden" id="filtrosProps" style="border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:#fff">
           <input id="buscarProp" type="search" placeholder="🔍 Buscar propiedad por título, zona o descripción..." oninput="aplicarFiltrosProps()" />
           <select id="filtroZonaProp" onchange="aplicarFiltrosProps()"><option value="">📍 Todas las zonas</option></select>
           <select id="filtroEstadoProp" onchange="aplicarFiltrosProps()">
@@ -520,6 +534,29 @@
 </div>
 
 <!-- Modal PROPIEDAD -->
+<div class="overlay" id="estadoOverlay">
+  <div class="modal" style="max-width:440px">
+    <div class="mhead"><h3 id="estadoTitle">Estado de la propiedad</h3><button class="close" onclick="cerrarEstado()">×</button></div>
+    <div style="padding:18px 22px">
+      <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">Estado</label>
+      <select id="e_estado" onchange="toggleVentaCampos()" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:14px">
+        <option value="disponible">🟢 Disponible</option>
+        <option value="apartado">🟡 Apartada</option>
+        <option value="vendido">🔴 Vendida</option>
+      </select>
+      <div id="ventaCampos" class="hidden" style="margin-top:14px">
+        <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">¿Quién la vendió?</label>
+        <select id="e_asesor" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:14px"></select>
+        <label style="font-size:12.5px;font-weight:600;display:block;margin:12px 0 6px">Monto final de venta (MXN)</label>
+        <input id="e_monto" type="number" placeholder="5200000" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:14px" />
+        <label style="font-size:12.5px;font-weight:600;display:block;margin:12px 0 6px">Cliente (opcional)</label>
+        <input id="e_cliente" placeholder="Nombre del comprador" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:14px" />
+      </div>
+      <div id="ventaInfoActual" class="hidden" style="margin-top:14px;padding:12px;background:#f0fdf4;border-radius:10px;font-size:13px"></div>
+    </div>
+    <div class="factions"><button class="btn ghost" onclick="cerrarEstado()">Cancelar</button><button class="btn primary" onclick="guardarEstado()">Guardar</button></div>
+  </div>
+</div>
 <div class="overlay" id="propOverlay">
   <div class="modal">
     <div class="mhead"><h3 id="modalTitle">Nueva propiedad</h3><button class="close" onclick="cerrar()">×</button></div>
@@ -544,7 +581,7 @@
       <div class="full"><label>Video <span style="font-weight:400;color:var(--muted)">(URL directa a un .mp4, opcional)</span></label><input id="f_video" placeholder="https://...mp4" /></div>
       <div class="full"><label>Estado</label><select id="f_estado"><option value="disponible">🟢 Disponible</option><option value="apartado">🟡 Apartado</option><option value="vendido">🔴 Vendido</option></select></div>
     </div>
-    <div class="factions"><button class="btn ghost" onclick="cerrar()">Cancelar</button><button class="btn primary" onclick="guardar()">Guardar</button></div>
+    <div class="factions"><button class="btn danger hidden" id="btnBorrarProp" onclick="borrarDesdeModal()">🗑 Borrar propiedad</button><span style="flex:1"></span><button class="btn ghost" onclick="cerrar()">Cancelar</button><button class="btn primary" onclick="guardar()">Guardar</button></div>
   </div>
 </div>
 
@@ -730,6 +767,61 @@
   }
   // ---- Buscador y filtros ----
   let leadsTodos=[];
+  // ---- Filtros desplegables ----
+  function toggleFiltros(id,btn){
+    const el=document.getElementById(id); if(!el)return;
+    const abierto=!el.classList.contains("hidden");
+    el.classList.toggle("hidden",abierto);
+    if(btn) btn.innerHTML= abierto ? "🔍 Buscar y filtrar ▾" : "🔍 Buscar y filtrar ▴";
+    if(!abierto){const inp=el.querySelector('input[type=search]'); if(inp) setTimeout(()=>inp.focus(),60);}
+  }
+
+  // ---- Estado de la propiedad (disponible / apartada / vendida) ----
+  let propEstadoId=null;
+  function abrirEstado(p){
+    propEstadoId=p.id;
+    document.getElementById("estadoTitle").textContent=p.titulo||"Estado de la propiedad";
+    const est=p.estado||(p.disponible===false?"vendido":"disponible");
+    document.getElementById("e_estado").value=est;
+    document.getElementById("e_asesor").innerHTML='<option value="">— elige asesor —</option>'+(agentesList||[]).map(a=>`<option value="${a.id}" ${p.venta&&p.venta.agenteId===a.id?"selected":""}>${escapeHtml(a.nombre)}</option>`).join("");
+    document.getElementById("e_monto").value=(p.venta&&p.venta.monto)||p.precio||"";
+    document.getElementById("e_cliente").value=(p.venta&&p.venta.cliente)||"";
+    const info=document.getElementById("ventaInfoActual");
+    if(est==="vendido"&&p.venta){
+      info.classList.remove("hidden");
+      info.innerHTML=`🏆 Vendida por <b>${escapeHtml(p.venta.agenteNombre||"—")}</b>${p.venta.monto?` · ${fmtMXN(p.venta.monto)}`:""}${p.venta.fecha?`<br><span style="color:var(--muted)">${new Date(p.venta.fecha).toLocaleDateString("es-MX",{day:"2-digit",month:"long",year:"numeric"})}</span>`:""}`;
+    } else info.classList.add("hidden");
+    toggleVentaCampos();
+    document.getElementById("estadoOverlay").classList.add("show");
+  }
+  function cerrarEstado(){document.getElementById("estadoOverlay").classList.remove("show")}
+  function toggleVentaCampos(){
+    const v=document.getElementById("e_estado").value==="vendido";
+    document.getElementById("ventaCampos").classList.toggle("hidden",!v);
+  }
+  async function guardarEstado(){
+    const estado=document.getElementById("e_estado").value;
+    const body={estado};
+    if(estado==="vendido"){
+      const agenteId=document.getElementById("e_asesor").value;
+      const ag=(agentesList||[]).find(a=>a.id===agenteId);
+      if(!agenteId){toast("Elige quién la vendió");return}
+      body.venta={agenteId,agenteNombre:ag?ag.nombre:null,monto:Number(document.getElementById("e_monto").value)||0,
+        cliente:document.getElementById("e_cliente").value||null,fecha:new Date().toISOString()};
+    } else body.venta=null;
+    try{
+      const r=await fetch("/api/properties/"+propEstadoId,{method:"PUT",headers:JH(),body:JSON.stringify(body)});
+      if(!r.ok){toast("No se pudo guardar");return}
+      toast(estado==="vendido"?"¡Vendida! 🎉":"Estado actualizado ✓");
+      cerrarEstado();cargarProps();
+    }catch(e){toast("Error de conexión")}
+  }
+  function borrarDesdeModal(){
+    if(!editandoId)return;
+    if(!confirm("¿Borrar esta propiedad? No se puede deshacer."))return;
+    borrar(editandoId); cerrar();
+  }
+
   function poblarZonasFiltro(){
     const sel=document.getElementById("filtroZona"); if(!sel)return;
     const actual=sel.value;
@@ -878,10 +970,6 @@
         extra=`<a href="${escapeHtml(d[1])}" target="_blank" class="chatdoc">📎 ${escapeHtml(d[2])}</a>`;
         let t=(h.texto||"").replace(/\[doc:[^\]]+\]/,"").trim();
         cuerpo=escapeHtml(t);
-      } else if((h.texto||"").match(/^\[reaccion:(.+)\]$/)){
-        // Reacción del cliente: se muestra chiquita, no como mensaje.
-        const em=(h.texto||"").match(/^\[reaccion:(.+)\]$/)[1];
-        return `<div class="msg ${h.rol}" style="background:transparent;box-shadow:none;padding:2px 6px;font-size:11px;color:var(--muted)">Reaccionó ${escapeHtml(em)} · ${hora}</div>`;
       } else if(vid){
         // GIF o video corto: se muestra reproducible en el chat del CRM.
         extra=`<video src="${escapeHtml(vid[1])}" class="chatimg" controls muted loop playsinline preload="metadata"></video>`;
@@ -890,7 +978,8 @@
       } else {
         cuerpo=escapeHtml(h.texto||"");
       }
-      return `<div class="msg ${h.rol}">${extra}${cuerpo}<span class="t">${hora}${tick}</span></div>`;
+      const reac=h.reaccion?`<span class="reacbubble">${escapeHtml(h.reaccion)}</span>`:"";
+      return `<div class="msg ${h.rol}${h.reaccion?' conreac':''}">${extra}${cuerpo}<span class="t">${hora}${tick}</span>${reac}</div>`;
     }).join("")||'<p class="sub" style="padding:30px;text-align:center">Sin mensajes todavía.</p>';
   }
 
@@ -1113,7 +1202,7 @@ pintarChat(l);
         return `<div class="prop ${est!=='disponible'?'off':''}"><div class="img" style="background-image:url('${img}')"><span class="badge2">${p.operacion==='renta'?'Renta':'Venta'}</span>${estBadge}</div>
           <div class="body"><h3>${p.titulo}</h3><div class="price">${fmtMXN(p.precio)}${p.operacion==='renta'?'/mes':''}</div>
           <div class="specs">${zonaNombre[p.zona]||p.zona||'—'} · ${p.recamaras} rec · ${p.banos} baños · ${p.m2} m²</div><div class="desc">${p.descripcion||''}</div>${ventaInfo}</div>
-          <div class="acts"><button class="btn ghost" onclick='editar(${JSON.stringify(p)})'>Editar</button><button class="btn danger" onclick="borrar('${p.id}')">Borrar</button></div></div>`;
+          <div class="acts"><button class="btn ghost" onclick='editar(${JSON.stringify(p)})'>✏️ Editar</button><button class="btn ghost estadobtn ${est}" onclick='abrirEstado(${JSON.stringify(p)})'>${est==='vendido'?'🔴 Vendida':est==='apartado'?'🟡 Apartada':'🟢 Disponible'}</button></div></div>`;
       }).join("");
     }catch(e){toast("Error al cargar")}
   }
@@ -1201,8 +1290,8 @@ pintarChat(l);
       cargarProps();
     }catch(e){toast("Error de conexión")}
   }
-  function abrirNueva(){editandoId=null;imagenesForm=[];renderThumbs();document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","direccion","lat","lng","imagenes","video"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_estado").value="disponible";document.getElementById("propOverlay").classList.add("show")}
-  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_direccion").value=p.direccion||"";document.getElementById("f_lat").value=p.lat||"";document.getElementById("f_lng").value=p.lng||"";document.getElementById("f_imagenes").value="";imagenesForm=(p.imagenes||[]).slice();renderThumbs();document.getElementById("f_video").value=p.video||"";document.getElementById("f_estado").value=p.estado||(p.disponible===false?"vendido":"disponible");document.getElementById("propOverlay").classList.add("show")}
+  function abrirNueva(){editandoId=null;imagenesForm=[];renderThumbs();document.getElementById("modalTitle").textContent="Nueva propiedad";["titulo","precio","recamaras","banos","m2","descripcion","direccion","lat","lng","imagenes","video"].forEach(k=>document.getElementById("f_"+k).value="");document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=zonasList[0]?.id||"";document.getElementById("f_tipo").value="departamento";document.getElementById("f_operacion").value="venta";document.getElementById("f_estado").value="disponible";document.getElementById("btnBorrarProp").classList.add("hidden");document.getElementById("propOverlay").classList.add("show")}
+  function editar(p){editandoId=p.id;document.getElementById("modalTitle").textContent="Editar propiedad";document.getElementById("f_titulo").value=p.titulo||"";document.getElementById("f_zona").innerHTML=opcionesZona();document.getElementById("f_zona").value=p.zona||zonasList[0]?.id||"";document.getElementById("f_tipo").value=p.tipo||"departamento";document.getElementById("f_operacion").value=p.operacion||"venta";document.getElementById("f_precio").value=p.precio||"";document.getElementById("f_recamaras").value=p.recamaras||"";document.getElementById("f_banos").value=p.banos||"";document.getElementById("f_m2").value=p.m2||"";document.getElementById("f_descripcion").value=p.descripcion||"";document.getElementById("f_direccion").value=p.direccion||"";document.getElementById("f_lat").value=p.lat||"";document.getElementById("f_lng").value=p.lng||"";document.getElementById("f_imagenes").value="";imagenesForm=(p.imagenes||[]).slice();renderThumbs();document.getElementById("f_video").value=p.video||"";document.getElementById("f_estado").value=p.estado||(p.disponible===false?"vendido":"disponible");document.getElementById("btnBorrarProp").classList.remove("hidden");document.getElementById("propOverlay").classList.add("show")}
   function cerrar(){document.getElementById("propOverlay").classList.remove("show")}
   async function guardar(){
     const urlsPegadas=val("f_imagenes").split("\n").map(s=>s.trim()).filter(Boolean);
