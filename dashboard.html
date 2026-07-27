@@ -412,6 +412,16 @@
   body.modo-asesor .prop .acts,
   body.modo-asesor .bulkbar{display:none!important}
   body.modo-asesor .navitem.solo-dueno{display:none!important}
+
+  /* Barra de alerta de atención humana (solo aparece cuando hay) */
+  .alertabar{display:flex;align-items:center;gap:10px;padding:13px 18px;margin-bottom:16px;border-radius:12px;
+    background:linear-gradient(90deg,rgba(224,72,59,.14),rgba(224,72,59,.05));border:1px solid rgba(224,72,59,.32);
+    color:var(--hot);font-size:14px;cursor:pointer;transition:transform .12s}
+  .alertabar:hover{transform:translateY(-1px)}
+  .alertabar .pulso{width:9px;height:9px;border-radius:50%;background:var(--hot);animation:urge 1.4s infinite;flex-shrink:0}
+  .alertabar .verlos{margin-left:auto;font-weight:600;font-size:13px}
+  html.dark .alertabar{background:linear-gradient(90deg,rgba(224,72,59,.2),rgba(224,72,59,.06))}
+  .temabtn+.temabtn{margin-top:8px}
 </style>
 </head>
 <body>
@@ -448,6 +458,7 @@
         <div class="navitem solo-dueno" data-view="agentes" onclick="showView('agentes')"><span class="ic">👥</span> Equipo</div>
         <div class="navitem solo-dueno" data-view="zonas" onclick="showView('zonas')"><span class="ic">📍</span> Zonas</div>
       </div>
+      <button class="temabtn" onclick="cerrarSesion()" title="Salir">🚪 Cerrar sesión</button>
       <button class="temabtn" id="temaBtn" onclick="toggleTema()" title="Cambiar tema">🌙 Modo oscuro</button>
       <div class="sidefoot">CRM en vivo · se actualiza solo</div>
     </aside>
@@ -460,7 +471,7 @@
 
       <!-- LEADS -->
       <section id="view-leads" class="view">
-        <div class="metrics" id="metrics"></div>
+        <div id="alertaUrgente" class="alertabar hidden" onclick="filtrarUrgentes()"></div>
         <div class="bulkbar" id="bulkbar">
           <span><b id="bulkcount">0</b> seleccionados</span><span class="grow"></span>
           <button onclick="bulk('cerrado')">✓ Trato cerrado</button>
@@ -534,6 +545,7 @@
       <!-- ANÁLISIS -->
       <section id="view-analisis" class="view hidden">
         <div class="toolbar"><h3>Análisis de ventas</h3></div>
+        <div class="metrics" id="anaMetrics"></div>
         <div id="anaKpis" class="kpis"></div>
         <div class="anagrid">
           <div class="panel"><div class="phead"><h3>Embudo de conversión</h3></div><div id="anaFunnel" style="padding:16px"></div></div>
@@ -753,21 +765,41 @@
   function val(id){return document.getElementById(id).value.trim()}
   function escapeHtml(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 
-  async function entrar(){
-    PASS=document.getElementById("passInput").value.trim();
-    if(!PASS)return;
-    const w=await fetch("/api/whoami",{headers:AH()});
-    if(w.status===401){document.getElementById("gateErr").style.display="block";return;}
+  async function entrar(pass){
+    PASS=(pass!==undefined?pass:document.getElementById("passInput").value).trim();
+    if(!PASS)return false;
+    let w;
+    try{ w=await fetch("/api/whoami",{headers:AH()}); }catch(e){ return false; }
+    if(!w.ok){ if(pass===undefined) document.getElementById("gateErr").style.display="block"; return false; }
     YO=await w.json();
     const r=await fetch("/api/leads",{headers:AH()});
-    if(r.status===401){document.getElementById("gateErr").style.display="block";return;}
+    if(!r.ok){ if(pass===undefined) document.getElementById("gateErr").style.display="block"; return false; }
+    // Sesión recordada: no hay que escribir la contraseña cada vez.
+    try{ localStorage.setItem("crm_pass",PASS); }catch(e){}
     document.getElementById("gate").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     aplicarRol();
     renderLeads(await r.json());
     if(!intervalo)intervalo=setInterval(()=>{if(!document.getElementById("view-leads").classList.contains("hidden"))cargarLeads();},15000);
+    return true;
+  }
+
+  // Al abrir: si ya había sesión guardada, entra solo.
+  async function autoEntrar(){
+    let guardada="";
+    try{ guardada=localStorage.getItem("crm_pass")||""; }catch(e){}
+    if(!guardada)return;
+    const gate=document.getElementById("gate");
+    if(gate) gate.innerHTML='<div class="dot">◆</div><h2>Entrando…</h2><p>Un momento</p>';
+    const ok=await entrar(guardada);
+    if(!ok){ try{localStorage.removeItem("crm_pass")}catch(e){} location.reload(); }
+  }
+  function cerrarSesion(){
+    try{ localStorage.removeItem("crm_pass"); }catch(e){}
+    location.reload();
   }
   function volverAlGate(){
+    try{ localStorage.removeItem("crm_pass"); }catch(e){}
     if(intervalo){clearInterval(intervalo);intervalo=null;}
     document.getElementById("app").classList.add("hidden");
     document.getElementById("gate").classList.remove("hidden");
@@ -808,16 +840,38 @@
     document.getElementById("upd").textContent="Actualizado "+new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
   }
   function pintarMetricas(m,leads){
-    const total=m.total||1;
-    const urgentes=(leads||[]).filter(l=>l.escalado&&l.estado!=='en_atencion'&&l.estado!=='cerrado'&&l.estado!=='perdido').length;
-    document.getElementById("metrics").innerHTML=`
+    // En la vista de Leads solo se muestra una barra de alerta cuando de verdad
+    // hay alguien esperando atención humana. Si no hay, no estorba nada.
+    const urgentes=(leads||[]).filter(l=>l.escalado&&l.estado!=='en_atencion'&&l.estado!=='cerrado'&&l.estado!=='perdido');
+    const bar=document.getElementById("alertaUrgente");
+    if(!bar)return;
+    if(urgentes.length){
+      bar.classList.remove("hidden");
+      const n=urgentes.length;
+      bar.innerHTML=`<span class="pulso"></span><b>${n} cliente${n>1?"s":""} pide${n>1?"n":""} atención humana</b><span class="verlos">Ver ${n>1?"los":"lo"} →</span>`;
+    } else bar.classList.add("hidden");
+    // Guardamos las métricas para la sección Análisis.
+    metricasCache=m;
+  }
+  let metricasCache=null;
+  function filtrarUrgentes(){
+    const el=document.getElementById("filtrosLeads");
+    if(el&&el.classList.contains("hidden")) toggleFiltros("filtrosLeads",document.querySelector(".filtrotoggle"));
+    const b=document.getElementById("buscarLead"); if(b){b.value="";}
+    const e=document.getElementById("filtroEstado"); if(e)e.value="sin_atender";
+    const t=document.getElementById("filtroTemp"); if(t)t.value="caliente";
+    aplicarFiltros();
+  }
+  function pintarMetricasEnAnalisis(){
+    const host=document.getElementById("anaMetrics"); if(!host||!metricasCache)return;
+    const m=metricasCache, total=m.total||1;
+    host.innerHTML=`
       <div class="metric"><div class="label">Leads totales</div><div class="num">${m.total}</div><div class="bar"><i style="width:100%;background:var(--ink)"></i></div></div>
-      <div class="metric ${urgentes?'alert':''}"><div class="label">⚠️ Urgente · humano</div><div class="num">${urgentes}</div><div class="bar"><i style="width:${(urgentes/total*100)}%"></i></div></div>
       <div class="metric hot"><div class="label">🔴 Calientes</div><div class="num">${m.calientes}</div><div class="bar"><i style="width:${(m.calientes/total*100)}%"></i></div></div>
       <div class="metric warm"><div class="label">🟡 Tibios</div><div class="num">${m.tibios}</div><div class="bar"><i style="width:${(m.tibios/total*100)}%"></i></div></div>
       <div class="metric cold"><div class="label">🔵 Fríos</div><div class="num">${m.frios}</div><div class="bar"><i style="width:${(m.frios/total*100)}%"></i></div></div>
       <div class="metric cita"><div class="label">📅 Citas</div><div class="num">${m.citas||0}</div><div class="bar"><i style="width:${((m.citas||0)/total*100)}%"></i></div></div>
-      <div class="metric pipe"><div class="label">💰 Pipeline</div><div class="num small">${fmtMXN(m.pipeline)}</div><div class="bar"><i style="width:100%"></i></div></div>`;
+      <div class="metric pipe"><div class="label">💰 Potencial en el embudo</div><div class="num small">${fmtMXN(m.pipeline)}</div><div class="bar"><i style="width:100%"></i></div></div>`;
   }
   // ---- Buscador y filtros ----
   let leadsTodos=[];
@@ -852,6 +906,7 @@
     try{localStorage.setItem("crm_tema",nuevo)}catch(e){}
     aplicarTema(nuevo);
   }
+  document.addEventListener("DOMContentLoaded",autoEntrar);
   (function(){
     let t="light";
     try{t=localStorage.getItem("crm_tema")|| (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}
@@ -1177,6 +1232,7 @@ pintarChat(l);
   /* ---------- ANÁLISIS DE VENTAS ---------- */
   async function cargarAnalisis(){
     try{
+      pintarMetricasEnAnalisis();
       const a=await(await fetch("/api/analytics",{headers:AH()})).json();
       document.getElementById("anaKpis").innerHTML=`
         <div class="kpi green"><div class="l">💰 Ingresos totales</div><div class="v">${fmtMXN(a.totales.ingresos)}</div></div>
