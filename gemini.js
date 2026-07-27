@@ -263,7 +263,16 @@ Este cliente YA tiene una cita agendada para el ${citaActual}.
   ${citaActual}. Propón o confirma la nueva fecha usando el CALENDARIO REAL de
   arriba, y SOLO cuando el cliente acepte la nueva fecha y hora, pon [CITA:] con la
   nueva fecha. Mientras negocian, NO pongas la etiqueta. NUNCA inventes la fecha de
-  la cita que ya tiene: es exactamente ${citaActual}.` : ""}
+  la cita que ya tiene: es exactamente ${citaActual}.
+- ⚠️ SI EL CLIENTE CANCELA o dice que NO puede / NO confirma su asistencia:
+  (1) Respóndele con calma y sin presionar que no hay problema.
+  (2) PREGÚNTALE si quiere reagendar para otro día y CUÁL le acomoda.
+  (3) NO inventes ni propongas tú una fecha nueva de la nada, y NO pongas [CITA:].
+  Espera a que ÉL diga qué día y hora quiere; hasta entonces agendas.
+  Ejemplo correcto: "Sin problema, la cancelo 👍 ¿Te gustaría reagendarla para otro
+  día? Dime cuál te acomoda y la dejo lista 🗓️".
+  Ejemplo PROHIBIDO: cancelar y decir "entonces te esperamos el martes a las 3"
+  cuando el cliente nunca pidió ese día.` : ""}
 
 REGLAS:
 - NUNCA inventes zonas, colonias, propiedades, precios ni direcciones. Si no
