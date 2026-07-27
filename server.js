@@ -493,6 +493,7 @@ function limpiarEtiquetas(texto) {
     .replace(/\[\s*MOSTRAR\s*\]?/gi, "")     // etiqueta interna de mostrar propiedad
     .replace(/\[\s*UBICACION\b[^\]]*\]?/gi, "")
     .replace(/\[\s*ASESOR\b[^\]]*\]?/gi, "")
+    .replace(/\[\s*ESCALAR\s*\]?/gi, "")
     .replace(/[ \t]{2,}/g, " ")                // dobles espacios que queden
     .replace(/[ \t]+([.,;:!?])/g, "$1")         // espacio suelto antes de un signo
     .replace(/\n{3,}/g, "\n\n")
@@ -588,6 +589,27 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     respuesta = asesorPick.textoLimpio;
     if (asesorPick.agenteId && asesorPick.agenteId !== lead.agenteAsignado) {
       lead = upsertLead(telefono, { agenteAsignado: asesorPick.agenteId });
+    }
+  }
+
+  // 5a-esc) El BOT decidió pasar el caso a un asesor -> etiqueta [ESCALAR].
+  // Esto NO depende de detectar palabras exactas: si el modelo entendió que el
+  // cliente quiere un humano (aunque lo escriba con errores), dispara la alerta.
+  if (/\[ESCALAR\]/i.test(respuesta)) {
+    respuesta = respuesta.replace(/\[\s*ESCALAR\s*\]/gi, "").trim();
+    if (!lead.escalado) {
+      lead = upsertLead(telefono, { escalado: true, temperatura: "caliente" });
+      const ag = lead.agenteAsignado || asignarAgente(lead.perfil?.zona);
+      if (ag && !lead.agenteAsignado) lead = upsertLead(telefono, { agenteAsignado: ag.id });
+      const quien = lead.nombre || telefono;
+      const aviso = `⚠️ Cliente pide un asesor\n${quien} (${telefono})\nÚltimo mensaje: "${texto}"\n\nEntra al CRM para atenderlo.`;
+      const dueno = process.env.OWNER_PHONE;
+      if (dueno) await enviarTextoOPlantilla(dueno, aviso, process.env.WA_TPL_ALERTA, ["Cliente pide un asesor", `${quien}: ${String(texto).slice(0, 60)}`]).catch(() => {});
+      const agObj = lead.agenteAsignado ? (getAgents() || []).find((a) => a.id === lead.agenteAsignado) : null;
+      if (agObj && agObj.telefono && agObj.telefono !== dueno) {
+        await enviarTextoOPlantilla(agObj.telefono, aviso, process.env.WA_TPL_ALERTA, ["Cliente pide un asesor", `${quien}: ${String(texto).slice(0, 60)}`]).catch(() => {});
+      }
+      console.log(`[escalado] ${telefono} pidió asesor -> alerta enviada.`);
     }
   }
 
@@ -880,7 +902,31 @@ app.get("/api/analytics", (req, res) => {
     return d.getFullYear() === ahora.getFullYear() && d.getMonth() === ahora.getMonth();
   };
 
+  // VENTAS: se cuentan de DOS fuentes, sin duplicar —
+  //  (a) las registradas en un lead (botón "Registrar venta"), y
+  //  (b) las marcadas directo en la propiedad (botón de estado -> Vendida).
   const conVenta = leads.filter((l) => l.venta && l.estado === "cerrado");
+  const ventas = conVenta.map((l) => ({
+    monto: l.venta.monto || 0,
+    fecha: l.venta.fecha,
+    agenteId: l.venta.agenteId || l.agenteAsignado || null,
+    propiedadId: l.venta.propiedadId || null,
+    zona: (l.venta.propiedadId && propById[l.venta.propiedadId]?.zona) || l.perfil?.zona || null,
+  }));
+  const yaContadas = new Set(ventas.map((v) => v.propiedadId).filter(Boolean));
+  for (const p of props) {
+    const est = p.estado || (p.disponible === false ? "vendido" : "disponible");
+    if (est !== "vendido" || !p.venta || yaContadas.has(p.id)) continue;
+    // Si es un asesor viendo, solo cuenta las que él vendió.
+    if (req.yo && req.yo.rol !== "dueno" && p.venta.agenteId !== req.yo.id) continue;
+    ventas.push({
+      monto: p.venta.monto || 0,
+      fecha: p.venta.fecha,
+      agenteId: p.venta.agenteId || null,
+      propiedadId: p.id,
+      zona: p.zona || null,
+    });
+  }
   const calificados = leads.filter((l) => l.perfil && (l.perfil.zona || l.perfil.presupuesto));
   const conCita = leads.filter((l) => l.citaProgramada);
 
@@ -889,43 +935,42 @@ app.get("/api/analytics", (req, res) => {
     leads: leads.length,
     calificados: calificados.length,
     citas: conCita.length,
-    ventas: conVenta.length,
+    ventas: ventas.length,
   };
 
   // Totales
-  const ingresos = conVenta.reduce((s, l) => s + (l.venta.monto || 0), 0);
-  const ingresosMes = conVenta.filter((l) => esEsteMes(l.venta.fecha)).reduce((s, l) => s + (l.venta.monto || 0), 0);
+  const ingresos = ventas.reduce((acc, v) => acc + (v.monto || 0), 0);
+  const ingresosMes = ventas.filter((v) => esEsteMes(v.fecha)).reduce((acc, v) => acc + (v.monto || 0), 0);
   const totales = {
-    ventas: conVenta.length,
+    ventas: ventas.length,
     ingresos,
     ingresosMes,
-    ticket: conVenta.length ? Math.round(ingresos / conVenta.length) : 0,
-    conversion: leads.length ? +(conVenta.length / leads.length * 100).toFixed(1) : 0,
+    ticket: ventas.length ? Math.round(ingresos / ventas.length) : 0,
+    conversion: leads.length ? +(ventas.length / leads.length * 100).toFixed(1) : 0,
   };
 
   // Por asesor
   const porAsesor = agentes.map((a) => {
     const susLeads = leads.filter((l) => l.agenteAsignado === a.id);
-    const susVentas = conVenta.filter((l) => (l.venta.agenteId || l.agenteAsignado) === a.id);
+    const susVentas = ventas.filter((v) => v.agenteId === a.id);
     return {
       id: a.id,
       nombre: a.nombre,
       leads: susLeads.length,
       citas: susLeads.filter((l) => l.citaProgramada).length,
       ventas: susVentas.length,
-      ingresos: susVentas.reduce((s, l) => s + (l.venta.monto || 0), 0),
+      ingresos: susVentas.reduce((acc, v) => acc + (v.monto || 0), 0),
     };
   }).sort((x, y) => y.ingresos - x.ingresos);
 
   // Por zona (según la zona de la propiedad vendida; si no, la del perfil del lead)
   const zonaNombre = Object.fromEntries((db.zones || []).map((z) => [z.slug || z.id, z.nombre]));
   const zonasAcc = {};
-  for (const l of conVenta) {
-    const prop = l.venta.propiedadId ? propById[l.venta.propiedadId] : null;
-    const zkey = (prop && prop.zona) || (l.perfil && l.perfil.zona) || "otra";
+  for (const v of ventas) {
+    const zkey = v.zona || "otra";
     if (!zonasAcc[zkey]) zonasAcc[zkey] = { zona: zonaNombre[zkey] || zkey, ventas: 0, ingresos: 0 };
     zonasAcc[zkey].ventas++;
-    zonasAcc[zkey].ingresos += l.venta.monto || 0;
+    zonasAcc[zkey].ingresos += v.monto || 0;
   }
   const porZona = Object.values(zonasAcc).sort((x, y) => y.ingresos - x.ingresos);
 
