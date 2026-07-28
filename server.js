@@ -765,6 +765,32 @@ app.get("/api/leads", (req, res) => {
 
 // Exportar todos los leads a CSV (se abre en Excel). Va ANTES de /:telefono
 // para que "export" no se interprete como un número de teléfono.
+// Descarga TODO el respaldo (el db.json completo). Solo el dueño.
+app.get("/api/backup", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const db = loadDB();
+  const fecha = new Date().toISOString().slice(0, 10);
+  const nombre = (getConfig().nombreAgencia || "agencia").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase();
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="respaldo-${nombre}-${fecha}.json"`);
+  res.send(JSON.stringify(db, null, 2));
+});
+
+// Restaura un respaldo (reemplaza TODO). Solo el dueño. Guarda una copia previa.
+app.post("/api/backup/restaurar", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const nuevo = req.body;
+  if (!nuevo || typeof nuevo !== "object" || !("leads" in nuevo)) {
+    return res.status(400).json({ error: "El archivo no parece un respaldo válido" });
+  }
+  try {
+    const previo = loadDB();
+    fs.writeFileSync(path.join(DATA_DIR, `db-antes-de-restaurar-${Date.now()}.json`), JSON.stringify(previo, null, 2));
+  } catch (e) { console.error("[backup] No pude guardar copia previa:", e.message); }
+  saveDB(nuevo);
+  res.json({ ok: true, leads: Object.keys(nuevo.leads || {}).length, propiedades: (nuevo.properties || []).length });
+});
+
 app.get("/api/leads/export", (req, res) => {
   const db = loadDB();
   const agentesById = Object.fromEntries(db.agents.map((a) => [a.id, a.nombre]));
@@ -950,7 +976,8 @@ app.get("/api/analytics", (req, res) => {
   };
 
   // Por asesor
-  const porAsesor = agentes.map((a) => {
+  const agentesVista = (req.yo && req.yo.rol !== "dueno") ? agentes.filter((a) => a.id === req.yo.id) : agentes;
+  const porAsesor = agentesVista.map((a) => {
     const susLeads = leads.filter((l) => l.agenteAsignado === a.id);
     const susVentas = ventas.filter((v) => v.agenteId === a.id);
     return {
@@ -994,6 +1021,43 @@ app.post("/api/leads/:telefono/notas", (req, res) => {
 });
 
 // Programar / editar / quitar la cita de un lead a mano desde el panel
+// Agenda una cita MANUAL desde el CRM (para clientes que llamaron por teléfono,
+// llegaron a la oficina, etc.). Si el teléfono no existe, crea el lead.
+app.post("/api/citas", (req, res) => {
+  const b = req.body || {};
+  const telefono = String(b.telefono || "").replace(/\D/g, "");
+  const iso = b.cita;
+  if (!telefono || telefono.length < 10) return res.status(400).json({ error: "Teléfono inválido" });
+  if (!iso) return res.status(400).json({ error: "Falta la fecha y hora" });
+
+  let lead = getLead(telefono);
+  const esNuevo = !lead;
+  if (!lead) {
+    lead = upsertLead(telefono, {
+      nombre: b.nombre || null,
+      canal: "whatsapp",
+      estado: "en_atencion",
+      origen: "manual",
+      perfil: b.zona ? { zona: b.zona } : {},
+    });
+  } else if (b.nombre && !lead.nombre) {
+    lead = upsertLead(telefono, { nombre: b.nombre });
+  }
+  // Un asesor solo puede agendar para SUS leads (o para uno nuevo, que se le asigna).
+  if (!esNuevo && !esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
+
+  const agenteId = b.agenteId || (req.yo.rol === "asesor" ? req.yo.id : lead.agenteAsignado) || null;
+  const choque = revisarDisponibilidad(iso, agenteId, telefono);
+  if (choque && !b.forzar) {
+    return res.status(409).json({ error: "No disponible", motivo: choque.motivo });
+  }
+  const patch = { citaProgramada: iso, seguimientos: { ...(lead.seguimientos || {}), recordatorioCita: false } };
+  if (agenteId) patch.agenteAsignado = agenteId;
+  if (b.notas) patch.notas = ((lead.notas || "") + "\n" + b.notas).trim();
+  upsertLead(telefono, patch);
+  res.json({ ok: true, creado: esNuevo, telefono });
+});
+
 app.post("/api/leads/:telefono/cita", (req, res) => {
   const lead = getLead(req.params.telefono);
   if (!lead) return res.status(404).json({ error: "No encontrado" });

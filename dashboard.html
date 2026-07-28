@@ -458,6 +458,9 @@
         <div class="navitem solo-dueno" data-view="agentes" onclick="showView('agentes')"><span class="ic">👥</span> Equipo</div>
         <div class="navitem solo-dueno" data-view="zonas" onclick="showView('zonas')"><span class="ic">📍</span> Zonas</div>
       </div>
+      <button class="temabtn solo-dueno" onclick="descargarRespaldo()" title="Descargar una copia de todos tus datos">💾 Descargar respaldo</button>
+      <button class="temabtn solo-dueno" onclick="document.getElementById('restoreFile').click()" title="Restaurar desde un respaldo">♻️ Restaurar respaldo</button>
+      <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restaurarRespaldo(this.files)">
       <button class="temabtn" onclick="cerrarSesion()" title="Salir">🚪 Cerrar sesión</button>
       <button class="temabtn" id="temaBtn" onclick="toggleTema()" title="Cambiar tema">🌙 Modo oscuro</button>
       <div class="sidefoot">CRM en vivo · se actualiza solo</div>
@@ -557,7 +560,7 @@
       <!-- AGENDA -->
       <section id="view-agenda" class="view hidden">
         <div class="panel">
-          <div class="phead"><h3>Próximas citas</h3></div>
+          <div class="phead" style="display:flex;justify-content:space-between;align-items:center"><h3>Próximas citas</h3><button class="btn gold" onclick="abrirCitaManual()">+ Agendar cita</button></div>
           <div id="agendaHost"><div class="empty" style="border:none">Cargando…</div></div>
         </div>
         <div class="panel" style="margin-top:16px">
@@ -595,6 +598,20 @@
 </div>
 
 <!-- Modal PROPIEDAD -->
+<div class="overlay" id="citaManualOverlay">
+  <div class="modal" style="max-width:520px">
+    <div class="mhead"><h3>Agendar una cita</h3><button class="close" onclick="cerrarCitaManual()">×</button></div>
+    <div class="form">
+      <div class="full"><label>WhatsApp del cliente <span style="font-weight:400;color:var(--muted)">(con código de país, ej. 5215512345678)</span></label><input id="cm_tel" placeholder="5215512345678" oninput="buscarLeadCita()" /></div>
+      <div class="full" id="cm_aviso" style="display:none;font-size:12.5px;color:var(--green,#2e9e4f);margin-top:-6px"></div>
+      <div class="full"><label>Nombre del cliente</label><input id="cm_nombre" placeholder="Ana Pérez" /></div>
+      <div><label>Fecha y hora</label><input type="datetime-local" id="cm_fecha" /></div>
+      <div><label>Asesor</label><select id="cm_agente"></select></div>
+      <div class="full"><label>Nota <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input id="cm_notas" placeholder="Llamó por teléfono, quiere ver la casa de Polanco" /></div>
+    </div>
+    <div class="factions"><button class="btn ghost" onclick="cerrarCitaManual()">Cancelar</button><button class="btn primary" onclick="guardarCitaManual()">Agendar</button></div>
+  </div>
+</div>
 <div class="overlay" id="estadoOverlay">
   <div class="modal" style="max-width:440px">
     <div class="mhead"><h3 id="estadoTitle">Estado de la propiedad</h3><button class="close" onclick="cerrarEstado()">×</button></div>
@@ -913,6 +930,86 @@
     aplicarTema(t);
   })();
 
+  // ---- Agendar cita manual (cliente que llamó, llegó a la oficina, etc.) ----
+  function abrirCitaManual(){
+    ["cm_tel","cm_nombre","cm_fecha","cm_notas"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
+    document.getElementById("cm_aviso").style.display="none";
+    const sel=document.getElementById("cm_agente");
+    const opts=(agentesList||[]).map(a=>`<option value="${a.id}">${escapeHtml(a.nombre)}</option>`).join("");
+    sel.innerHTML=(esDueno()?'<option value="">— asignar por zona —</option>':'')+opts;
+    if(!esDueno()&&YO.id) sel.value=YO.id;
+    sel.disabled=!esDueno();
+    document.getElementById("citaManualOverlay").classList.add("show");
+    setTimeout(()=>document.getElementById("cm_tel").focus(),80);
+  }
+  function cerrarCitaManual(){document.getElementById("citaManualOverlay").classList.remove("show")}
+  async function buscarLeadCita(){
+    const tel=(document.getElementById("cm_tel").value||"").replace(/\D/g,"");
+    const av=document.getElementById("cm_aviso");
+    if(tel.length<10){av.style.display="none";return}
+    try{
+      const r=await fetch("/api/leads/"+tel,{headers:AH()});
+      if(r.ok){
+        const l=await r.json();
+        if(l.nombre&&!document.getElementById("cm_nombre").value) document.getElementById("cm_nombre").value=l.nombre;
+        if(l.agenteAsignado&&esDueno()) document.getElementById("cm_agente").value=l.agenteAsignado;
+        av.textContent="✓ Ya es tu cliente: "+(l.nombre||tel)+(l.citaProgramada?" · ya tiene una cita, se reemplazará":"");
+        av.style.display="block";
+      } else if(r.status===403){ av.textContent="⚠️ Ese cliente está asignado a otro asesor."; av.style.display="block"; }
+      else { av.textContent="Cliente nuevo — se dará de alta al agendar."; av.style.display="block"; }
+    }catch(e){}
+  }
+  async function guardarCitaManual(forzar){
+    const telefono=(document.getElementById("cm_tel").value||"").replace(/\D/g,"");
+    const v=document.getElementById("cm_fecha").value;
+    if(telefono.length<10){toast("Pon el WhatsApp completo");return}
+    if(!v){toast("Elige fecha y hora");return}
+    const body={telefono,nombre:document.getElementById("cm_nombre").value||null,
+      cita:new Date(v).toISOString(),agenteId:document.getElementById("cm_agente").value||null,
+      notas:document.getElementById("cm_notas").value||null,forzar:!!forzar};
+    try{
+      const r=await fetch("/api/citas",{method:"POST",headers:JH(),body:JSON.stringify(body)});
+      const j=await r.json();
+      if(r.status===409){
+        if(confirm("Ese horario no está disponible ("+(j.motivo||"ocupado")+").\n\n¿Agendar de todos modos?")) return guardarCitaManual(true);
+        return;
+      }
+      if(!r.ok){toast(j.error||"No se pudo agendar");return}
+      toast(j.creado?"Cita agendada y cliente dado de alta ✓":"Cita agendada ✓");
+      cerrarCitaManual(); cargarAgenda(); cargarLeads();
+    }catch(e){toast("Error de conexión")}
+  }
+
+  // ---- Respaldo de datos ----
+  async function descargarRespaldo(){
+    try{
+      const r=await fetch("/api/backup",{headers:AH()});
+      if(!r.ok){toast("No se pudo descargar");return}
+      const blob=await r.blob();
+      const cd=r.headers.get("Content-Disposition")||"";
+      const m=cd.match(/filename="([^"]+)"/);
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);
+      a.download=m?m[1]:("respaldo-"+new Date().toISOString().slice(0,10)+".json");
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      toast("Respaldo descargado ✓");
+    }catch(e){toast("Error de conexión")}
+  }
+  async function restaurarRespaldo(files){
+    const f=files&&files[0]; if(!f)return;
+    if(!confirm("Esto REEMPLAZA todos los datos actuales por los del respaldo. ¿Seguro?"))return;
+    try{
+      const txt=await f.text();
+      const datos=JSON.parse(txt);
+      const r=await fetch("/api/backup/restaurar",{method:"POST",headers:JH(),body:JSON.stringify(datos)});
+      const j=await r.json();
+      if(!r.ok){toast(j.error||"No se pudo restaurar");return}
+      toast(`Restaurado ✓ (${j.leads} leads, ${j.propiedades} propiedades)`);
+      setTimeout(()=>location.reload(),1200);
+    }catch(e){toast("El archivo no es válido")}
+  }
+
   // ---- Filtros desplegables ----
   function toggleFiltros(id,btn){
     const el=document.getElementById(id); if(!el)return;
@@ -1180,11 +1277,9 @@ pintarChat(l);
     const botCtrl=l.humanoEnControl
       ? `<button class="btn primary" onclick="devolverControl('${l.telefono}')">↩ Reactivar bot</button>`
       : `<button class="btn ghost" onclick="tomarControl('${l.telefono}')">Pausar bot</button>`;
-    const canal=l.canal||'whatsapp';
-    const responderBtn=(canal==='whatsapp')
-      ? `<a class="btn ghost" style="text-decoration:none;text-align:center" href="https://wa.me/${l.telefono}" target="_blank">Abrir WhatsApp</a>`
-      : `<a class="btn ghost" style="text-decoration:none;text-align:center" href="https://business.facebook.com/latest/inbox" target="_blank">Abrir ${canalNombre[canal]}</a>`;
-    document.getElementById("mActions").innerHTML=`${botCtrl}${responderBtn}`;
+    // El chat se atiende DESDE el CRM (pausando el bot). No mandamos al usuario
+    // fuera de la app: wa.me abre otra conversación y no sirve con la API oficial.
+    document.getElementById("mActions").innerHTML=`${botCtrl}`;
     document.getElementById("leadOverlay").classList.add("show");
     const sc=document.querySelector(".mscroll"); if(sc&&!noScroll) sc.scrollTop=sc.scrollHeight;
   }
