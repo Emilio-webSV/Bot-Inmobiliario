@@ -25,6 +25,7 @@ import { enviarTexto, enviarImagen, enviarTextoOPlantilla, enviarPlantilla, envi
 import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal, enviarUbicacionCanal } from "./canales.js";
 import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./vision.js";
 import { enviarCorreo, plantillaHTML, extraerEmail, correoActivo } from "./email.js";
+import { alertarDev, instalarCazadorDeErrores, alertasActivas, destinoAlertas } from "./alertas.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
@@ -223,6 +224,12 @@ function encolarMensaje(telefono, texto, nombre, canal) {
 // las palomitas (enviado ✓ / entregado ✓✓ / leído ✓✓ azul).
 async function enviarYRegistrar(canal, telefono, texto, rol = "bot") {
   const r = await enviarTextoCanal(canal, telefono, texto);
+  // Si WhatsApp está caído o el token murió, el bot deja de contestarle a TODOS.
+  // Es el error más grave posible: hay que enterarse de inmediato.
+  if (r && r.error && [190, 131031, 100].includes(r.code)) {
+    alertarDev("whatsapp_caido", "🔴 WhatsApp dejó de funcionar", r.motivo || "Error al enviar",
+      "critico", "El bot NO le está contestando a nadie. Revisa el token o la cuenta en Meta YA.");
+  }
   const msgId = r?.messages?.[0]?.id || null;
   pushHistorial(telefono, rol, texto, msgId ? { estado: "enviado", msgId } : {});
   return r;
@@ -1195,7 +1202,7 @@ app.post("/api/iniciar-conversacion", async (req, res) => {
 
   const r = await enviarPlantilla(telefono, plantilla, [nombre || "", config.nombreAgencia || "la inmobiliaria"]);
   if (r && r.error) {
-    return res.json({ ok: false, error: "WhatsApp rechazó el mensaje. Revisa que la plantilla esté APROBADA en Meta y que el número sea válido." });
+    return res.json({ ok: false, error: r.motivo || "WhatsApp rechazó el mensaje." });
   }
 
   // Creamos el lead para que aparezca en el CRM y guardamos el mensaje enviado.
@@ -1573,7 +1580,16 @@ async function correrCampana(campId) {
         [pend.nombre || "", config.nombreAgencia || "la inmobiliaria"]);
 
       if (r && r.error) {
-        marcarContacto(campId, pend.telefono, "error", "WhatsApp rechazó el envío");
+        marcarContacto(campId, pend.telefono, "error", r.motivo || "WhatsApp rechazó el envío");
+        // Si el error es de cuenta/token/plantilla, no tiene caso seguir: se pausa
+        // y se avisa, en vez de quemar toda la lista con el mismo problema.
+        const fatales = [132001, 132015, 132016, 131031, 190, 100];
+        if (fatales.includes(r.code)) {
+          actualizarCampana(campId, { estado: "pausada", notaPausa: r.motivo || "Error de configuración" });
+          alertarDev(`campana_${r.code}`, "Se detuvo una campaña", `Campaña: "${c.nombre}"\nError ${r.code}: ${r.motivo}`,
+            "alto", "Entra al CRM → Campañas para reanudarla cuando lo arregles.");
+          break;
+        }
       } else {
         marcarContacto(campId, pend.telefono, "enviado");
         upsertLead(pend.telefono, { nombre: pend.nombre || null, canal: "whatsapp", origen: "campaña" });
@@ -1648,6 +1664,32 @@ app.delete("/api/campanas/:id", (req, res) => {
   res.json({ ok: borrarCampana(req.params.id) });
 });
 
+// Estado del sistema: para revisar de un vistazo que todo esté bien.
+app.get("/api/salud", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const db = loadDB();
+  res.json({
+    ok: true,
+    agencia: getConfig().nombreAgencia,
+    whatsapp: Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID),
+    ia: { proveedor: (process.env.IA_PROVIDER || "groq"), gemini: Boolean(process.env.GEMINI_API_KEY), groq: Boolean(process.env.GROQ_API_KEY) },
+    correo: correoActivo(),
+    alertas: alertasActivas() ? destinoAlertas() : false,
+    datos: { leads: Object.keys(db.leads || {}).length, propiedades: (db.properties || []).length, asesores: (db.agents || []).length, campanas: (db.campanas || []).length },
+    discoPersistente: Boolean(process.env.DATA_DIR),
+    tiempoEncendido: Math.round(process.uptime() / 60) + " min",
+  });
+});
+
+// Probar que las alertas te llegan (mándate una a ti mismo).
+app.get("/api/test/alerta", async (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  if (!alertasActivas()) return res.json({ ok: false, error: "Falta configurar DEV_PHONE o DEV_EMAIL en Railway." });
+  await alertarDev("prueba_" + Date.now(), "Prueba de alerta", "Si estás leyendo esto, las alertas funcionan correctamente.",
+    "medio", "No tienes que hacer nada, era una prueba.");
+  res.json({ ok: true, mensaje: "Alerta enviada a " + JSON.stringify(destinoAlertas()) });
+});
+
 app.get("/api/test/reporte", async (req, res) => {
   if (!checarAdmin(req, res)) return;
   const r = await enviarReporteAhora();
@@ -1715,7 +1757,8 @@ app.get("/", (req, res) => res.send("Bot inmobiliario activo ✅. Ve a /dashboar
 // ---------------------------------------------------------------------------
 app.listen(PORT, () => {
   seedAgentesDemo();       // crea agentes de ejemplo si no hay
-  seedPropiedadesDemo();
+  instalarCazadorDeErrores();
+seedPropiedadesDemo();
 backfillCoordsDemo();   // crea propiedades de ejemplo si no hay
   seedZonasDemo();         // crea zonas de ejemplo si no hay
   iniciarCronJobs();       // activa seguimientos automáticos

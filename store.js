@@ -52,6 +52,8 @@ export function loadDB() {
     return { ...DEFAULT_DB, ...db, config: { ...DEFAULT_DB.config, ...db.config } };
   } catch (err) {
     console.error("[store] Error leyendo DB, regenerando:", err.message);
+    import("./alertas.js").then((m) => m.alertarDev("db_corrupta", "🔴 La base de datos se corrompió",
+      err.message, "critico", "Se regeneró vacía. Restaura el último respaldo desde el CRM CUANTO ANTES.")).catch(() => {});
     fs.writeFileSync(DB_FILE, JSON.stringify(DEFAULT_DB, null, 2));
     return structuredClone(DEFAULT_DB);
   }

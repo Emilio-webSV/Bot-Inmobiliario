@@ -407,7 +407,13 @@ export async function generarRespuesta({ config, lead, propiedadesCtx }) {
     }
   }
 
-  // Si llegamos aquí, ningún proveedor pudo responder.
+  // Si llegamos aquí, ningún proveedor pudo responder: el bot está mudo.
   console.error("[ia] Todos los proveedores fallaron.");
+  try {
+    const { alertarDev } = await import("./alertas.js");
+    alertarDev("ia_caida", "🔴 El bot se quedó sin cerebro",
+      `Fallaron TODOS los proveedores de IA (${PROVIDERS.map((p) => p.nombre).join(", ")}).`,
+      "critico", "Revisa las cuotas en ai.dev/rate-limit y console.groq.com. El bot está respondiendo con un mensaje genérico.");
+  } catch (e) { /* nunca romper por la alerta */ }
   return "Dame un segundo y me escribes de nuevo, por favor 🙂";
 }

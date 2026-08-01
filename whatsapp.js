@@ -131,6 +131,40 @@ export async function enviarDocumento(to, urlDoc, filename = "archivo", caption 
   return enviar(body, to);
 }
 
+// Traduce los errores de Meta a algo que un humano entienda y pueda arreglar.
+export function traducirErrorMeta(code, detalle = "") {
+  const d = String(detalle).toLowerCase();
+  if (code === 131030 || d.includes("not in allowed list"))
+    return "Estás usando el NÚMERO DE PRUEBA de Meta: solo puede escribirle a números que hayas autorizado. Agrega ese número en Meta (WhatsApp → API Setup → 'To') o usa ya un número real verificado.";
+  if (code === 132001 || d.includes("template name does not exist") || d.includes("template not found"))
+    return "Esa plantilla NO existe o no está aprobada en Meta. Revisa el nombre exacto en WhatsApp Manager → Plantillas de mensajes (debe ir en minúsculas y con guiones bajos).";
+  if (code === 132000 || d.includes("number of parameters"))
+    return "La plantilla espera un número distinto de variables. Revisa cuántas {{1}}, {{2}} tiene en Meta.";
+  if (code === 132005 || d.includes("hydrated_text"))
+    return "El texto de la plantilla es demasiado largo o tiene formato no permitido.";
+  if (code === 132012 || d.includes("parameter format"))
+    return "El formato de las variables de la plantilla no coincide con lo aprobado en Meta.";
+  if (code === 132015 || d.includes("template is paused"))
+    return "Meta PAUSÓ esa plantilla por mala calidad (mucha gente la reportó o la bloqueó). Crea una nueva con otro texto.";
+  if (code === 132016 || d.includes("template is disabled"))
+    return "Meta DESHABILITÓ esa plantilla. Tienes que crear una nueva.";
+  if (code === 131026 || d.includes("message undeliverable"))
+    return "Ese número no tiene WhatsApp, o no puede recibir mensajes.";
+  if (code === 131047 || d.includes("re-engagement"))
+    return "Pasaron más de 24 h desde el último mensaje del cliente: solo se puede escribir con plantilla aprobada.";
+  if (code === 131056 || d.includes("pair rate limit"))
+    return "Le has escrito demasiadas veces seguidas a ese mismo número. Espera un rato.";
+  if (code === 130429 || d.includes("rate limit"))
+    return "Se alcanzó el límite de mensajes por hora de WhatsApp. Baja el ritmo de la campaña o espera.";
+  if (code === 131031 || d.includes("account has been locked"))
+    return "⚠️ La cuenta de WhatsApp fue restringida por Meta. Entra a WhatsApp Manager para ver el motivo.";
+  if (code === 190 || d.includes("access token"))
+    return "El token de WhatsApp expiró o es inválido. Genera uno permanente en Meta y actualiza WHATSAPP_TOKEN.";
+  if (code === 100 && d.includes("phone_number_id"))
+    return "El WHATSAPP_PHONE_ID no es correcto. Cópialo de nuevo desde Meta.";
+  return detalle ? `WhatsApp rechazó el envío: ${detalle}` : "WhatsApp rechazó el envío (sin detalle)";
+}
+
 async function enviar(body, to) {
   try {
     const res = await fetch(baseUrl(), {
@@ -142,13 +176,19 @@ async function enviar(body, to) {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      const err = await res.text();
-      console.error("[whatsapp] Error envío:", res.status, err);
-      return { error: true };
+      const txt = await res.text();
+      console.error("[whatsapp] Error envío:", res.status, txt);
+      let code = null, detalle = "";
+      try {
+        const j = JSON.parse(txt);
+        code = j?.error?.code ?? null;
+        detalle = j?.error?.error_data?.details || j?.error?.message || "";
+      } catch (e) { detalle = txt.slice(0, 160); }
+      return { error: true, code, motivo: traducirErrorMeta(code, detalle), detalle };
     }
     return await res.json();
   } catch (err) {
     console.error("[whatsapp] Excepción:", err.message);
-    return { error: true };
+    return { error: true, motivo: "No se pudo conectar con WhatsApp" };
   }
 }
