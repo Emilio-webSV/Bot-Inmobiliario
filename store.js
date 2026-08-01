@@ -22,12 +22,17 @@ const DEFAULT_DB = {
   agents: [],       // [ { id, nombre, telefono, zonas: [], activo } ]
   properties: [],   // [ { id, titulo, zona, tipo, operacion, precio, ... } ]
   zones: [],        // [ { id, nombre, aliases: [], precioM2, nota, activa } ]
-  blocks: [],       // [ { id, agenteId, fecha, horaInicio, horaFin, motivo } ] horarios NO disponibles
+  blocks: [],
+  campanas: [],      // [{ id, nombre, plantilla, contactos:[], estado, ... }] prospección saliente       // [ { id, agenteId, fecha, horaInicio, horaFin, motivo } ] horarios NO disponibles
   config: {
     nombreAgencia: "Inmobiliaria Demo",
     tono: "profesional y cálido", // formal | relajado | lujoso
     idiomaDefault: "es",
     brandColor: "#d9a526", // color de acento del CRM (personalizable)
+    // Parámetros para calcular el retorno de inversión (editables desde el CRM)
+    roiComision: 4,        // % de comisión promedio de la agencia
+    roiMensualidad: 3000,  // lo que paga por el servicio al mes
+    roiMinutosPorLead: 8,  // minutos que le tomaría a un humano atender ese lead
   },
 };
 
@@ -178,6 +183,96 @@ export function actualizarEstadoMensaje(msgId, estado) {
     }
   }
   return false;
+}
+
+// ---- Campañas de prospección saliente --------------------------------------
+// Mandarle el PRIMER mensaje a una lista de contactos, usando una plantilla
+// aprobada por Meta. Se envían despacio a propósito: si mandas cientos de golpe,
+// WhatsApp lo marca como spam y te puede limitar el número.
+
+export function getCampanas() { return loadDB().campanas || []; }
+export function getCampana(id) { return (loadDB().campanas || []).find((c) => c.id === id) || null; }
+
+export function crearCampana(data) {
+  const db = loadDB();
+  db.campanas = db.campanas || [];
+  const vistos = new Set();
+  const contactos = (data.contactos || []).map((c) => {
+    let tel = String(c.telefono || "").replace(/\D/g, "");
+    if (tel.length === 10) tel = "521" + tel;               // México: 10 dígitos -> 521
+    else if (tel.length === 12 && tel.startsWith("52")) tel = "521" + tel.slice(2);
+    return { telefono: tel, nombre: (c.nombre || "").trim() };
+  }).filter((c) => {
+    if (c.telefono.length < 12 || vistos.has(c.telefono)) return false;  // sin duplicados
+    vistos.add(c.telefono);
+    return true;
+  }).map((c) => ({ ...c, estado: "pendiente", error: null, enviadoEn: null }));
+
+  const camp = {
+    id: "cmp_" + Date.now().toString(36),
+    nombre: data.nombre || "Campaña sin nombre",
+    plantilla: data.plantilla || "",
+    ritmoSegundos: Math.max(5, Number(data.ritmoSegundos) || 10), // mínimo 5s entre mensajes
+    maxPorDia: Math.min(Number(data.maxPorDia) || 100, 250),      // tope diario prudente
+    contactos,
+    estado: "borrador",     // borrador | enviando | pausada | terminada
+    creada: new Date().toISOString(),
+    iniciada: null,
+    enviadosHoy: 0,
+    diaContador: new Date().toISOString().slice(0, 10),
+  };
+  db.campanas.push(camp);
+  saveDB(db);
+  return camp;
+}
+
+export function actualizarCampana(id, patch) {
+  const db = loadDB();
+  const i = (db.campanas || []).findIndex((c) => c.id === id);
+  if (i === -1) return null;
+  db.campanas[i] = { ...db.campanas[i], ...patch, id };
+  saveDB(db);
+  return db.campanas[i];
+}
+
+export function borrarCampana(id) {
+  const db = loadDB();
+  const antes = (db.campanas || []).length;
+  db.campanas = (db.campanas || []).filter((c) => c.id !== id);
+  saveDB(db);
+  return db.campanas.length < antes;
+}
+
+// Marca el resultado de un contacto dentro de una campaña.
+export function marcarContacto(campId, telefono, estado, error) {
+  const db = loadDB();
+  const c = (db.campanas || []).find((x) => x.id === campId);
+  if (!c) return null;
+  const ct = c.contactos.find((x) => x.telefono === telefono);
+  if (!ct) return null;
+  ct.estado = estado;
+  ct.error = error || null;
+  if (estado === "enviado") {
+    ct.enviadoEn = new Date().toISOString();
+    const hoy = new Date().toISOString().slice(0, 10);
+    if (c.diaContador !== hoy) { c.diaContador = hoy; c.enviadosHoy = 0; }
+    c.enviadosHoy = (c.enviadosHoy || 0) + 1;
+  }
+  saveDB(db);
+  return c;
+}
+
+// Cuando un cliente CONTESTA, lo marcamos en la campaña de la que salió.
+export function marcarRespuestaCampana(telefono) {
+  const db = loadDB();
+  let cambio = false;
+  for (const c of (db.campanas || [])) {
+    for (const ct of c.contactos) {
+      if (ct.telefono === telefono && ct.estado === "enviado") { ct.estado = "respondio"; cambio = true; }
+    }
+  }
+  if (cambio) saveDB(db);
+  return cambio;
 }
 
 // ---- Helpers de agentes ---------------------------------------------------

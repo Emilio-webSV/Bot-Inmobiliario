@@ -18,11 +18,13 @@ import {
   getAgents, updateConfig, createAgent, updateAgent, deleteAgent,
   getBlocks, createBlock, deleteBlock,
   getZones, createZone, updateZone, deleteZone, zonaEnUso, seedZonasDemo,
+  getCampanas, getCampana, crearCampana, actualizarCampana, borrarCampana, marcarContacto, marcarRespuestaCampana,
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
 import { enviarTexto, enviarImagen, enviarTextoOPlantilla, enviarPlantilla, enviarDocumento } from "./whatsapp.js";
 import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal, enviarUbicacionCanal } from "./canales.js";
 import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./vision.js";
+import { enviarCorreo, plantillaHTML, extraerEmail, correoActivo } from "./email.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
@@ -464,6 +466,13 @@ function extraerNombre(texto) {
   return { nombre, textoLimpio: texto.replace(m[0], "").trim() };
 }
 
+// Detecta [EMAIL: correo@x.com] que el bot pone cuando el cliente da su correo.
+function extraerCorreo(texto) {
+  const m = texto.match(/\[EMAIL:\s*([^\]]+)\]/i);
+  if (!m) return null;
+  return { email: extraerEmail(m[1]), textoLimpio: texto.replace(m[0], "").trim() };
+}
+
 // Detecta [ASESOR: Nombre] que el bot pone cuando el cliente elige asesor.
 // Devuelve el id del asesor (si coincide con la lista) y el texto ya sin etiqueta.
 function extraerAsesor(texto) {
@@ -494,6 +503,7 @@ function limpiarEtiquetas(texto) {
     .replace(/\[\s*UBICACION\b[^\]]*\]?/gi, "")
     .replace(/\[\s*ASESOR\b[^\]]*\]?/gi, "")
     .replace(/\[\s*ESCALAR\s*\]?/gi, "")
+    .replace(/\[\s*EMAIL\b[^\]]*\]?/gi, "")
     .replace(/[ \t]{2,}/g, " ")                // dobles espacios que queden
     .replace(/[ \t]+([.,;:!?])/g, "$1")         // espacio suelto antes de un signo
     .replace(/\n{3,}/g, "\n\n")
@@ -534,6 +544,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
 
   // Guarda el mensaje del cliente en el historial
   pushHistorial(telefono, "user", texto);
+  marcarRespuestaCampana(telefono); // si venía de una campaña, cuenta como respuesta
 
   // 1) ¿Está frustrado? -> escalar a humano y no seguir con el bot
   const fr = analizarFrustracion(texto);
@@ -589,6 +600,16 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     respuesta = asesorPick.textoLimpio;
     if (asesorPick.agenteId && asesorPick.agenteId !== lead.agenteAsignado) {
       lead = upsertLead(telefono, { agenteAsignado: asesorPick.agenteId });
+    }
+  }
+
+  // 5a-mail) ¿El cliente dio su correo? Lo guardamos y le mandamos la bienvenida.
+  const mailPick = extraerCorreo(respuesta);
+  if (mailPick) {
+    respuesta = mailPick.textoLimpio;
+    if (mailPick.email && mailPick.email !== lead.email) {
+      lead = upsertLead(telefono, { email: mailPick.email });
+      enviarBienvenidaCorreo(lead, config).catch(() => {});
     }
   }
 
@@ -654,6 +675,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
           cuerpo += fechaTxt;
         }
         const aviso = `${titulo}\n${cuerpo}\n\n➕ Agrégala a tu calendario:\n${link}`;
+        enviarCorreoCita(getLead(telefono), cita.iso, config, esReagenda).catch(() => {});
         const dueno = process.env.OWNER_PHONE;
         if (dueno) await enviarTextoOPlantilla(dueno, aviso, process.env.WA_TPL_ALERTA, [titulo.replace(/[^\p{L}\s]/gu, "").trim(), `${lead.nombre || telefono} - ${fechaTxt}`]).catch(() => {});
         // También al asesor asignado, si tiene teléfono (y no es el mismo del dueño)
@@ -1307,6 +1329,325 @@ app.delete("/api/zones/:id", (req, res) => {
 // ---------------------------------------------------------------------------
 // 5) ENDPOINTS DE PRUEBA (para disparar alertas/reportes cuando quieras)
 // ---------------------------------------------------------------------------
+// ===========================================================================
+// CORREO — el respaldo perfecto de WhatsApp. Después de 24 h Meta ya no deja
+// escribir libre, pero el correo siempre llega.
+// ===========================================================================
+async function enviarBienvenidaCorreo(lead, config) {
+  if (!correoActivo() || !lead.email) return;
+  const p = lead.perfil || {};
+  const detalles = [
+    p.zona ? `Zona: ${p.zona}` : null,
+    p.presupuesto ? `Presupuesto: $${p.presupuesto.toLocaleString("es-MX")} MXN` : null,
+    p.recamaras ? `Recámaras: ${p.recamaras}` : null,
+  ].filter(Boolean).join(" · ");
+
+  const html = plantillaHTML({
+    agencia: config.nombreAgencia || "la agencia",
+    logoUrl: config.logoUrl || process.env.LOGO_URL || "",
+    color: config.brandColor,
+    titulo: "Gracias por escribirnos",
+    saludo: `Hola${lead.nombre ? " " + lead.nombre : ""},`,
+    cuerpo: `Guardamos tu correo para mandarte las fichas de las propiedades que te interesen, con fotos y todos los detalles.
+${detalles ? "Esto es lo que buscas: " + detalles : ""}
+Seguimos por WhatsApp cuando quieras.`,
+    pie: `${config.nombreAgencia || "La agencia"} — puedes responder este correo si prefieres.`,
+  });
+  await enviarCorreo({ para: lead.email, asunto: `Gracias por escribirnos — ${config.nombreAgencia || "tu agencia"}`, html });
+  pushHistorial(lead.telefono, "bot", "📩 (Correo de bienvenida enviado)");
+}
+
+// Correo de confirmación de cita
+async function enviarCorreoCita(lead, iso, config, esReagenda) {
+  if (!correoActivo() || !lead.email) return;
+  const fechaTxt = new Date(iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  const ag = lead.agenteAsignado ? (getAgents() || []).find((a) => a.id === lead.agenteAsignado) : null;
+  const html = plantillaHTML({
+    agencia: config.nombreAgencia || "la agencia",
+    logoUrl: config.logoUrl || process.env.LOGO_URL || "",
+    color: config.brandColor,
+    titulo: esReagenda ? "Tu visita quedó reagendada" : "¡Tu visita está confirmada!",
+    saludo: `Hola${lead.nombre ? " " + lead.nombre : ""},`,
+    cuerpo: `Te esperamos el ${fechaTxt}.
+${ag ? "Te va a atender " + ag.nombre + "." : ""}
+Si necesitas cambiarla, contéstanos por WhatsApp y la movemos sin problema.`,
+    cta: "Agregar a mi calendario",
+    ctaUrl: gcalLink(iso, `Visita — ${config.nombreAgencia || "propiedad"}`, `Cita agendada. ${ag ? "Asesor: " + ag.nombre : ""}`),
+    pie: `${config.nombreAgencia || "La agencia"} — nos vemos pronto.`,
+  });
+  await enviarCorreo({ para: lead.email, asunto: `${esReagenda ? "Cita reagendada" : "Cita confirmada"}: ${fechaTxt}`, html });
+  pushHistorial(lead.telefono, "bot", "📩 (Correo de confirmación de cita enviado)");
+}
+
+// Enviar un correo a mano desde el CRM
+app.post("/api/leads/:telefono/correo", async (req, res) => {
+  const lead = getLead(req.params.telefono);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
+  if (!correoActivo()) return res.status(400).json({ error: "Falta configurar el correo (RESEND_API_KEY)" });
+  const destino = (req.body?.email || lead.email || "").trim();
+  const asunto = String(req.body?.asunto || "").trim();
+  const cuerpo = String(req.body?.cuerpo || "").trim();
+  if (!extraerEmail(destino)) return res.status(400).json({ error: "El correo no es válido" });
+  if (!asunto || !cuerpo) return res.status(400).json({ error: "Falta asunto o mensaje" });
+
+  const config = getConfig();
+  const html = plantillaHTML({
+    agencia: config.nombreAgencia || "la agencia",
+    logoUrl: config.logoUrl || process.env.LOGO_URL || "",
+    color: config.brandColor,
+    titulo: asunto, saludo: `Hola${lead.nombre ? " " + lead.nombre : ""},`,
+    cuerpo, pie: `${config.nombreAgencia || "La agencia"} — puedes responder este correo.`,
+  });
+  const r = await enviarCorreo({ para: destino, asunto, html });
+  if (r.error) return res.status(502).json({ error: r.motivo || "No se pudo enviar" });
+  if (!lead.email) upsertLead(req.params.telefono, { email: destino });
+  pushHistorial(req.params.telefono, "bot", `📩 ${asunto}`);
+  res.json({ ok: true, simulado: !!r.simulado });
+});
+
+// Guardar/actualizar el correo de un lead
+app.post("/api/leads/:telefono/email", (req, res) => {
+  const lead = getLead(req.params.telefono);
+  if (!lead) return res.status(404).json({ error: "No encontrado" });
+  if (!esMiLead(req, lead)) return res.status(403).json({ error: "Este lead no es tuyo" });
+  const mail = extraerEmail(req.body?.email || "");
+  if (req.body?.email && !mail) return res.status(400).json({ error: "El correo no es válido" });
+  upsertLead(req.params.telefono, { email: mail });
+  res.json({ ok: true, email: mail });
+});
+
+app.get("/api/correo/estado", (req, res) => {
+  res.json({ activo: correoActivo(), remitente: process.env.EMAIL_FROM || "onboarding@resend.dev" });
+});
+
+// ===========================================================================
+// ROI — lo que el sistema le está devolviendo al cliente, con datos REALES.
+// Todo sale del historial del CRM; los supuestos (comisión, minutos por lead)
+// son editables y se muestran al usuario para que sea transparente.
+// ===========================================================================
+app.get("/api/roi", (req, res) => {
+  const db = loadDB();
+  const cfg = getConfig();
+  const comision = Number(cfg.roiComision) || 4;
+  const mensualidad = Number(cfg.roiMensualidad) || 3000;
+  const minPorLead = Number(cfg.roiMinutosPorLead) || 8;
+  const leads = misLeads(req, Object.values(db.leads || {}));
+
+  // ¿Está fuera del horario de oficina? (L-S 9:00-19:00, hora de México)
+  const fueraDeHorario = (iso) => {
+    const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/Mexico_City", weekday: "short", hour: "2-digit", hour12: false }).formatToParts(new Date(iso));
+    const dia = p.find((x) => x.type === "weekday").value;
+    const hora = parseInt(p.find((x) => x.type === "hour").value, 10);
+    return dia === "Sun" || hora < 9 || hora >= 19;
+  };
+
+  let msgsCliente = 0, msgsBot = 0, msgsFuera = 0, leadsRescatados = 0, msTotalRespuesta = 0, nRespuestas = 0;
+  const porHora = Array(24).fill(0);
+
+  for (const l of leads) {
+    const h = l.historial || [];
+    let primero = null;
+    for (let i = 0; i < h.length; i++) {
+      const m = h[i];
+      if (m.rol === "user") {
+        msgsCliente++;
+        if (!primero) primero = m.ts;
+        if (m.ts && fueraDeHorario(m.ts)) msgsFuera++;
+        if (m.ts) {
+          const hr = parseInt(new Intl.DateTimeFormat("en-US", { timeZone: "America/Mexico_City", hour: "2-digit", hour12: false }).format(new Date(m.ts)), 10);
+          porHora[hr % 24]++;
+        }
+        // Tiempo hasta la respuesta del bot
+        const sig = h[i + 1];
+        if (sig && sig.rol === "bot" && m.ts && sig.ts) {
+          const d = new Date(sig.ts) - new Date(m.ts);
+          if (d >= 0 && d < 10 * 60 * 1000) { msTotalRespuesta += d; nRespuestas++; }
+        }
+      } else if (m.rol === "bot") msgsBot++;
+    }
+    // Un lead "rescatado" es el que escribió POR PRIMERA VEZ fuera de horario:
+    // si no hubiera bot, ese mensaje habría esperado hasta el día siguiente.
+    if (primero && fueraDeHorario(primero)) leadsRescatados++;
+  }
+
+  const conCita = leads.filter((l) => l.citaProgramada).length;
+  const pipeline = leads.filter((l) => l.perfil?.presupuesto && l.estado !== "perdido")
+    .reduce((sum, l) => sum + l.perfil.presupuesto, 0);
+
+  // Ventas cerradas (mismas dos fuentes que el análisis)
+  const props = db.properties || [];
+  const ventasLead = leads.filter((l) => l.venta && l.estado === "cerrado");
+  const idsContados = new Set(ventasLead.map((l) => l.venta.propiedadId).filter(Boolean));
+  let montoVendido = ventasLead.reduce((s, l) => s + (l.venta.monto || 0), 0);
+  let nVentas = ventasLead.length;
+  for (const p of props) {
+    const est = p.estado || (p.disponible === false ? "vendido" : "disponible");
+    if (est !== "vendido" || !p.venta || idsContados.has(p.id)) continue;
+    if (req.yo && req.yo.rol !== "dueno" && p.venta.agenteId !== req.yo.id) continue;
+    montoVendido += p.venta.monto || 0; nVentas++;
+  }
+
+  // Meses que lleva operando (mínimo 1)
+  const fechas = leads.map((l) => l.creado).filter(Boolean).sort();
+  const desde = fechas[0] ? new Date(fechas[0]) : new Date();
+  const meses = Math.max(1, Math.ceil((Date.now() - desde.getTime()) / (30 * 24 * 3600 * 1000)));
+
+  const horasAhorradas = +((msgsCliente * minPorLead) / 60).toFixed(1);
+  const comisionGenerada = Math.round(montoVendido * (comision / 100));
+  const invertido = mensualidad * meses;
+  const roi = invertido ? +(comisionGenerada / invertido).toFixed(1) : 0;
+  const valorPipeline = Math.round(pipeline * (comision / 100));
+  const segRespuesta = nRespuestas ? Math.round(msTotalRespuesta / nRespuestas / 1000) : 0;
+
+  res.json({
+    supuestos: { comision, mensualidad, minPorLead, meses },
+    atencion: {
+      mensajesCliente: msgsCliente, mensajesBot: msgsBot,
+      mensajesFueraDeHorario: msgsFuera,
+      porcentajeFuera: msgsCliente ? +(msgsFuera / msgsCliente * 100).toFixed(1) : 0,
+      leadsRescatados, tiempoRespuestaSeg: segRespuesta, horasAhorradas,
+    },
+    resultados: {
+      leads: leads.length, citas: conCita, ventas: nVentas,
+      montoVendido, comisionGenerada, pipeline, valorPipeline,
+    },
+    retorno: { invertido, roi, mesesOperando: meses },
+    porHora,
+  });
+});
+
+app.put("/api/roi/supuestos", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const b = req.body || {};
+  const cfg = updateConfig({
+    roiComision: Math.min(Math.max(Number(b.comision) || 4, 0.5), 20),
+    roiMensualidad: Math.max(Number(b.mensualidad) || 3000, 0),
+    roiMinutosPorLead: Math.min(Math.max(Number(b.minPorLead) || 8, 1), 60),
+  });
+  res.json({ ok: true, config: cfg });
+});
+
+// ===========================================================================
+// PROSPECCIÓN SALIENTE — campañas de primer contacto
+// ---------------------------------------------------------------------------
+// Manda la PRIMERA plantilla a una lista. Va DESPACIO a propósito: si se mandan
+// cientos de mensajes de golpe, WhatsApp lo detecta como spam y puede limitar o
+// tumbar el número del cliente. Mejor tardar y no arriesgar su cuenta.
+// ===========================================================================
+const campanasCorriendo = new Set();
+
+async function correrCampana(campId) {
+  if (campanasCorriendo.has(campId)) return;
+  campanasCorriendo.add(campId);
+  try {
+    const config = getConfig();
+    while (true) {
+      const c = getCampana(campId);
+      if (!c || c.estado !== "enviando") break;
+
+      // Tope diario: si ya se cumplió, se pausa hasta mañana.
+      const hoy = new Date().toISOString().slice(0, 10);
+      const enviadosHoy = c.diaContador === hoy ? (c.enviadosHoy || 0) : 0;
+      if (enviadosHoy >= c.maxPorDia) {
+        actualizarCampana(campId, { estado: "pausada", notaPausa: `Se llegó al tope de ${c.maxPorDia} mensajes de hoy. Reanúdala mañana.` });
+        console.log(`[campaña] ${c.nombre}: tope diario alcanzado.`);
+        break;
+      }
+
+      const pend = c.contactos.find((x) => x.estado === "pendiente");
+      if (!pend) {
+        actualizarCampana(campId, { estado: "terminada" });
+        console.log(`[campaña] ${c.nombre}: terminada.`);
+        break;
+      }
+
+      // No le escribimos a alguien que YA es cliente activo del CRM.
+      const yaExiste = getLead(pend.telefono);
+      if (yaExiste && yaExiste.historial && yaExiste.historial.length > 1) {
+        marcarContacto(campId, pend.telefono, "omitido", "Ya es un contacto activo");
+        continue;
+      }
+
+      const r = await enviarPlantilla(pend.telefono, c.plantilla,
+        [pend.nombre || "", config.nombreAgencia || "la inmobiliaria"]);
+
+      if (r && r.error) {
+        marcarContacto(campId, pend.telefono, "error", "WhatsApp rechazó el envío");
+      } else {
+        marcarContacto(campId, pend.telefono, "enviado");
+        upsertLead(pend.telefono, { nombre: pend.nombre || null, canal: "whatsapp", origen: "campaña" });
+        pushHistorial(pend.telefono, "bot", `📤 (Campaña "${c.nombre}" — plantilla "${c.plantilla}")`);
+      }
+      await new Promise((res) => setTimeout(res, c.ritmoSegundos * 1000));
+    }
+  } catch (e) {
+    console.error("[campaña] error:", e.message);
+    actualizarCampana(campId, { estado: "pausada", notaPausa: "Se detuvo por un error: " + e.message });
+  } finally {
+    campanasCorriendo.delete(campId);
+  }
+}
+
+function resumenCampana(c) {
+  const n = (e) => c.contactos.filter((x) => x.estado === e).length;
+  return {
+    id: c.id, nombre: c.nombre, plantilla: c.plantilla, estado: c.estado,
+    ritmoSegundos: c.ritmoSegundos, maxPorDia: c.maxPorDia, creada: c.creada,
+    notaPausa: c.notaPausa || null,
+    total: c.contactos.length,
+    pendientes: n("pendiente"), enviados: n("enviado"), respondieron: n("respondio"),
+    errores: n("error"), omitidos: n("omitido"),
+    tasaRespuesta: n("enviado") + n("respondio") ? +(n("respondio") / (n("enviado") + n("respondio")) * 100).toFixed(1) : 0,
+  };
+}
+
+app.get("/api/campanas", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  res.json({ campanas: getCampanas().map(resumenCampana) });
+});
+
+app.get("/api/campanas/:id", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const c = getCampana(req.params.id);
+  if (!c) return res.status(404).json({ error: "No encontrada" });
+  res.json({ ...resumenCampana(c), contactos: c.contactos });
+});
+
+app.post("/api/campanas", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const b = req.body || {};
+  if (!b.plantilla) return res.status(400).json({ error: "Falta la plantilla aprobada de Meta" });
+  if (!Array.isArray(b.contactos) || !b.contactos.length) return res.status(400).json({ error: "La lista está vacía" });
+  const c = crearCampana(b);
+  if (!c.contactos.length) return res.status(400).json({ error: "Ningún número de la lista es válido" });
+  res.json({ ok: true, campana: resumenCampana(c) });
+});
+
+app.post("/api/campanas/:id/estado", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  const accion = req.body?.accion; // iniciar | pausar
+  const c = getCampana(req.params.id);
+  if (!c) return res.status(404).json({ error: "No encontrada" });
+  if (accion === "iniciar") {
+    if (!process.env.WHATSAPP_TOKEN) return res.status(400).json({ error: "Falta conectar WhatsApp" });
+    actualizarCampana(c.id, { estado: "enviando", iniciada: c.iniciada || new Date().toISOString(), notaPausa: null });
+    correrCampana(c.id);
+    return res.json({ ok: true, estado: "enviando" });
+  }
+  if (accion === "pausar") {
+    actualizarCampana(c.id, { estado: "pausada", notaPausa: "Pausada manualmente" });
+    return res.json({ ok: true, estado: "pausada" });
+  }
+  res.status(400).json({ error: "Acción no válida" });
+});
+
+app.delete("/api/campanas/:id", (req, res) => {
+  if (!checarAdmin(req, res)) return;
+  actualizarCampana(req.params.id, { estado: "pausada" });
+  res.json({ ok: borrarCampana(req.params.id) });
+});
+
 app.get("/api/test/reporte", async (req, res) => {
   if (!checarAdmin(req, res)) return;
   const r = await enviarReporteAhora();

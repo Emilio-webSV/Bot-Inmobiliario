@@ -422,6 +422,32 @@
   .alertabar .verlos{margin-left:auto;font-weight:600;font-size:13px}
   html.dark .alertabar{background:linear-gradient(90deg,rgba(224,72,59,.2),rgba(224,72,59,.06))}
   .temabtn+.temabtn{margin-top:8px}
+
+  .avisocamp{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:13px 16px;border-radius:12px;font-size:13px;margin-bottom:16px;line-height:1.55}
+  html.dark .avisocamp{background:#16233a;border-color:#1e3a5f;color:#93c5fd}
+  .campcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+  .campcard .est{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:600}
+  .est-borrador{background:#f3f4f6;color:#6b7280}.est-enviando{background:#dbeafe;color:#2563eb}
+  .est-pausada{background:#fef3c7;color:#b45309}.est-terminada{background:#dcfce7;color:#16a34a}
+  .campbar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0;display:flex}
+  .campbar i{display:block;height:100%}
+  .campstat{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
+  .campstat b{color:var(--ink)}
+
+  .roihero{background:linear-gradient(135deg,#16232E,#1F3140);color:#fff;border-radius:18px;padding:28px;margin-bottom:16px;text-align:center}
+  .roihero .n{font-size:56px;font-weight:800;line-height:1.05;color:#3FA98A}
+  .roihero .l{font-size:15px;color:#AEBBC4;margin-top:6px}
+  .roihero .sub{font-size:13px;color:#7E8D99;margin-top:14px}
+  .roigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:13px;margin-bottom:16px}
+  .roicard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .roicard .ic{font-size:22px;margin-bottom:8px}
+  .roicard .n{font-size:30px;font-weight:700;line-height:1.1}
+  .roicard .t{font-size:14px;font-weight:600;margin-top:5px}
+  .roicard .d{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+  .roihoras{display:flex;align-items:flex-end;gap:2px;height:90px;margin-top:12px}
+  .roihoras i{flex:1;background:var(--gold,#2d52c4);border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
+  .roihoras i.off{background:#e0483b}
+  .roinota{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -450,11 +476,13 @@
         <div class="gtitle">Principal</div>
         <div class="navitem active" data-view="leads" onclick="showView('leads')"><span class="ic">📊</span> Leads <span class="badge hidden" id="navLeadsBadge">0</span></div>
         <div class="navitem" data-view="analisis" onclick="showView('analisis')"><span class="ic">📈</span> Análisis</div>
+        <div class="navitem" data-view="roi" onclick="showView('roi')"><span class="ic">💎</span> Tu retorno</div>
         <div class="navitem" data-view="agenda" onclick="showView('agenda')"><span class="ic">📅</span> Agenda <span class="badge hidden" id="navAgendaBadge">0</span></div>
         <div class="navitem" data-view="props" onclick="showView('props')"><span class="ic">🏠</span> Propiedades</div>
       </div>
       <div class="navgroup">
         <div class="gtitle">Gestión</div>
+        <div class="navitem solo-dueno" data-view="campanas" onclick="showView('campanas')"><span class="ic">📣</span> Campañas</div>
         <div class="navitem solo-dueno" data-view="agentes" onclick="showView('agentes')"><span class="ic">👥</span> Equipo</div>
         <div class="navitem solo-dueno" data-view="zonas" onclick="showView('zonas')"><span class="ic">📍</span> Zonas</div>
       </div>
@@ -531,6 +559,15 @@
       </section>
 
       <!-- EQUIPO -->
+      <section id="view-campanas" class="view hidden">
+        <div class="toolbar"><h3>Campañas de prospección</h3><button class="btn gold" onclick="abrirCampana()">+ Nueva campaña</button></div>
+        <div class="avisocamp">
+          <b>¿Qué es esto?</b> Sirve para escribirle PRIMERO a una lista de personas que aún no te han contactado.
+          WhatsApp solo permite hacerlo con <b>plantillas aprobadas por Meta</b>. Los mensajes salen despacio a propósito:
+          mandar cientos de golpe hace que WhatsApp te marque como spam y te puede limitar el número.
+        </div>
+        <div id="campHost"><div class="empty" style="border:none">Cargando…</div></div>
+      </section>
       <section id="view-agentes" class="view hidden">
         <div class="toolbar"><h3>Equipo</h3><button class="btn gold" onclick="abrirAgente()">+ Agregar asesor</button></div>
         <p class="sub" style="font-size:13px;color:var(--muted);margin-bottom:16px">El bot asigna cada lead al asesor según su zona. Cuando cae un lead calificado, le llega por WhatsApp. Abajo ves la carga de trabajo de cada quien en tiempo real.</p>
@@ -558,6 +595,10 @@
       </section>
 
       <!-- AGENDA -->
+      <section id="view-roi" class="view hidden">
+        <div class="toolbar"><h3>Lo que te está devolviendo</h3><button class="btn ghost solo-dueno" onclick="abrirSupuestos()">⚙️ Ajustar cálculo</button></div>
+        <div id="roiHost"><div class="empty" style="border:none">Calculando…</div></div>
+      </section>
       <section id="view-agenda" class="view hidden">
         <div class="panel">
           <div class="phead" style="display:flex;justify-content:space-between;align-items:center"><h3>Próximas citas</h3><button class="btn gold" onclick="abrirCitaManual()">+ Agendar cita</button></div>
@@ -598,6 +639,53 @@
 </div>
 
 <!-- Modal PROPIEDAD -->
+<div class="overlay" id="mailOverlay">
+  <div class="modal" style="max-width:540px">
+    <div class="mhead"><h3>Escribir por correo</h3><button class="close" onclick="cerrar2('mailOverlay')">×</button></div>
+    <div class="form">
+      <div class="full"><label>Para</label><input id="m_para" placeholder="cliente@correo.com"></div>
+      <div class="full"><label>Asunto</label><input id="m_asunto" placeholder="Las propiedades que te interesaron"></div>
+      <div class="full"><label>Mensaje</label><textarea id="m_cuerpo" rows="7" placeholder="Hola, te mando la información de la propiedad que viste...&#10;&#10;Cada salto de línea será un párrafo."></textarea></div>
+      <div class="full" style="font-size:12.5px;color:var(--muted)">Se enviará con el logo y los colores de la agencia. El cliente puede responder directo a este correo.</div>
+    </div>
+    <div class="factions"><button class="btn ghost" onclick="cerrar2('mailOverlay')">Cancelar</button><button class="btn primary" onclick="enviarCorreoLead()">📩 Enviar</button></div>
+  </div>
+</div>
+<div class="overlay" id="supOverlay">
+  <div class="modal" style="max-width:460px">
+    <div class="mhead"><h3>Ajustar el cálculo</h3><button class="close" onclick="cerrar2('supOverlay')">×</button></div>
+    <div class="form">
+      <div class="full"><label>Tu comisión promedio (%)</label><input id="s_comision" type="number" step="0.5" placeholder="4"></div>
+      <div class="full"><label>Lo que pagas al mes ($)</label><input id="s_mensualidad" type="number" placeholder="3000"></div>
+      <div class="full"><label>Minutos que te tomaría atender cada mensaje</label><input id="s_minutos" type="number" placeholder="8"></div>
+      <div class="full" style="font-size:12.5px;color:var(--muted)">Estos números se usan para calcular tu retorno. Ajústalos a tu realidad para que las cifras sean tuyas.</div>
+    </div>
+    <div class="factions"><button class="btn ghost" onclick="cerrar2('supOverlay')">Cancelar</button><button class="btn primary" onclick="guardarSupuestos()">Guardar</button></div>
+  </div>
+</div>
+<div class="overlay" id="campOverlay">
+  <div class="modal" style="max-width:560px">
+    <div class="mhead"><h3>Nueva campaña</h3><button class="close" onclick="cerrarCampana()">×</button></div>
+    <div class="form">
+      <div class="full"><label>Nombre de la campaña</label><input id="c_nombre" placeholder="Clientes de Polanco — agosto"></div>
+      <div class="full"><label>Plantilla aprobada de Meta <span style="font-weight:400;color:var(--muted)">(el nombre exacto, ej. seguimiento_cliente)</span></label><input id="c_plantilla" placeholder="seguimiento_cliente"></div>
+      <div><label>Un mensaje cada <span style="font-weight:400;color:var(--muted)">(segundos)</span></label><input id="c_ritmo" type="number" value="10" min="5"></div>
+      <div><label>Máximo por día</label><input id="c_max" type="number" value="100" min="1" max="250"></div>
+      <div class="full"><label>Contactos <span style="font-weight:400;color:var(--muted)">(uno por línea: teléfono, nombre)</span></label>
+        <textarea id="c_lista" rows="7" placeholder="5215512345678, Ana Pérez&#10;5215587654321, Luis Ramos&#10;5544332211"></textarea></div>
+      <div class="full"><button class="btn ghost" onclick="document.getElementById('c_file').click()">📥 Cargar desde archivo (CSV)</button>
+        <input type="file" id="c_file" accept=".csv,.txt" style="display:none" onchange="cargarListaCamp(this.files)"></div>
+      <div class="full" id="c_conteo" style="font-size:12.5px;color:var(--muted)"></div>
+    </div>
+    <div class="factions"><button class="btn ghost" onclick="cerrarCampana()">Cancelar</button><button class="btn primary" onclick="guardarCampana()">Crear campaña</button></div>
+  </div>
+</div>
+<div class="overlay" id="campDetOverlay">
+  <div class="modal" style="max-width:600px;max-height:88vh;overflow:auto">
+    <div class="mhead"><h3 id="cd_titulo">Campaña</h3><button class="close" onclick="cerrar2('campDetOverlay')">×</button></div>
+    <div id="cd_cuerpo" style="padding:18px 22px"></div>
+  </div>
+</div>
 <div class="overlay" id="citaManualOverlay">
   <div class="modal" style="max-width:520px">
     <div class="mhead"><h3>Agendar una cita</h3><button class="close" onclick="cerrarCitaManual()">×</button></div>
@@ -833,6 +921,8 @@
     else if(name==='analisis')cargarAnalisis();
     else if(name==='agenda')cargarAgenda();
     else if(name==='props')cargarProps();
+    else if(name==='roi')cargarROI();
+    else if(name==='campanas')cargarCampanas();
     else if(name==='agentes')cargarAgentes();
     else if(name==='zonas')cargarZonas();
   }
@@ -929,6 +1019,215 @@
     try{t=localStorage.getItem("crm_tema")|| (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}
     aplicarTema(t);
   })();
+
+  // ---- Correo electrónico ----
+  let mailTel=null;
+  async function guardarEmail(tel){
+    const v=(document.getElementById("leadEmail").value||"").trim();
+    const r=await fetch(`/api/leads/${tel}/email`,{method:"POST",headers:JH(),body:JSON.stringify({email:v})});
+    const j=await r.json();
+    if(!r.ok){toast(j.error||"No se pudo guardar");return}
+    toast(v?"Correo guardado ✓":"Correo quitado");abrirModal(tel);
+  }
+  async function abrirCorreo(tel){
+    const est=await(await fetch("/api/correo/estado",{headers:AH()})).json();
+    if(!est.activo){toast("Falta configurar el correo (RESEND_API_KEY en Railway)");return}
+    mailTel=tel;
+    const l=await(await fetch("/api/leads/"+tel,{headers:AH()})).json();
+    document.getElementById("m_para").value=l.email||"";
+    document.getElementById("m_asunto").value="";
+    document.getElementById("m_cuerpo").value="";
+    document.getElementById("mailOverlay").classList.add("show");
+  }
+  async function enviarCorreoLead(){
+    if(!mailTel)return;
+    const b={email:document.getElementById("m_para").value.trim(),
+      asunto:document.getElementById("m_asunto").value.trim(),
+      cuerpo:document.getElementById("m_cuerpo").value.trim()};
+    if(!b.email||!b.asunto||!b.cuerpo){toast("Llena correo, asunto y mensaje");return}
+    const r=await fetch(`/api/leads/${mailTel}/correo`,{method:"POST",headers:JH(),body:JSON.stringify(b)});
+    const j=await r.json();
+    if(!r.ok){toast(j.error||"No se pudo enviar");return}
+    toast(j.simulado?"Simulado (falta configurar el correo)":"Correo enviado ✓");
+    cerrar2("mailOverlay");abrirModal(mailTel);
+  }
+
+  // ---- Panel de retorno (ROI) ----
+  async function cargarROI(){
+    const host=document.getElementById("roiHost"); if(!host)return;
+    try{
+      const r=await(await fetch("/api/roi",{headers:AH()})).json();
+      const a=r.atencion,res=r.resultados,ret=r.retorno,su=r.supuestos;
+      const maxH=Math.max(...r.porHora,1);
+      const horas=r.porHora.map((n,h)=>{
+        const off=(h<9||h>=19);
+        return `<i class="${off?'off':''}" style="height:${Math.max(2,n/maxH*100)}%" title="${h}:00 — ${n} mensajes"></i>`;
+      }).join("");
+      const tiempo=a.tiempoRespuestaSeg<60?`${a.tiempoRespuestaSeg} seg`:`${Math.round(a.tiempoRespuestaSeg/60)} min`;
+      const hero = ret.roi>0
+        ? `<div class="n">${ret.roi}×</div><div class="l">Por cada peso invertido, te ha regresado ${ret.roi}</div>
+           <div class="sub">${fmtMXN(res.comisionGenerada)} en comisiones · ${fmtMXN(ret.invertido)} invertidos en ${ret.mesesOperando} ${ret.mesesOperando===1?"mes":"meses"}</div>`
+        : `<div class="n">${fmtMXN(res.valorPipeline)}</div><div class="l">En comisiones potenciales dentro de tu embudo</div>
+           <div class="sub">Cuando cierres tu primera venta con un lead del sistema, aquí verás tu retorno real.</div>`;
+      host.innerHTML=`
+        <div class="roihero">${hero}</div>
+        <div class="roigrid">
+          <div class="roicard"><div class="ic">🌙</div><div class="n" style="color:var(--hot)">${a.leadsRescatados}</div>
+            <div class="t">Clientes rescatados</div><div class="d">Escribieron por primera vez fuera de horario. Sin el bot, habrían esperado al día siguiente — o se iban con otra agencia.</div></div>
+          <div class="roicard"><div class="ic">⚡</div><div class="n">${tiempo}</div>
+            <div class="t">Tiempo de respuesta</div><div class="d">Lo que tarda en contestarle a un cliente. El promedio de la industria son horas.</div></div>
+          <div class="roicard"><div class="ic">⏱️</div><div class="n">${a.horasAhorradas}</div>
+            <div class="t">Horas ahorradas</div><div class="d">${a.mensajesCliente} mensajes atendidos × ${su.minPorLead} min que te tomaría a ti responder cada uno.</div></div>
+          <div class="roicard"><div class="ic">📅</div><div class="n">${res.citas}</div>
+            <div class="t">Citas agendadas</div><div class="d">El bot las cerró solo, sin que nadie de tu equipo moviera un dedo.</div></div>
+          <div class="roicard"><div class="ic">💰</div><div class="n" style="font-size:24px">${fmtMXN(res.pipeline)}</div>
+            <div class="t">Valor en tu embudo</div><div class="d">Suma de los presupuestos de tus prospectos activos. A ${su.comision}% son ${fmtMXN(res.valorPipeline)} de comisión potencial.</div></div>
+          <div class="roicard"><div class="ic">🌐</div><div class="n">${a.porcentajeFuera}%</div>
+            <div class="t">Fuera de horario</div><div class="d">${a.mensajesFueraDeHorario} de ${a.mensajesCliente} mensajes llegaron cuando tu oficina estaba cerrada.</div></div>
+        </div>
+        <div class="panel"><div class="phead"><h3>¿A qué hora te escriben tus clientes?</h3></div>
+          <div style="padding:16px 20px">
+            <div class="roihoras">${horas}</div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>11pm</span></div>
+            <div class="roinota">🔴 Las barras rojas son mensajes fuera del horario de oficina (antes de 9am, después de 7pm o en domingo). Cada una es un cliente que el bot atendió por ti.</div>
+          </div></div>
+        <div class="roinota" style="text-align:center;padding:0 10px">
+          Cálculo basado en: comisión del ${su.comision}%, ${su.minPorLead} minutos por mensaje y ${fmtMXN(su.mensualidad)} de mensualidad.
+          ${esDueno()?'Puedes ajustarlos con el botón de arriba.':''}
+        </div>`;
+    }catch(e){host.innerHTML='<div class="empty" style="border:none">No se pudo calcular</div>'}
+  }
+  async function abrirSupuestos(){
+    const r=await(await fetch("/api/roi",{headers:AH()})).json();
+    document.getElementById("s_comision").value=r.supuestos.comision;
+    document.getElementById("s_mensualidad").value=r.supuestos.mensualidad;
+    document.getElementById("s_minutos").value=r.supuestos.minPorLead;
+    document.getElementById("supOverlay").classList.add("show");
+  }
+  async function guardarSupuestos(){
+    const b={comision:Number(document.getElementById("s_comision").value),
+      mensualidad:Number(document.getElementById("s_mensualidad").value),
+      minPorLead:Number(document.getElementById("s_minutos").value)};
+    const r=await fetch("/api/roi/supuestos",{method:"PUT",headers:JH(),body:JSON.stringify(b)});
+    if(!r.ok){toast("No se pudo guardar");return}
+    toast("Actualizado ✓");cerrar2("supOverlay");cargarROI();
+  }
+
+  // ---- Campañas de prospección saliente ----
+  let campEditando=null;
+  function cerrar2(id){document.getElementById(id).classList.remove("show")}
+  async function cargarCampanas(){
+    const host=document.getElementById("campHost"); if(!host)return;
+    try{
+      const j=await(await fetch("/api/campanas",{headers:AH()})).json();
+      const cs=j.campanas||[];
+      if(!cs.length){host.innerHTML='<div class="empty" style="border:none"><p>Aún no hay campañas</p><p class="sub">Crea una para escribirle primero a una lista de contactos.</p></div>';return}
+      host.innerHTML=cs.map(c=>{
+        const t=c.total||1;
+        const pEnv=(c.enviados/t*100), pResp=(c.respondieron/t*100), pErr=(c.errores/t*100);
+        const acciones = c.estado==="enviando"
+          ? `<button class="btn ghost" onclick="estadoCampana('${c.id}','pausar')">⏸ Pausar</button>`
+          : (c.estado==="terminada" ? "" : `<button class="btn primary" onclick="estadoCampana('${c.id}','iniciar')">▶ ${c.estado==="pausada"?"Reanudar":"Iniciar"}</button>`);
+        return `<div class="campcard">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap">
+            <div><b style="font-size:15.5px">${escapeHtml(c.nombre)}</b>
+              <div class="sub" style="font-size:12.5px">Plantilla: ${escapeHtml(c.plantilla)} · 1 cada ${c.ritmoSegundos}s · máx ${c.maxPorDia}/día</div></div>
+            <span class="est est-${c.estado}">${c.estado}</span>
+          </div>
+          ${c.notaPausa?`<div style="font-size:12.5px;color:var(--warm,#b45309);margin-top:7px">⚠️ ${escapeHtml(c.notaPausa)}</div>`:""}
+          <div class="campbar">
+            <i style="width:${pResp}%;background:#16a34a"></i>
+            <i style="width:${pEnv}%;background:#2563eb"></i>
+            <i style="width:${pErr}%;background:#dc2626"></i>
+          </div>
+          <div class="campstat">
+            <span><b>${c.total}</b> contactos</span>
+            <span>📤 <b>${c.enviados}</b> enviados</span>
+            <span style="color:#16a34a">💬 <b>${c.respondieron}</b> respondieron (${c.tasaRespuesta}%)</span>
+            <span>⏳ <b>${c.pendientes}</b> pendientes</span>
+            ${c.errores?`<span style="color:#dc2626">⚠️ <b>${c.errores}</b> errores</span>`:""}
+            ${c.omitidos?`<span>↩️ <b>${c.omitidos}</b> omitidos</span>`:""}
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            ${acciones}
+            <button class="btn ghost" onclick="verCampana('${c.id}')">Ver detalle</button>
+            <button class="btn danger" onclick="borrarCampana('${c.id}')">🗑</button>
+          </div></div>`;
+      }).join("");
+    }catch(e){host.innerHTML='<div class="empty" style="border:none">No se pudo cargar</div>'}
+  }
+  function abrirCampana(){
+    ["c_nombre","c_plantilla","c_lista"].forEach(i=>document.getElementById(i).value="");
+    document.getElementById("c_ritmo").value=10;document.getElementById("c_max").value=100;
+    document.getElementById("c_conteo").textContent="";
+    document.getElementById("campOverlay").classList.add("show");
+  }
+  function cerrarCampana(){document.getElementById("campOverlay").classList.remove("show")}
+  function parseLista(txt){
+    return (txt||"").split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
+      const p=l.split(/[,;\t]/).map(x=>x.trim());
+      return {telefono:p[0]||"",nombre:p[1]||""};
+    }).filter(c=>c.telefono.replace(/\D/g,"").length>=10);
+  }
+  async function cargarListaCamp(files){
+    const f=files&&files[0]; if(!f)return;
+    const txt=await f.text();
+    const lineas=txt.split(/\r?\n/).filter(l=>l.trim());
+    // si la primera línea parece encabezado, la saltamos
+    const inicio=/tel|nombre|phone/i.test(lineas[0])?1:0;
+    document.getElementById("c_lista").value=lineas.slice(inicio).join("\n");
+    const n=parseLista(document.getElementById("c_lista").value).length;
+    document.getElementById("c_conteo").textContent=`${n} contactos válidos detectados`;
+    document.getElementById("c_file").value="";
+  }
+  async function guardarCampana(){
+    const contactos=parseLista(document.getElementById("c_lista").value);
+    if(!contactos.length){toast("Pon al menos un contacto válido");return}
+    const b={nombre:document.getElementById("c_nombre").value.trim()||"Campaña",
+      plantilla:document.getElementById("c_plantilla").value.trim(),
+      ritmoSegundos:Number(document.getElementById("c_ritmo").value)||10,
+      maxPorDia:Number(document.getElementById("c_max").value)||100, contactos};
+    if(!b.plantilla){toast("Pon el nombre de tu plantilla de Meta");return}
+    const r=await fetch("/api/campanas",{method:"POST",headers:JH(),body:JSON.stringify(b)});
+    const j=await r.json();
+    if(!r.ok){toast(j.error||"No se pudo crear");return}
+    toast(`Campaña creada con ${j.campana.total} contactos ✓`);
+    cerrarCampana();cargarCampanas();
+  }
+  async function estadoCampana(id,accion){
+    if(accion==="iniciar"&&!confirm("¿Iniciar el envío?\n\nLos mensajes salen despacio a propósito para que WhatsApp no marque el número como spam. Puedes pausar cuando quieras."))return;
+    const r=await fetch(`/api/campanas/${id}/estado`,{method:"POST",headers:JH(),body:JSON.stringify({accion})});
+    const j=await r.json();
+    if(!r.ok){toast(j.error||"No se pudo");return}
+    toast(accion==="iniciar"?"Enviando…":"Pausada");
+    cargarCampanas();
+    if(accion==="iniciar"&&!campInterval)campInterval=setInterval(()=>{
+      if(!document.getElementById("view-campanas").classList.contains("hidden"))cargarCampanas();},10000);
+  }
+  let campInterval=null;
+  async function borrarCampana(id){
+    if(!confirm("¿Borrar esta campaña? Los mensajes ya enviados no se deshacen."))return;
+    await fetch("/api/campanas/"+id,{method:"DELETE",headers:AH()});
+    toast("Borrada");cargarCampanas();
+  }
+  async function verCampana(id){
+    const c=await(await fetch("/api/campanas/"+id,{headers:AH()})).json();
+    document.getElementById("cd_titulo").textContent=c.nombre;
+    const badge={pendiente:["#6b7280","#f3f4f6"],enviado:["#2563eb","#dbeafe"],respondio:["#16a34a","#dcfce7"],error:["#dc2626","#fee2e2"],omitido:["#6b7280","#f3f4f6"]};
+    document.getElementById("cd_cuerpo").innerHTML=`
+      <div class="campstat" style="margin-bottom:14px">
+        <span><b>${c.total}</b> contactos</span><span>📤 <b>${c.enviados}</b></span>
+        <span style="color:#16a34a">💬 <b>${c.respondieron}</b> (${c.tasaRespuesta}%)</span>
+        <span>⏳ <b>${c.pendientes}</b></span>${c.errores?`<span style="color:#dc2626">⚠️ <b>${c.errores}</b></span>`:""}</div>
+      <div style="max-height:420px;overflow:auto">
+        ${(c.contactos||[]).map(x=>{const b=badge[x.estado]||badge.pendiente;
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
+            <span>${escapeHtml(x.nombre||"—")}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(x.telefono)}</span></span>
+            <span class="est" style="color:${b[0]};background:${b[1]}">${x.estado}${x.error?" · "+escapeHtml(x.error):""}</span></div>`;
+        }).join("")}
+      </div>`;
+    document.getElementById("campDetOverlay").classList.add("show");
+  }
 
   // ---- Agendar cita manual (cliente que llamó, llegó a la oficina, etc.) ----
   function abrirCitaManual(){
@@ -1213,6 +1512,10 @@
         extra=`<a href="${escapeHtml(d[1])}" target="_blank" class="chatdoc">📎 ${escapeHtml(d[2])}</a>`;
         let t=(h.texto||"").replace(/\[doc:[^\]]+\]/,"").trim();
         cuerpo=escapeHtml(t);
+      } else if((h.texto||"").startsWith("📩")){
+        // Correo enviado: se muestra distinto para no confundirlo con WhatsApp
+        cuerpo=`<span style="opacity:.9">${escapeHtml(h.texto)}</span>`;
+        extra=`<div style="font-size:10.5px;font-weight:600;color:#7c3aed;margin-bottom:3px">POR CORREO</div>`;
       } else if(vid){
         // GIF o video corto: se muestra reproducible en el chat del CRM.
         extra=`<video src="${escapeHtml(vid[1])}" class="chatimg" controls muted loop playsinline preload="metadata"></video>`;
@@ -1263,8 +1566,10 @@
         <button class="perder ${est==='perdido'?'on':''}" onclick="setEstado('${l.telefono}','perdido')">✕ Perdido</button>
       </div></div>
       ${ventaBlock}
-      <div class="mrow"><label>📅 Cita</label><input type="datetime-local" id="leadCita" /><button class="savenote" onclick="guardarCita('${l.telefono}')">Guardar</button></div>`;
+      <div class="mrow"><label>📅 Cita</label><input type="datetime-local" id="leadCita" /><button class="savenote" onclick="guardarCita('${l.telefono}')">Guardar</button></div>
+      <div class="mrow"><label>📩 Correo</label><input id="leadEmail" placeholder="cliente@correo.com" /><button class="savenote" onclick="guardarEmail('${l.telefono}')">Guardar</button>${l.email?`<button class="savenote" style="background:var(--gold);color:#fff" onclick="abrirCorreo('${l.telefono}')">Escribirle</button>`:""}</div>`;
     document.getElementById("leadCita").value=isoToLocalInput(l.citaProgramada);
+    const le=document.getElementById("leadEmail"); if(le) le.value=l.email||"";
     document.getElementById("mNotes").innerHTML=`
       <label>Etiquetas <span style="font-weight:400;color:var(--muted)">(separadas por coma)</span></label>
       <input id="leadTags" placeholder="comprador serio, urgente" />
