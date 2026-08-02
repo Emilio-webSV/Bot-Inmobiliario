@@ -423,6 +423,22 @@
   html.dark .alertabar{background:linear-gradient(90deg,rgba(224,72,59,.2),rgba(224,72,59,.06))}
   .temabtn+.temabtn{margin-top:8px}
 
+  .notirow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .notirow:last-child{border-bottom:none}
+  .notirow .nm{flex:1;font-size:13.5px}
+  .sw{position:relative;width:44px;height:25px;flex:0 0 auto;cursor:pointer}
+  .sw input{opacity:0;width:0;height:0;position:absolute}
+  .sw i{position:absolute;inset:0;background:#cbd5e1;border-radius:99px;transition:.2s}
+  .sw i:before{content:"";position:absolute;width:19px;height:19px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .sw input:checked+i{background:#22c55e}
+  .sw input:checked+i:before{transform:translateX(19px)}
+  html.dark .sw i{background:#3c4a63}
+  .notiestado{padding:12px 14px;border-radius:11px;font-size:13px;line-height:1.55;margin-bottom:14px}
+  .notiestado.on{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
+  .notiestado.off{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412}
+  html.dark .notiestado.on{background:#14261c;border-color:#1e4030;color:#86efac}
+  html.dark .notiestado.off{background:#2a1d12;border-color:#4a3320;color:#fdba74}
+
   .avisocamp{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:13px 16px;border-radius:12px;font-size:13px;margin-bottom:16px;line-height:1.55}
   html.dark .avisocamp{background:#16233a;border-color:#1e3a5f;color:#93c5fd}
   .campcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
@@ -489,6 +505,7 @@
       <button class="temabtn solo-dueno" onclick="descargarRespaldo()" title="Descargar una copia de todos tus datos">💾 Descargar respaldo</button>
       <button class="temabtn solo-dueno" onclick="document.getElementById('restoreFile').click()" title="Restaurar desde un respaldo">♻️ Restaurar respaldo</button>
       <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restaurarRespaldo(this.files)">
+      <button class="temabtn" id="notiBtn" onclick="abrirNotis()" title="Notificaciones al celular">🔔 Notificaciones</button>
       <button class="temabtn" onclick="cerrarSesion()" title="Salir">🚪 Cerrar sesión</button>
       <button class="temabtn" id="temaBtn" onclick="toggleTema()" title="Cambiar tema">🌙 Modo oscuro</button>
       <div class="sidefoot">CRM en vivo · se actualiza solo</div>
@@ -723,6 +740,14 @@
     <div class="factions"><button class="btn ghost" onclick="cerrarEstado()">Cancelar</button><button class="btn primary" onclick="guardarEstado()">Guardar</button></div>
   </div>
 </div>
+<div class="overlay" id="notiOverlay">
+  <div class="modal" style="max-width:480px">
+    <div class="mhead"><h3>🔔 Notificaciones al celular</h3><button class="close" onclick="cerrarNotis()">×</button></div>
+    <div style="padding:18px 22px" id="notiBody">
+      <div style="text-align:center;padding:20px;color:var(--muted)">Cargando…</div>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="propOverlay">
   <div class="modal">
     <div class="mhead"><h3 id="modalTitle">Nueva propiedad</h3><button class="close" onclick="cerrar()">×</button></div>
@@ -885,6 +910,7 @@
     document.getElementById("app").classList.remove("hidden");
     aplicarRol();
     renderLeads(await r.json());
+    abrirDesdeURL();
     if(!intervalo)intervalo=setInterval(()=>{if(!document.getElementById("view-leads").classList.contains("hidden"))cargarLeads();},15000);
     return true;
   }
@@ -1013,6 +1039,132 @@
     try{localStorage.setItem("crm_tema",nuevo)}catch(e){}
     aplicarTema(nuevo);
   }
+
+  /* ---------- NOTIFICACIONES AL CELULAR (push) ---------- */
+  let notiSubActual=null, notiAvisos={}, notiPrefs={};
+
+  function notiSoportado(){
+    return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  }
+
+  async function abrirNotis(){
+    document.getElementById("notiOverlay").classList.add("show");
+    const host=document.getElementById("notiBody");
+    if(!notiSoportado()){
+      host.innerHTML='<div class="notiestado off"><b>Este navegador no puede mandarte notificaciones.</b><br>Si estás en iPhone: abre el CRM en Safari, toca Compartir → <b>Añadir a pantalla de inicio</b>, y ábrelo desde ahí. Ya con la app instalada sí funcionan.</div>';
+      return;
+    }
+    try{
+      const [rk,rm]=await Promise.all([
+        fetch("/api/push/llave",{headers:AH()}).then(r=>r.json()),
+        fetch("/api/push/mis-avisos",{headers:AH()}).then(r=>r.json()),
+      ]);
+      notiAvisos=rk.avisos||{};
+      const reg=await navigator.serviceWorker.ready;
+      notiSubActual=await reg.pushManager.getSubscription();
+      const activo=Boolean(notiSubActual)&&Notification.permission==="granted"&&rm.activas>0;
+      notiPrefs=rm.prefs||{};
+      pintarNotis(activo,rk.publicKey);
+    }catch(e){
+      host.innerHTML='<div class="notiestado off">No pude cargar la configuración. Recarga la página.</div>';
+    }
+  }
+  function cerrarNotis(){document.getElementById("notiOverlay").classList.remove("show")}
+
+  function pintarNotis(activo,llave){
+    const host=document.getElementById("notiBody");
+    const quien=YO&&YO.rol==="asesor"?(YO.nombre||"ti"):"ti";
+    if(Notification.permission==="denied"){
+      host.innerHTML='<div class="notiestado off"><b>Bloqueaste las notificaciones.</b><br>Ábrelas de nuevo en el candado 🔒 de la barra de direcciones → Notificaciones → Permitir. Luego recarga.</div>';
+      return;
+    }
+    if(!activo){
+      host.innerHTML=`
+        <div class="notiestado off"><b>Están apagadas.</b><br>Actívalas y te van a llegar avisos a este celular aunque tengas el CRM cerrado, igual que WhatsApp.</div>
+        <button class="btn primary" style="width:100%" onclick="activarNotis('${llave}')">🔔 Activar notificaciones</button>`;
+      return;
+    }
+    let filas="";
+    for(const k in notiAvisos){
+      const on=notiPrefs[k]!==false;
+      filas+=`<div class="notirow"><span class="nm">${notiAvisos[k].nombre}</span>
+        <label class="sw"><input type="checkbox" ${on?"checked":""} onchange="cambiarPref('${k}',this.checked)"><i></i></label></div>`;
+    }
+    host.innerHTML=`
+      <div class="notiestado on"><b>✓ Activadas en este dispositivo.</b><br>Los avisos llegan a ${quien} aunque el CRM esté cerrado.</div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:4px">Qué quieres que te avise</div>
+      ${filas}
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn ghost" style="flex:1" onclick="probarNoti()">Probar</button>
+        <button class="btn ghost" style="flex:1" onclick="apagarNotis()">Apagar aquí</button>
+      </div>`;
+  }
+
+  // El navegador exige la llave en formato binario.
+  function b64aBytes(b64){
+    const pad="=".repeat((4-b64.length%4)%4);
+    const raw=atob((b64+pad).replace(/-/g,"+").replace(/_/g,"/"));
+    const out=new Uint8Array(raw.length);
+    for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
+    return out;
+  }
+
+  async function activarNotis(llave){
+    try{
+      const permiso=await Notification.requestPermission();
+      if(permiso!=="granted"){toast("No diste permiso");pintarNotis(false,llave);return}
+      const reg=await navigator.serviceWorker.ready;
+      let sub=await reg.pushManager.getSubscription();
+      if(!sub){
+        sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64aBytes(llave)});
+      }
+      const r=await fetch("/api/push/suscribir",{method:"POST",headers:JH(),body:JSON.stringify({suscripcion:sub})});
+      const j=await r.json();
+      if(!r.ok){toast(j.error||"No se pudo activar");return}
+      notiSubActual=sub; notiPrefs=j.prefs||{};
+      toast("Notificaciones activadas ✓");
+      pintarNotis(true,llave);
+    }catch(e){
+      toast("No se pudo: "+(e.message||"error"));
+    }
+  }
+
+  async function apagarNotis(){
+    try{
+      if(notiSubActual){
+        await fetch("/api/push/cancelar",{method:"POST",headers:JH(),body:JSON.stringify({endpoint:notiSubActual.endpoint})});
+        await notiSubActual.unsubscribe();
+        notiSubActual=null;
+      }
+      toast("Apagadas en este dispositivo");
+      abrirNotis();
+    }catch(e){toast("No se pudo apagar")}
+  }
+
+  async function cambiarPref(clave,valor){
+    notiPrefs[clave]=valor;
+    await fetch("/api/push/preferencias",{method:"POST",headers:JH(),body:JSON.stringify({prefs:{[clave]:valor}})}).catch(()=>{});
+  }
+
+  async function probarNoti(){
+    const r=await fetch("/api/push/probar",{method:"POST",headers:JH(),body:"{}"}).then(r=>r.json()).catch(()=>({enviadas:0}));
+    toast(r.enviadas?"Enviada — revisa tu pantalla 📲":"No llegó a ningún dispositivo");
+  }
+
+  // Si tocan la notificación con el CRM abierto, lo lleva al chat.
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.addEventListener("message",(ev)=>{
+      const u=ev.data&&ev.data.url; if(!u)return;
+      const m=String(u).match(/lead=(\d+)/);
+      if(m){ showView("leads"); setTimeout(()=>abrirModal(m[1]),350); }
+    });
+  }
+  // Si llegó desde una notificación, abre ese chat al entrar.
+  function abrirDesdeURL(){
+    const m=location.search.match(/lead=(\d+)/);
+    if(m){ setTimeout(()=>abrirModal(m[1]),500); history.replaceState({},"","/dashboard"); }
+  }
+
   document.addEventListener("DOMContentLoaded",autoEntrar);
   (function(){
     let t="light";

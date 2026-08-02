@@ -3,19 +3,33 @@
 // Te avisa A TI (el desarrollador) cuando algo se rompe, para que entres a
 // arreglarlo antes de que el cliente se dé cuenta.
 //
-// Variables (Railway -> Variables):
-//   DEV_PHONE  -> TU WhatsApp con código de país (ej. 5215534169702)
-//   DEV_EMAIL  -> tu correo (respaldo, por si lo que falló ES WhatsApp)
-//   APP_NOMBRE -> cómo identificar esta instalación (ej. "Agencia Diamante")
+// CONFIGURACIÓN: pon tu WhatsApp y tu correo abajo, en TU_WHATSAPP y TU_CORREO.
+// Se hace UNA sola vez en el código y sirve para TODOS los clientes — no hay
+// que configurar variables en cada proyecto de Railway.
 //
-// Si no defines nada, simplemente no manda alertas (no truena).
+// El nombre del cliente sale automático de AGENCY_NAME, que ya configuras
+// en cada instalación. Así cada alerta te dice de qué cliente es.
+//
+// Si no pones nada, simplemente no manda alertas (no truena).
 // ---------------------------------------------------------------------------
 
 import { enviarTexto } from "./whatsapp.js";
 import { enviarCorreo, correoActivo } from "./email.js";
 
-const DEV_PHONE = (process.env.DEV_PHONE || "").replace(/\D/g, "");
-const DEV_EMAIL = process.env.DEV_EMAIL || "";
+// ⬇️⬇️⬇️  PON TUS DATOS AQUÍ UNA SOLA VEZ  ⬇️⬇️⬇️
+// Así NO tienes que configurar variables en cada proyecto de Railway: cada
+// instalación nueva ya sabe a quién avisarle. Se pueden sobrescribir con
+// variables de entorno si algún día lo necesitas.
+//
+// ⚠️ Ten el repositorio en PRIVADO (tus datos están aquí).
+const TU_WHATSAPP = "";   // ej. "5215534169702"  ← tu número con código de país
+const TU_CORREO   = "";   // ej. "emilio@realtorsolutions.mx"
+// ⬆️⬆️⬆️  ESO ES TODO  ⬆️⬆️⬆️
+
+const DEV_PHONE = (process.env.DEV_PHONE || TU_WHATSAPP || "").replace(/\D/g, "");
+const DEV_EMAIL = process.env.DEV_EMAIL || TU_CORREO || "";
+// El nombre de la instalación sale solo del nombre de la agencia: así cada
+// alerta te dice DE QUÉ CLIENTE es, sin configurar nada extra.
 const APP = process.env.APP_NOMBRE || process.env.AGENCY_NAME || "instalación sin nombre";
 
 // Anti-spam: no mandamos la misma alerta más de una vez cada 30 minutos.

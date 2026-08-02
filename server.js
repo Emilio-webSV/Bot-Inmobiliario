@@ -26,6 +26,7 @@ import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal, enviarUbicacionC
 import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./vision.js";
 import { enviarCorreo, plantillaHTML, extraerEmail, correoActivo } from "./email.js";
 import { alertarDev, instalarCazadorDeErrores, alertasActivas, destinoAlertas } from "./alertas.js";
+import { notificar, suscribir, desuscribir, llavePublica, guardarPrefs, misSuscripciones, AVISOS } from "./push.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
@@ -540,7 +541,9 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   // 24 h siguientes, WhatsApp permite mandarle texto libre (y sale gratis).
   let lead = getLead(telefono);
   const ahoraISO = new Date().toISOString();
+  let esClienteNuevo = false;
   if (!lead) {
+    esClienteNuevo = true;
     lead = upsertLead(telefono, { nombre: nombrePerfil, canal, ultimoMsgCliente: ahoraISO });
   } else {
     lead = upsertLead(telefono, {
@@ -552,6 +555,24 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   // Guarda el mensaje del cliente en el historial
   pushHistorial(telefono, "user", texto);
   marcarRespuestaCampana(telefono); // si venía de una campaña, cuenta como respuesta
+
+  // 🔔 Cliente nuevo: avisa a los celulares (el bot ya lo está atendiendo)
+  if (esClienteNuevo) {
+    notificar("cliente_nuevo", {
+      titulo: `👋 Cliente nuevo: ${nombrePerfil || telefono}`,
+      cuerpo: `"${String(texto).slice(0, 90)}"\n\nEl asistente ya lo está atendiendo.`,
+      url: `/dashboard?lead=${telefono}`,
+      tag: `nuevo-${telefono}`,
+    }).catch(() => {});
+  } else if (lead.humanoEnControl) {
+    // 🔔 Un asesor lleva este chat a mano -> le avisa SOLO a él
+    notificar("mensaje_chat", {
+      titulo: `💬 ${lead.nombre || telefono}`,
+      cuerpo: String(texto).slice(0, 120),
+      url: `/dashboard?lead=${telefono}`,
+      tag: `chat-${telefono}`,
+    }, lead.agenteAsignado || null).catch(() => {});
+  }
 
   // 1) ¿Está frustrado? -> escalar a humano y no seguir con el bot
   const fr = analizarFrustracion(texto);
@@ -570,6 +591,15 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     }
     const respuesta = "Entiendo perfectamente 🙏 Voy a pasar tu caso ahora mismo con uno de nuestros asesores para atenderte personalmente. En un momento te contactan.";
     await enviarYRegistrar(canal, telefono, respuesta);
+
+    // 🔔 Urgente: vibra distinto y se queda fija hasta que la vean
+    notificar("atencion_humana", {
+      titulo: `🚨 ${lead.nombre || telefono} necesita un asesor YA`,
+      cuerpo: `"${String(texto).slice(0, 100)}"\n\nEl cliente está molesto. Entra al chat.`,
+      url: `/dashboard?lead=${telefono}`,
+      tag: `urgente-${telefono}`,
+      urgente: true,
+    }, lead.agenteAsignado || null).catch(() => {});
 
     // Avisar al dueño / agente
     const dueno = process.env.OWNER_PHONE;
@@ -637,6 +667,13 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
       if (agObj && agObj.telefono && agObj.telefono !== dueno) {
         await enviarTextoOPlantilla(agObj.telefono, aviso, process.env.WA_TPL_ALERTA, ["Cliente pide un asesor", `${quien}: ${String(texto).slice(0, 60)}`]).catch(() => {});
       }
+      notificar("atencion_humana", {
+        titulo: `🙋 ${quien} pide un asesor`,
+        cuerpo: `"${String(texto).slice(0, 100)}"\n\nEntra al CRM para atenderlo.`,
+        url: `/dashboard?lead=${telefono}`,
+        tag: `urgente-${telefono}`,
+        urgente: true,
+      }, lead.agenteAsignado || null).catch(() => {});
       console.log(`[escalado] ${telefono} pidió asesor -> alerta enviada.`);
     }
   }
@@ -682,6 +719,13 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
           cuerpo += fechaTxt;
         }
         const aviso = `${titulo}\n${cuerpo}\n\n➕ Agrégala a tu calendario:\n${link}`;
+        // 🔔 Al celular del asesor que la va a atender
+        notificar(esReagenda ? "cita_cambio" : "cita_agendada", {
+          titulo: esReagenda ? `🔄 Cita movida: ${lead.nombre || telefono}` : `📅 Cita nueva: ${lead.nombre || telefono}`,
+          cuerpo: esReagenda ? cuerpo.split("\n").slice(1).join(" → ") : fechaTxt,
+          url: `/dashboard?lead=${telefono}`,
+          tag: `cita-${telefono}`,
+        }, lead.agenteAsignado || null).catch(() => {});
         enviarCorreoCita(getLead(telefono), cita.iso, config, esReagenda).catch(() => {});
         const dueno = process.env.OWNER_PHONE;
         if (dueno) await enviarTextoOPlantilla(dueno, aviso, process.env.WA_TPL_ALERTA, [titulo.replace(/[^\p{L}\s]/gu, "").trim(), `${lead.nombre || telefono} - ${fechaTxt}`]).catch(() => {});
@@ -747,6 +791,22 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
   lead = getLead(telefono);
   const { score, temperatura } = calcularScore(lead);
   const patch = { score, temperatura };
+
+  // 🔔 Se puso caliente por primera vez: hay que hablarle YA
+  if (temperatura === "caliente" && lead.temperatura !== "caliente" && !lead.escalado) {
+    const p = lead.perfil || {};
+    const detalle = [
+      p.zona ? `Zona: ${p.zona}` : null,
+      p.presupuesto ? `Presupuesto: $${Number(p.presupuesto).toLocaleString("es-MX")}` : null,
+      p.proposito ? `Busca: ${p.proposito}` : null,
+    ].filter(Boolean).join(" · ");
+    notificar("lead_caliente", {
+      titulo: `🔥 Lead caliente: ${lead.nombre || telefono}`,
+      cuerpo: (detalle || "Ya está calificado") + "\n\nEs buen momento para entrarle.",
+      url: `/dashboard?lead=${telefono}`,
+      tag: `caliente-${telefono}`,
+    }, lead.agenteAsignado || patch.agenteAsignado || null).catch(() => {});
+  }
 
   if (!lead.agenteAsignado && temperatura !== "frio") {
     const agente = asignarAgente(lead.perfil.zona);
@@ -929,6 +989,13 @@ app.post("/api/leads/:telefono/venta", (req, res) => {
       },
     });
   }
+  // 🔔 Aviso de venta (viene apagado por defecto; quien lo quiera lo prende)
+  notificar("venta", {
+    titulo: `🎉 Venta registrada`,
+    cuerpo: `${lead.nombre || lead.telefono}${monto ? " · $" + monto.toLocaleString("es-MX") : ""}${agente ? "\nVendió: " + agente.nombre : ""}`,
+    url: "/dashboard",
+    tag: `venta-${lead.telefono}`,
+  }).catch(() => {});
   res.json({ ok: true });
 });
 
@@ -1712,6 +1779,54 @@ app.get("/admin", (req, res) => {
   res.redirect("/dashboard");
 });
 
+// ---------------------------------------------------------------------------
+// Notificaciones al celular (push) — cada quien recibe lo suyo
+// ---------------------------------------------------------------------------
+app.get("/api/push/llave", (req, res) => {
+  res.json({ publicKey: llavePublica(), avisos: AVISOS });
+});
+
+app.get("/api/push/mis-avisos", (req, res) => {
+  const id = req.yo.rol === "dueno" ? "dueno" : req.yo.id;
+  const subs = misSuscripciones(id);
+  res.json({
+    activas: subs.length,
+    prefs: subs[0]?.prefs || null,
+    avisos: AVISOS,
+  });
+});
+
+app.post("/api/push/suscribir", (req, res) => {
+  const { suscripcion, prefs } = req.body || {};
+  if (!suscripcion?.endpoint) return res.status(400).json({ error: "Falta la suscripción" });
+  const id = req.yo.rol === "dueno" ? "dueno" : req.yo.id;
+  const reg = suscribir(id, req.yo.nombre, suscripcion, prefs);
+  res.json({ ok: true, id: reg.id, prefs: reg.prefs });
+});
+
+app.post("/api/push/cancelar", (req, res) => {
+  const { endpoint } = req.body || {};
+  if (!endpoint) return res.status(400).json({ error: "Falta el endpoint" });
+  res.json({ ok: desuscribir(endpoint) });
+});
+
+app.post("/api/push/preferencias", (req, res) => {
+  const id = req.yo.rol === "dueno" ? "dueno" : req.yo.id;
+  const n = guardarPrefs(id, req.body?.prefs || {});
+  res.json({ ok: true, dispositivos: n });
+});
+
+app.post("/api/push/probar", async (req, res) => {
+  const id = req.yo.rol === "dueno" ? "dueno" : req.yo.id;
+  const r = await notificar("cliente_nuevo", {
+    titulo: "🔔 Prueba de notificación",
+    cuerpo: `Hola ${req.yo.nombre}, así se van a ver tus avisos.`,
+    url: "/dashboard",
+    tag: "prueba",
+  }, id);
+  res.json(r);
+});
+
 // Dashboard
 app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "dashboard.html"));
@@ -1736,13 +1851,49 @@ app.get("/manifest.json", (req, res) => {
 });
 app.get("/sw.js", (req, res) => {
   res.set("Content-Type", "application/javascript");
-  // Service worker mínimo: solo habilita la instalación. NO cachea nada, para que
-  // el panel siempre cargue la versión más reciente (sin quedarse pegado en vieja).
-  res.send(
-    'self.addEventListener("install",e=>self.skipWaiting());' +
-    'self.addEventListener("activate",e=>self.clients.claim());' +
-    'self.addEventListener("fetch",e=>{});'
+  res.set("Cache-Control", "no-cache");
+  // Service worker: habilita la instalación (PWA) y las notificaciones push.
+  // NO cachea nada, para que el panel siempre cargue la versión más reciente.
+  res.send(`
+self.addEventListener("install", (e) => self.skipWaiting());
+self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener("fetch", (e) => {});
+
+// Llega una notificación (aunque el CRM esté cerrado)
+self.addEventListener("push", (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (err) { d = { title: "CRM", body: "" }; }
+  const opciones = {
+    body: d.body || "",
+    icon: "/pwa-icon-192.png",
+    badge: "/pwa-icon-192.png",
+    tag: d.tag || "crm",
+    renotify: true,
+    requireInteraction: Boolean(d.urgente),
+    vibrate: d.urgente ? [200, 100, 200, 100, 200] : [120, 60, 120],
+    data: { url: d.url || "/dashboard", tipo: d.tipo || "" },
+    actions: [{ action: "abrir", title: "Abrir el CRM" }],
+  };
+  event.waitUntil(self.registration.showNotification(d.title || "CRM", opciones));
+});
+
+// El usuario toca la notificación -> abre el CRM justo en ese chat
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const destino = (event.notification.data && event.notification.data.url) || "/dashboard";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((lista) => {
+      for (const c of lista) {
+        if (c.url.includes("/dashboard") && "focus" in c) {
+          c.postMessage({ tipo: "abrir", url: destino });
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(destino);
+    })
   );
+});
+`.trim());
 });
 app.get(["/pwa-icon-192.png", "/pwa-icon-512.png", "/apple-touch-icon.png"], (req, res) => {
   const f = req.path.includes("512") ? "pwa-icon-512.png" : "pwa-icon-192.png";
