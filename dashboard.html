@@ -14,52 +14,79 @@
 <link rel="icon" type="image/png" href="/pwa-icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* =========================================================================
+     Sistema visual: casi-negro + un acento contenido. Todo lo demás en grises.
+     El acento es dorado por defecto, pero si la agencia puso su brandColor en
+     la configuración, ese gana (se inyecta desde JS sobre :root).
+     ========================================================================= */
   :root{
-    --ink:#15181f;--ink-soft:#3b414e;--muted:#79818f;--line:#e4e7ec;--canvas:#eef1f5;--card:#fff;
-    --gold:#2d52c4;--gold-deep:#2342a0;
-    --hot:#e0483b;--hot-bg:#fde9e7;--warm:#e0951f;--warm-bg:#fbf0db;--cold:#4a7fb5;--cold-bg:#e7eff7;
-    --green:#2e9e4f;--green-bg:#e8f3ec;--red:#e0483b;
-    --shadow:0 1px 2px rgba(20,21,26,.04),0 6px 20px rgba(20,21,26,.06);
+    --canvas:#FAFAFA; --card:#FFFFFF; --card2:#F4F4F5;
+    --ink:#17171A; --ink-soft:#3F3F46; --muted:#6E6E76; --muted2:#9A9AA2;
+    --line:#E8E8EA; --line2:#DCDCDF;
+    --gold:#8A6D1F; --gold-deep:#7A5F17; --gold-soft:#F6F1E2;
+    --r:6px; --r2:10px;
+    --shadow:0 1px 2px rgba(0,0,0,.04);
+    /* Puntitos de estado: es lo ÚNICO con color en las listas */
+    --hot:#BE123C; --warm:#D97706; --cold:#3B82F6;
+    --green:#16A34A; --red:#DC2626;
+    --hot-bg:transparent;--warm-bg:transparent;--cold-bg:transparent;--green-bg:transparent;
+  }
+  html.dark{
+    --canvas:#0E0E10; --card:#17171A; --card2:#1E1E22;
+    --ink:#EDEDEF; --ink-soft:#C4C4CA; --muted:#9A9AA2; --muted2:#6E6E76;
+    --line:#26262B; --line2:#33333A;
+    --gold:#C9A227; --gold-deep:#D9B843; --gold-soft:#2A2415;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+    --hot:#FB7185; --warm:#FBBF24; --cold:#60A5FA; --green:#4ADE80; --red:#F87171;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',system-ui,sans-serif;background:var(--canvas);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--canvas);color:var(--ink);
+    line-height:1.55;-webkit-font-smoothing:antialiased;font-feature-settings:"cv02","cv03","cv04","tnum"}
+  svg.i{width:17px;height:17px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  svg.i.sm{width:14px;height:14px} svg.i.lg{width:22px;height:22px}
   .hidden{display:none!important}
-  input,select,textarea{font-family:inherit;font-size:14px;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+  input,select,textarea{font-family:inherit;font-size:13.5px;width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--ink);transition:border-color .15s}
+  input::placeholder,textarea::placeholder{color:var(--muted2)}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold)}
 
   /* Gate */
-  .gate{max-width:380px;margin:90px auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px;box-shadow:var(--shadow);text-align:center}
-  .gate .dot{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));display:grid;place-items:center;color:#fff;font-size:22px;margin:0 auto 16px}
-  .gate h2{font-family:'Space Grotesk',sans-serif;font-size:19px;margin-bottom:8px}
+  .gate{max-width:380px;margin:90px auto;background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:30px;box-shadow:var(--shadow);text-align:center}
+  .gate .dot{width:36px;height:36px;border-radius:var(--r);border:1.5px solid var(--gold);display:grid;place-items:center;color:var(--gold);margin:0 auto 18px}
+  .gate h2{font-size:19px;margin-bottom:8px}
   .gate p{font-size:13px;color:var(--muted);margin-bottom:18px}
 
   /* Layout con sidebar */
   .layout{display:flex;min-height:100vh}
-  .sidebar{width:248px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
-  .sbrand{display:flex;align-items:center;gap:11px;padding:4px 8px 16px;border-bottom:1px solid var(--line);margin-bottom:8px}
-  .sbrand .dot{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));display:grid;place-items:center;color:#fff;font-size:17px;flex-shrink:0}
-  .sbrand h1{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;letter-spacing:-.01em;line-height:1.1}
-  .sbrand p{font-size:11px;color:var(--muted)}
-  .navgroup{margin-top:16px}
-  .gtitle{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 10px;margin-bottom:6px}
-  .navitem{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--ink-soft);cursor:pointer;margin-bottom:2px}
-  .navitem:hover{background:#f3f5f8}
-  .navitem.active{background:#eef2fc;color:var(--gold-deep);font-weight:600}
-  .navitem .ic{font-size:15px;width:18px;text-align:center;flex-shrink:0}
-  .navitem .badge{margin-left:auto;font-size:10.5px;font-weight:700;background:var(--hot);color:#fff;padding:1px 7px;border-radius:99px}
-  .sidefoot{margin-top:auto;padding:12px 10px 4px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
-  .main{flex:1;min-width:0;padding:22px 28px 64px}
+  .sidebar{width:236px;flex-shrink:0;background:var(--card);border-right:1px solid var(--line);padding:0 12px 14px;
+    display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .sbrand{display:flex;align-items:center;gap:10px;padding:22px 8px 18px}
+  .sbrand .dot{width:26px;height:26px;border-radius:5px;border:1.5px solid var(--gold);display:grid;place-items:center;
+    color:var(--gold);flex-shrink:0;background:transparent}
+  .sbrand h1{font-size:13.5px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+  .sbrand p{font-size:11px;color:var(--muted2)}
+  .brandlogo{max-width:26px;max-height:26px;border-radius:4px;object-fit:contain}
+  .navgroup{margin-bottom:22px}
+  .gtitle{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted2);padding:0 8px;margin-bottom:8px}
+  .navitem{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:var(--r);font-size:13.5px;font-weight:500;
+    color:var(--muted);cursor:pointer;margin-bottom:1px;transition:.13s;user-select:none}
+  .navitem:hover{background:var(--card2);color:var(--ink)}
+  .navitem.active{background:var(--card2);color:var(--ink);font-weight:600}
+  .navitem.active svg.i{color:var(--gold)}
+  .navitem .ic{display:flex;align-items:center;flex-shrink:0}
+  .navitem .badge{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--gold);background:none;padding:0;
+    font-variant-numeric:tabular-nums}
+  .sidefoot{margin-top:auto;padding:14px 2px 0;border-top:1px solid var(--line);font-size:11px;color:var(--muted2)}
+  .main{flex:1;min-width:0;padding:24px 30px 70px;max-width:1500px}
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
-  .topbar h2{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;letter-spacing:-.02em}
+  .topbar h2{font-size:22px;font-weight:700;letter-spacing:-.02em}
   .topbar .upd{font-size:12px;color:var(--muted)}
 
   /* Métricas */
   .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:24px}
-  .metric{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px 13px;box-shadow:var(--shadow)}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:17px 18px 15px;box-shadow:var(--shadow)}
   .metric .label{font-size:11.5px;color:var(--muted);font-weight:500}
-  .metric .num{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;letter-spacing:-.03em;margin-top:5px}
+  .metric .num{font-size:26px;font-weight:700;letter-spacing:-.03em;margin-top:5px}
   .metric .num.small{font-size:18px}
   .metric.alert .num,.metric.hot .num{color:var(--hot)}
   .metric.warm .num{color:var(--warm)}.metric.cold .num{color:var(--cold)}.metric.cita .num{color:var(--green)}
@@ -70,10 +97,10 @@
   .metric.pipe .bar i{background:var(--gold)}.metric.cita .bar i{background:var(--green)}
 
   /* Tabla leads */
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);box-shadow:var(--shadow);overflow:hidden}
   .phead{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
-  .phead h3{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600}
-  .exportbtn{font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:8px 13px;border:1px solid var(--line);border-radius:9px;background:#fff}
+  .phead h3{font-size:15px;font-weight:600}
+  .exportbtn{font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:8px 13px;border:1px solid var(--line);border-radius:var(--r);background:#fff}
   .exportbtn:hover{background:#f3f5f8}
   table{width:100%;border-collapse:collapse}
   thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:11px 20px;background:#f7f9fb;border-bottom:1px solid var(--line)}
@@ -96,66 +123,78 @@
   .score{display:flex;align-items:center;gap:8px}
   .gauge{width:50px;height:6px;border-radius:4px;background:var(--line);overflow:hidden}
   .gauge i{display:block;height:100%;border-radius:4px}
-  .score b{font-family:'Space Grotesk',sans-serif;font-size:13px;min-width:22px}
+  .score b{font-size:13px;min-width:22px}
   .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
-  .chip{font-size:10.5px;font-weight:600;background:#e9eefb;color:var(--gold-deep);padding:2px 8px;border-radius:99px}
+  .pto{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;background:var(--card2);color:var(--muted);padding:3px 8px;border-radius:var(--r)}
   .citatag{display:inline-block;font-size:10.5px;font-weight:600;background:var(--green-bg);color:var(--green);padding:2px 8px;border-radius:99px;margin-top:5px}
   .checkcol{width:40px;text-align:center}
   .checkcol input{width:16px;height:16px;cursor:pointer;accent-color:var(--gold)}
-  .empty{padding:50px 20px;text-align:center;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:14px}
-  .empty p:first-child{font-family:'Space Grotesk',sans-serif;font-size:16px;color:var(--ink-soft);margin-bottom:6px}
+  .empty{padding:50px 20px;text-align:center;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:var(--r2)}
+  .empty p:first-child{font-size:16px;color:var(--ink-soft);margin-bottom:6px}
 
-  .bulkbar{display:none;align-items:center;gap:10px;background:var(--ink);color:#fff;padding:11px 16px;border-radius:12px;margin-bottom:14px;font-size:13px}
+  .bulkbar{display:none;align-items:center;gap:10px;background:var(--ink);color:#fff;padding:11px 16px;border-radius:var(--r2);margin-bottom:14px;font-size:13px}
   .bulkbar .grow{flex:1}
   .bulkbar button{font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;cursor:pointer}
   .bulkbar button.danger{background:var(--hot);border-color:var(--hot)}
 
   /* Botones */
-  .btn{font-family:inherit;font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px;border:none;cursor:pointer}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-family:inherit;font-size:13.5px;
+    font-weight:500;padding:8px 14px;border-radius:var(--r);border:1px solid var(--line2);background:var(--card);
+    color:var(--ink);cursor:pointer;transition:.14s;white-space:nowrap}
+  .btn:hover{border-color:var(--muted2);background:var(--card2)}
+  .btn.primary{background:var(--ink);border-color:var(--ink);color:var(--canvas);font-weight:600}
+  .btn.primary:hover{opacity:.86;background:var(--ink)}
+  .btn.oro{background:var(--gold);border-color:var(--gold);color:#12100A;font-weight:600}
+  .btn.oro:hover{opacity:.9;background:var(--gold)}
+  .btn.ghost{background:transparent}
+  .btn.danger{color:var(--red)} .btn.danger:hover{border-color:var(--red)}
+  .btn.ico{padding:7px}
   .btn.primary{background:var(--ink);color:#fff}
   .btn.gold{background:var(--gold);color:#fff}
   .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink-soft)}
   .btn.danger{background:#fff;border:1px solid #f0c9c4;color:var(--red)}
   .btn:active{transform:translateY(1px)}
   .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-  .toolbar h3{font-family:'Space Grotesk',sans-serif;font-size:16px}
+  .toolbar h3{font-size:16px}
 
   /* Propiedades */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
-  .prop{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+  .prop{background:#fff;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
   .prop .img{height:150px;background:#eee center/cover no-repeat;position:relative}
   .prop .img .badge2{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:rgba(20,21,26,.8);color:#fff}
   .prop .img .nodisp{position:absolute;top:8px;right:8px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--red);color:#fff}
   .prop.off .img{filter:grayscale(.55);opacity:.72}
   .prop .soldby{margin-top:8px;font-size:12px;background:#eafaf0;border:1px solid #c9eede;color:#15803d;padding:7px 10px;border-radius:8px;line-height:1.5}
   .prop .body{padding:14px;flex:1;display:flex;flex-direction:column;gap:6px}
-  .prop .body h3{font-family:'Space Grotesk',sans-serif;font-size:15px;line-height:1.3}
-  .prop .price{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:var(--gold-deep)}
+  .prop .body h3{font-size:15px;line-height:1.3}
+  .prop .price{font-size:17px;font-weight:700;color:var(--gold-deep)}
   .prop .specs{font-size:12px;color:var(--muted)}
   .prop .desc{font-size:12.5px;color:var(--ink-soft);flex:1}
   .prop .acts{display:flex;gap:8px;padding:0 14px 14px}
   .prop .acts .btn{flex:1;padding:8px;font-size:12px}
 
   /* Agentes y ajustes */
-  .scard{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-bottom:20px;max-width:680px}
-  .scard h3{font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:4px}
+  .scard{background:#fff;border:1px solid var(--line);border-radius:var(--r2);box-shadow:var(--shadow);padding:22px;margin-bottom:20px;max-width:680px}
+  .scard h3{font-size:16px;margin-bottom:4px}
   .scard .sub{font-size:13px;color:var(--muted);margin-bottom:18px}
   .frow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
   label{font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px}
   .agent{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
   .agent:last-child{border-bottom:none}
   .agent .ainfo b{font-size:14px}.agent .ainfo .meta{font-size:12px;color:var(--muted)}
-  .agent .pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:#eef3ee;color:var(--green)}
-  .agent .pill.off{background:#f3eeee;color:var(--muted)}
+  .agent .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;color:var(--muted)}
+  .agent .pill:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green)}
+  .agent .pill.off:before{background:var(--muted2)}
   .agent .aacts{display:flex;gap:8px}.agent .aacts .btn{padding:7px 12px;font-size:12px}
 
   /* Modales */
   .overlay{position:fixed;inset:0;background:rgba(20,21,26,.45);display:none;align-items:flex-start;justify-content:center;padding:34px 16px;z-index:50;overflow-y:auto}
   .overlay.show{display:flex}
-  .modal{background:#fff;border-radius:18px;width:100%;max-width:540px;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+  .modal{background:#fff;border-radius:var(--r2);width:100%;max-width:540px;box-shadow:0 24px 60px rgba(0,0,0,.25)}
   .modal.lead{max-width:580px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column}
   .mhead{padding:18px 22px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start}
-  .mhead h3{font-family:'Space Grotesk',sans-serif;font-size:17px}
+  .mhead h3{font-size:17px}
   .mhead .sub{margin-top:3px}
   .close{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;line-height:1}
   .mtabs{display:flex;border-bottom:1px solid var(--line);padding:0 22px}
@@ -169,19 +208,19 @@
   .manage .mrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
   .manage .mrow:last-child{margin-bottom:0}
   .manage label{font-size:12px;color:var(--muted);font-weight:600;min-width:92px;margin:0}
-  .manage select,.manage input{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);flex:1;width:auto}
+  .manage select,.manage input{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:#fff;color:var(--ink);flex:1;width:auto}
   .estbtns{display:flex;gap:7px;flex-wrap:wrap}
-  .estbtns button{font-family:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer}
+  .estbtns button{font-family:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:var(--r);border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer}
   .estbtns button.on{color:#fff}
   .estbtns button.atender.on{background:var(--cold);border-color:var(--cold)}
   .estbtns button.cerrar.on{background:var(--green);border-color:var(--green)}
   .estbtns button.perder.on{background:var(--muted);border-color:var(--muted)}
   .notesbox{padding:14px 22px}
   .notesbox label{font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px}
-  .notesbox textarea,.notesbox input{font-family:inherit;font-size:13px;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;color:var(--ink)}
-  .savenote{font-size:12px;font-weight:600;padding:8px 14px;border-radius:9px;border:none;background:var(--ink);color:#fff;cursor:pointer}
-  .chat{padding:16px 16px 20px;background:#e7ddd3;min-height:240px;background-image:radial-gradient(rgba(255,255,255,.5) 1px,transparent 0);background-size:18px 18px}
-  .msg{max-width:78%;padding:6px 9px 4px;border-radius:9px;font-size:13.5px;line-height:1.35;margin-bottom:8px;box-shadow:0 1px 1px rgba(0,0,0,.1);word-wrap:break-word}
+  .notesbox textarea,.notesbox input{font-family:inherit;font-size:13px;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:8px;color:var(--ink)}
+  .savenote{font-size:12px;font-weight:600;padding:8px 14px;border-radius:var(--r);border:none;background:var(--ink);color:#fff;cursor:pointer}
+  .chat{padding:16px 16px 20px;background:var(--card2);min-height:240px;background-image:radial-gradient(rgba(255,255,255,.5) 1px,transparent 0);background-size:18px 18px}
+  .msg{max-width:78%;padding:6px 9px 4px;border-radius:var(--r);font-size:13.5px;line-height:1.35;margin-bottom:8px;box-shadow:0 1px 1px rgba(0,0,0,.1);word-wrap:break-word}
   .msg.user{background:#fff;border-top-left-radius:2px}
   .msg.bot{background:#d9fdd3;margin-left:auto;border-top-right-radius:2px}
   .msg .t{display:block;font-size:10px;color:#667781;margin-top:1px;text-align:right;line-height:1}
@@ -199,121 +238,40 @@
   .zonechecks label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-soft);font-weight:500;margin:0}
   .zonechecks input{width:auto}
   .factions{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;z-index:100}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .2s;z-index:100}
   .toast.show{opacity:1}
 
   @media (max-width:820px){
     .layout{flex-direction:column}
     .sidebar{width:100%;height:auto;position:static;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;padding:12px}
     .sbrand{border:none;margin:0;padding:0 10px 0 4px;flex-shrink:0}
-    .navgroup{margin-top:0;display:flex;gap:4px}
+    .navgroup{margin:0!important;display:flex;gap:4px;flex-shrink:0}
     .gtitle{display:none}.sidefoot{display:none}
+    .temabtn{width:auto;white-space:nowrap;padding:8px 11px;border:1px solid var(--line);margin:0}
+    .temabtn+.temabtn{margin-top:0}
+    .sidebar{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:25}
     .navitem{white-space:nowrap;margin-bottom:0}
     .main{padding:18px 16px 48px}
     .metrics{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}
   }
   /* ============================================================
-     RESTYLE PREMIUM — vidrio esmerilado + sidebar zafiro
-     (sobrescribe lo de arriba; pensado para verse caro y serio)
+     Ajustes finos del sistema (sustituye al "restyle premium" viejo)
      ============================================================ */
-  :root{
-    --sapphire-1:#0f1830;--sapphire-2:#1b2c54;
-    --glass:rgba(255,255,255,.66);--glass-strong:rgba(255,255,255,.82);
-    --glass-bd:rgba(255,255,255,.7);--blur:saturate(180%) blur(16px);
-    --line:#dde3ec;
-    --shadow:0 1px 2px rgba(16,26,51,.04),0 10px 30px rgba(16,26,51,.07);
-    --shadow-lg:0 24px 60px rgba(16,26,51,.16);
-  }
-  body{
-    background:
-      radial-gradient(900px 520px at 10% -10%, rgba(52,87,213,.16), transparent 60%),
-      radial-gradient(820px 520px at 100% -5%, rgba(46,158,120,.10), transparent 55%),
-      linear-gradient(180deg,#eef1f7 0%,#e5e9f1 100%);
-    background-attachment:fixed;min-height:100vh;
-  }
-  /* Sidebar zafiro */
-  .sidebar{background:linear-gradient(180deg,var(--sapphire-1),var(--sapphire-2));border-right:1px solid rgba(255,255,255,.06);box-shadow:inset -1px 0 0 rgba(255,255,255,.04)}
-  .sbrand{border-bottom:1px solid rgba(255,255,255,.09)}
-  .sbrand h1{color:#fff}
-  .sbrand p{color:rgba(255,255,255,.5)}
-  .sbrand .dot{background:linear-gradient(135deg,#4f7bff,#7aa2ff);box-shadow:0 4px 16px rgba(63,111,255,.45)}
-  .brandlogo{width:38px;height:38px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.3)}
-  .gtitle{color:rgba(255,255,255,.36)}
-  .navitem{color:rgba(255,255,255,.66)}
-  .navitem:hover{background:rgba(255,255,255,.07)}
-  .navitem.active{background:rgba(255,255,255,.13);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
-  .sidefoot{color:rgba(255,255,255,.42);border-top:1px solid rgba(255,255,255,.09)}
-  /* Superficies de vidrio */
-  .metric,.panel,.scard,.prop{background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-bd);box-shadow:var(--shadow)}
-  .empty{background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px dashed rgba(16,26,51,.16)}
-  .phead{border-bottom:1px solid rgba(16,26,51,.07)}
-  thead th{background:rgba(247,249,252,.55);border-bottom:1px solid rgba(16,26,51,.07)}
-  tbody td{border-bottom:1px solid rgba(16,26,51,.06)}
-  tbody tr:hover{background:rgba(52,87,213,.05)}
-  .agent{border-bottom:1px solid rgba(16,26,51,.07)}
-  /* Botones con profundidad */
-  .btn.gold{background:linear-gradient(135deg,#3457d5,#2a45b8);box-shadow:0 4px 14px rgba(52,87,213,.3)}
-  .btn.primary{background:linear-gradient(135deg,#1b2c54,#0f1830)}
-  .btn.ghost{background:var(--glass-strong);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
-  /* Modales de vidrio */
-  .overlay{background:rgba(15,24,48,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
-  .modal{background:var(--glass-strong);-webkit-backdrop-filter:saturate(180%) blur(26px);backdrop-filter:saturate(180%) blur(26px);border:1px solid var(--glass-bd);box-shadow:var(--shadow-lg)}
-  .manage{background:rgba(247,249,252,.5)}
-  .gate{background:var(--glass-strong);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-bd);box-shadow:var(--shadow-lg)}
-  /* Equipo: tarjetas con stats */
-  .teamsum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
-  .teamsum .ts{flex:1;min-width:140px;background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-bd);border-radius:14px;padding:13px 15px;box-shadow:var(--shadow)}
-  .teamsum .ts .n{font-family:'Space Grotesk',sans-serif;font-size:23px;font-weight:700;letter-spacing:-.02em}
-  .teamsum .ts .l{font-size:11.5px;color:var(--muted);font-weight:500}
-  .member{background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-bd);border-radius:14px;box-shadow:var(--shadow);padding:15px 17px;margin-bottom:11px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .member .av{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#3457d5,#2a45b8);color:#fff;display:grid;place-items:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;flex-shrink:0}
-  .member .who{flex:1;min-width:160px}
-  .member .who b{font-size:14.5px}
-  .member .who .meta{font-size:12px;color:var(--muted);margin-top:2px}
-  .member .stats{display:flex;gap:18px;text-align:center}
-  .member .stats .st .n{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;line-height:1}
-  .member .stats .st .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
-  .member .stats .st.alerta .n{color:var(--hot)}.member .stats .st.cita .n{color:var(--green)}
-  .member .mx{display:flex;gap:7px}
-  .member .pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;background:#eef3ee;color:var(--green)}
-  .member .pill.off{background:#f1eeee;color:var(--muted)}
-  /* Accesibilidad */
-  .uploadbox{border:2px dashed var(--glass-bd,#d5deec);border-radius:10px;padding:16px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;background:var(--glass,#f7f9fd);transition:.15s}
-  .uploadbox:hover{background:#fff;border-color:var(--gold-deep,#c08a2a);color:var(--ink,#1b2436)}
-  .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-  .thumb{position:relative;width:74px;height:74px;border-radius:8px;overflow:hidden;border:1px solid var(--glass-bd,#e4e9f2)}
-  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-  .thumb button{position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:50%;background:rgba(20,25,40,.75);color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0}
-  .thumb button:hover{background:var(--red,#d9534f)}
-  .chatimg{display:block;max-width:180px;max-height:180px;border-radius:10px;margin-bottom:5px;cursor:pointer;border:1px solid rgba(0,0,0,.08)}
-  .chatdoc{display:inline-block;background:rgba(224,169,60,.18);color:#12213a;padding:7px 11px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;margin-bottom:4px}
-  .chatbar .attach{background:transparent;border:none;font-size:19px;padding:0 6px;cursor:pointer;opacity:.7}
-  .chatbar .attach:hover{opacity:1}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
-  .kpi{background:var(--glass);border:1px solid var(--glass-bd);border-radius:14px;padding:15px 17px}
-  .kpi .l{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
-  .kpi .v{font-size:23px;font-weight:800;color:var(--ink);letter-spacing:-.5px}
-  .kpi.green .v{color:#16a34a}.kpi.gold .v{color:var(--gold-deep)}.kpi.blue .v{color:#2563eb}
-  .anagrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.anagrid{grid-template-columns:1fr}}
-  .fstep{margin-bottom:12px}
-  .fstep .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
-  .fbar{height:32px;border-radius:8px;background:linear-gradient(90deg,#1e3a8a,#3b82f6);display:flex;align-items:center;padding-left:11px;color:#fff;font-weight:700;font-size:13.5px;min-width:42px;transition:width .5s}
-  .fconv{font-size:11px;color:var(--muted);text-align:right;margin-top:3px}
-  .rankrow{margin-bottom:13px}
-  .rankrow .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;align-items:baseline}
-  .rankrow .nm{font-weight:600}.rankrow .vv{font-weight:700;color:#16a34a}
-  .rankbar{height:9px;border-radius:99px;background:#eef1f6;overflow:hidden}
-  .rankbar i{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#34d399);border-radius:99px;transition:width .5s}
-  .rsub{font-size:11px;color:var(--muted);margin-left:8px;font-weight:500}
-  .calbtn{display:inline-block;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;padding:6px 11px;border-radius:8px;background:var(--glass-strong);border:1px solid var(--glass-bd);color:var(--gold-deep)}
-  .calbtn:hover{background:#fff}
-  .navitem:focus-visible,.btn:focus-visible,.mtab:focus-visible{outline:2px solid #4f7bff;outline-offset:2px}
+  body{background:var(--canvas);min-height:100vh}
+  .glass,.panel,.card,.metric,.prop,.agent,.member,.campcard{background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r2);box-shadow:var(--shadow)}
+  .calbtn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;text-decoration:none;
+    white-space:nowrap;padding:6px 11px;border-radius:var(--r);background:var(--card);border:1px solid var(--line2);color:var(--ink)}
+  .calbtn:hover{border-color:var(--muted2);background:var(--card2)}
+  .fbar{height:30px;border-radius:var(--r);background:var(--card2);display:flex;align-items:center;padding-left:11px;
+    color:var(--ink);font-size:12.5px;font-weight:500;border:1px solid var(--line)}
+  .rankbar{height:4px;border-radius:99px;background:var(--card2);overflow:hidden}
+  .rankbar i{display:block;height:100%;background:var(--gold);border-radius:99px;transition:width .5s}
+  .rsub{font-size:11.5px;color:var(--muted2);margin-left:8px}
+  .member .av{background:var(--card2);color:var(--ink);border:1px solid var(--line2);font-weight:600}
+  .navitem:focus-visible,.btn:focus-visible,.mtab:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-  @media (max-width:820px){
-    .sidebar{background:linear-gradient(90deg,var(--sapphire-1),var(--sapphire-2))}
-    .member .stats{gap:13px}
-  }
+  @media (max-width:820px){ .member .stats{gap:13px} }
 </style>
 
 <style data-fix>
@@ -342,9 +300,9 @@
 
   /* Buscador y filtros de leads */
   .filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)}
-  .filtros input[type=search]{flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;font-size:13.5px;font-family:inherit;outline:none}
+  .filtros input[type=search]{flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);font-size:13.5px;font-family:inherit;outline:none}
   .filtros input[type=search]:focus{border-color:#2563eb}
-  .filtros select{padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;background:#fff;cursor:pointer}
+  .filtros select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;font-family:inherit;background:#fff;cursor:pointer}
   .filtros .btn{padding:8px 14px;font-size:13px}
   .filtroinfo{padding:8px 20px;font-size:12.5px;color:var(--muted);background:#f7f9fb;border-bottom:1px solid var(--line)}
   @media (max-width:680px){
@@ -366,24 +324,12 @@
   @media (max-width:680px){.filtrobar{padding:8px 12px 0}}
 
   /* ====== BOTÓN DE TEMA ====== */
-  .temabtn{margin-top:auto;width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;font-family:inherit;font-size:12.5px;cursor:pointer;text-align:left;transition:background .15s}
-  .temabtn:hover{background:rgba(255,255,255,.08)}
-  .sidebar .temabtn{color:rgba(255,255,255,.75);border-color:rgba(255,255,255,.15)}
+  .temabtn{display:flex;align-items:center;gap:9px;width:100%;padding:8px 9px;border:none;border-radius:var(--r);background:transparent;color:var(--muted);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;text-align:left;transition:.13s}
+  .temabtn:hover{background:var(--card2);color:var(--ink)}
+  
 
-  /* ====== TEMA OSCURO ====== */
-  html.dark body{
-    background:radial-gradient(900px 520px at 10% -10%, rgba(52,87,213,.18), transparent 60%),
-      radial-gradient(820px 520px at 100% -5%, rgba(46,158,120,.10), transparent 55%),
-      linear-gradient(180deg,#0d1220 0%,#0a0e18 100%);
-    color:#e6e9f0;
-  }
-  html.dark{
-    --ink:#e6e9f0;--ink-soft:#c3c9d6;--muted:#8d96a8;--line:#252c3d;--canvas:#0d1220;--card:#151b29;
-    --glass:rgba(21,27,41,.72);--glass-strong:rgba(21,27,41,.88);--glass-bd:rgba(255,255,255,.08);
-    --hot-bg:#3a1f1c;--warm-bg:#3a2f18;--cold-bg:#1c2a3a;--green-bg:#16301f;
-    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
-    --shadow-lg:0 24px 60px rgba(0,0,0,.5);
-  }
+  /* ====== Ajustes del tema oscuro ====== */
+  html.dark body{background:var(--canvas);color:var(--ink)}
   html.dark .panel,html.dark .modal,html.dark .prop,html.dark .metric,html.dark .kpi,html.dark .card,html.dark .gate{background:var(--card);border-color:var(--line);color:var(--ink)}
   html.dark input,html.dark select,html.dark textarea{background:#1b2231;color:var(--ink);border-color:var(--line)}
   html.dark input::placeholder,html.dark textarea::placeholder{color:#6b7385}
@@ -402,7 +348,7 @@
   html.dark .reacbubble{background:#232b3b;border-color:var(--line);color:var(--ink)}
   html.dark .chatbar{background:#151b29;border-color:var(--line)}
   html.dark .estado.perdido{background:#252c3d;color:var(--muted)}
-  html.dark .chip{background:#232b3b;color:var(--ink-soft)}
+  
   html.dark .soldby{background:#16301f;color:#b7e6c6}
 
   /* Modo asesor: sin botones de administración */
@@ -414,14 +360,14 @@
   body.modo-asesor .navitem.solo-dueno{display:none!important}
 
   /* Barra de alerta de atención humana (solo aparece cuando hay) */
-  .alertabar{display:flex;align-items:center;gap:10px;padding:13px 18px;margin-bottom:16px;border-radius:12px;
-    background:linear-gradient(90deg,rgba(224,72,59,.14),rgba(224,72,59,.05));border:1px solid rgba(224,72,59,.32);
+  .alertabar{display:flex;align-items:center;gap:10px;padding:13px 18px;margin-bottom:16px;border-radius:var(--r2);
+    background:var(--card);border:1px solid var(--gold);
     color:var(--hot);font-size:14px;cursor:pointer;transition:transform .12s}
   .alertabar:hover{transform:translateY(-1px)}
   .alertabar .pulso{width:9px;height:9px;border-radius:50%;background:var(--hot);animation:urge 1.4s infinite;flex-shrink:0}
   .alertabar .verlos{margin-left:auto;font-weight:600;font-size:13px}
-  html.dark .alertabar{background:linear-gradient(90deg,rgba(224,72,59,.2),rgba(224,72,59,.06))}
-  .temabtn+.temabtn{margin-top:8px}
+  
+  .temabtn+.temabtn{margin-top:1px}
 
   .notirow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
   .notirow:last-child{border-bottom:none}
@@ -433,15 +379,15 @@
   .sw input:checked+i{background:#22c55e}
   .sw input:checked+i:before{transform:translateX(19px)}
   html.dark .sw i{background:#3c4a63}
-  .notiestado{padding:12px 14px;border-radius:11px;font-size:13px;line-height:1.55;margin-bottom:14px}
+  .notiestado{padding:12px 14px;border-radius:var(--r);font-size:13px;line-height:1.55;margin-bottom:14px}
   .notiestado.on{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
   .notiestado.off{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412}
   html.dark .notiestado.on{background:#14261c;border-color:#1e4030;color:#86efac}
   html.dark .notiestado.off{background:#2a1d12;border-color:#4a3320;color:#fdba74}
 
-  .avisocamp{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:13px 16px;border-radius:12px;font-size:13px;margin-bottom:16px;line-height:1.55}
+  .avisocamp{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:13px 16px;border-radius:var(--r2);font-size:13px;margin-bottom:16px;line-height:1.55}
   html.dark .avisocamp{background:#16233a;border-color:#1e3a5f;color:#93c5fd}
-  .campcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+  .campcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:16px;margin-bottom:12px}
   .campcard .est{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:600}
   .est-borrador{background:#f3f4f6;color:#6b7280}.est-enviando{background:#dbeafe;color:#2563eb}
   .est-pausada{background:#fef3c7;color:#b45309}.est-terminada{background:#dcfce7;color:#16a34a}
@@ -450,12 +396,12 @@
   .campstat{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
   .campstat b{color:var(--ink)}
 
-  .roihero{background:linear-gradient(135deg,#16232E,#1F3140);color:#fff;border-radius:18px;padding:28px;margin-bottom:16px;text-align:center}
+  .roihero{background:var(--ink);color:var(--canvas);border-radius:var(--r2);padding:30px;margin-bottom:16px;text-align:center}
   .roihero .n{font-size:56px;font-weight:800;line-height:1.05;color:#3FA98A}
   .roihero .l{font-size:15px;color:#AEBBC4;margin-top:6px}
   .roihero .sub{font-size:13px;color:#7E8D99;margin-top:14px}
   .roigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:13px;margin-bottom:16px}
-  .roicard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .roicard{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:18px}
   .roicard .ic{font-size:22px;margin-bottom:8px}
   .roicard .n{font-size:30px;font-weight:700;line-height:1.1}
   .roicard .t{font-size:14px;font-weight:600;margin-top:5px}
@@ -484,30 +430,33 @@
   <div class="layout">
     <aside class="sidebar">
       <div class="sbrand">
-        <div class="dot" id="brandDot">◆</div>
+        <div class="dot" id="brandDot"><span class="ii" data-ico="mark"></span></div>
         <img id="brandLogo" class="brandlogo hidden" alt="" />
         <div><h1 id="agencyName">CRM</h1><p>Inmobiliario</p></div>
       </div>
       <div class="navgroup">
         <div class="gtitle">Principal</div>
-        <div class="navitem active" data-view="leads" onclick="showView('leads')"><span class="ic">📊</span> Leads <span class="badge hidden" id="navLeadsBadge">0</span></div>
-        <div class="navitem" data-view="analisis" onclick="showView('analisis')"><span class="ic">📈</span> Análisis</div>
-        <div class="navitem" data-view="roi" onclick="showView('roi')"><span class="ic">💎</span> Tu retorno</div>
-        <div class="navitem" data-view="agenda" onclick="showView('agenda')"><span class="ic">📅</span> Agenda <span class="badge hidden" id="navAgendaBadge">0</span></div>
-        <div class="navitem" data-view="props" onclick="showView('props')"><span class="ic">🏠</span> Propiedades</div>
+        <div class="navitem active" data-view="leads" onclick="showView('leads')"><span class="ic ii" data-ico="users"></span> Leads <span class="badge hidden" id="navLeadsBadge">0</span></div>
+        <div class="navitem" data-view="analisis" onclick="showView('analisis')"><span class="ic ii" data-ico="trend"></span> Análisis</div>
+        <div class="navitem" data-view="roi" onclick="showView('roi')"><span class="ic ii" data-ico="gem"></span> Tu retorno</div>
+        <div class="navitem" data-view="agenda" onclick="showView('agenda')"><span class="ic ii" data-ico="calendar"></span> Agenda <span class="badge hidden" id="navAgendaBadge">0</span></div>
+        <div class="navitem" data-view="props" onclick="showView('props')"><span class="ic ii" data-ico="home"></span> Propiedades</div>
       </div>
       <div class="navgroup">
         <div class="gtitle">Gestión</div>
-        <div class="navitem solo-dueno" data-view="campanas" onclick="showView('campanas')"><span class="ic">📣</span> Campañas</div>
-        <div class="navitem solo-dueno" data-view="agentes" onclick="showView('agentes')"><span class="ic">👥</span> Equipo</div>
-        <div class="navitem solo-dueno" data-view="zonas" onclick="showView('zonas')"><span class="ic">📍</span> Zonas</div>
+        <div class="navitem solo-dueno" data-view="campanas" onclick="showView('campanas')"><span class="ic ii" data-ico="megaphone"></span> Campañas</div>
+        <div class="navitem solo-dueno" data-view="agentes" onclick="showView('agentes')"><span class="ic ii" data-ico="user"></span> Equipo</div>
+        <div class="navitem solo-dueno" data-view="zonas" onclick="showView('zonas')"><span class="ic ii" data-ico="pin"></span> Zonas</div>
       </div>
-      <button class="temabtn solo-dueno" onclick="descargarRespaldo()" title="Descargar una copia de todos tus datos">💾 Descargar respaldo</button>
-      <button class="temabtn solo-dueno" onclick="document.getElementById('restoreFile').click()" title="Restaurar desde un respaldo">♻️ Restaurar respaldo</button>
-      <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restaurarRespaldo(this.files)">
-      <button class="temabtn" id="notiBtn" onclick="abrirNotis()" title="Notificaciones al celular">🔔 Notificaciones</button>
-      <button class="temabtn" onclick="cerrarSesion()" title="Salir">🚪 Cerrar sesión</button>
-      <button class="temabtn" id="temaBtn" onclick="toggleTema()" title="Cambiar tema">🌙 Modo oscuro</button>
+      <div class="navgroup" style="margin-top:auto;margin-bottom:0">
+        <div class="gtitle">Cuenta</div>
+        <button class="temabtn" id="notiBtn" onclick="abrirNotis()" title="Notificaciones al celular"><span class="ii" data-ico="bell"></span> Notificaciones</button>
+        <button class="temabtn solo-dueno" onclick="descargarRespaldo()" title="Descargar una copia de todos tus datos"><span class="ii" data-ico="download"></span> Descargar respaldo</button>
+        <button class="temabtn solo-dueno" onclick="document.getElementById('restoreFile').click()" title="Restaurar desde un respaldo"><span class="ii" data-ico="refresh"></span> Restaurar respaldo</button>
+        <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restaurarRespaldo(this.files)">
+        <button class="temabtn" id="temaBtn" onclick="toggleTema()" title="Cambiar tema">Tema</button>
+        <button class="temabtn" onclick="cerrarSesion()" title="Salir"><span class="ii" data-ico="door"></span> Cerrar sesión</button>
+      </div>
       <div class="sidefoot">CRM en vivo · se actualiza solo</div>
     </aside>
 
@@ -522,16 +471,16 @@
         <div id="alertaUrgente" class="alertabar hidden" onclick="filtrarUrgentes()"></div>
         <div class="bulkbar" id="bulkbar">
           <span><b id="bulkcount">0</b> seleccionados</span><span class="grow"></span>
-          <button onclick="bulk('cerrado')">✓ Trato cerrado</button>
-          <button onclick="bulk('sin_atender')">🔔 Por atender</button>
-          <button class="danger" onclick="bulk('borrar')">🗑 Borrar</button>
+          <button onclick="bulk('cerrado')"><span class="ii" data-ico="check"></span> Trato cerrado</button>
+          <button onclick="bulk('sin_atender')"><span class="ii" data-ico="bell"></span> Por atender</button>
+          <button class="danger" onclick="bulk('borrar')"><span class="ii" data-ico="x"></span> Borrar</button>
         </div>
         <div class="panel">
-          <div class="phead" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h3>Leads por prioridad</h3><button class="btn gold" onclick="abrirEscribir()">✍️ Escribir a un número</button></div>
-          <div class="filtrobar"><button class="btn ghost filtrotoggle" onclick="toggleFiltros('filtrosLeads',this)">🔍 Buscar y filtrar ▾</button></div>
+          <div class="phead" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h3>Leads por prioridad</h3><button class="btn gold" onclick="abrirEscribir()"><span class="ii" data-ico="edit"></span> Escribir a un número</button></div>
+          <div class="filtrobar"><button class="btn ghost filtrotoggle" onclick="toggleFiltros('filtrosLeads',this)"><span class="ii" data-ico="search"></span> Buscar y filtrar</button></div>
           <div class="filtros hidden" id="filtrosLeads">
-            <input id="buscarLead" type="search" placeholder="🔍 Buscar por nombre, teléfono, nota o etiqueta..." oninput="aplicarFiltros()" />
-            <select id="filtroZona" onchange="aplicarFiltros()"><option value="">📍 Todas las zonas</option></select>
+            <input id="buscarLead" type="search" placeholder="Buscar por nombre, teléfono, nota o etiqueta..." oninput="aplicarFiltros()" />
+            <select id="filtroZona" onchange="aplicarFiltros()"><option value="">Todas las zonas</option></select>
             <select id="filtroEstado" onchange="aplicarFiltros()">
               <option value="">Todos los estados</option>
               <option value="sin_atender">Sin atender</option>
@@ -541,9 +490,9 @@
             </select>
             <select id="filtroTemp" onchange="aplicarFiltros()">
               <option value="">Toda temperatura</option>
-              <option value="caliente">🔴 Caliente</option>
-              <option value="tibio">🟡 Tibio</option>
-              <option value="frio">🔵 Frío</option>
+              <option value="caliente">Caliente</option>
+              <option value="tibio">Tibio</option>
+              <option value="frio">Frío</option>
             </select>
             <button class="btn ghost" onclick="limpiarFiltros()">Limpiar</button>
           </div>
@@ -555,15 +504,15 @@
       <!-- PROPIEDADES -->
       <section id="view-props" class="view hidden">
         <div class="toolbar"><h3 id="count">Propiedades</h3><div style="display:flex;gap:8px"><button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button></div></div>
-        <div class="filtrobar"><button class="btn ghost filtrotoggle" onclick="toggleFiltros('filtrosProps',this)">🔍 Buscar y filtrar ▾</button></div>
-        <div class="filtros hidden" id="filtrosProps" style="border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:#fff">
-          <input id="buscarProp" type="search" placeholder="🔍 Buscar propiedad por título, zona o descripción..." oninput="aplicarFiltrosProps()" />
-          <select id="filtroZonaProp" onchange="aplicarFiltrosProps()"><option value="">📍 Todas las zonas</option></select>
+        <div class="filtrobar"><button class="btn ghost filtrotoggle" onclick="toggleFiltros('filtrosProps',this)"><span class="ii" data-ico="search"></span> Buscar y filtrar</button></div>
+        <div class="filtros hidden" id="filtrosProps" style="border:1px solid var(--line);border-radius:var(--r2);margin-bottom:14px;background:#fff">
+          <input id="buscarProp" type="search" placeholder="Buscar propiedad por título, zona o descripción..." oninput="aplicarFiltrosProps()" />
+          <select id="filtroZonaProp" onchange="aplicarFiltrosProps()"><option value="">Todas las zonas</option></select>
           <select id="filtroEstadoProp" onchange="aplicarFiltrosProps()">
             <option value="">Todos los estados</option>
-            <option value="disponible">🟢 Disponible</option>
-            <option value="apartado">🟡 Apartado</option>
-            <option value="vendido">🔴 Vendido</option>
+            <option value="disponible">Disponible</option>
+            <option value="apartado">Apartado</option>
+            <option value="vendido">Vendido</option>
           </select>
           <select id="filtroOperProp" onchange="aplicarFiltrosProps()">
             <option value="">Venta y renta</option>
@@ -613,7 +562,7 @@
 
       <!-- AGENDA -->
       <section id="view-roi" class="view hidden">
-        <div class="toolbar"><h3>Lo que te está devolviendo</h3><button class="btn ghost solo-dueno" onclick="abrirSupuestos()">⚙️ Ajustar cálculo</button></div>
+        <div class="toolbar"><h3>Lo que te está devolviendo</h3><button class="btn ghost solo-dueno" onclick="abrirSupuestos()"><span class="ii" data-ico="gear"></span> Ajustar cálculo</button></div>
         <div id="roiHost"><div class="empty" style="border:none">Calculando…</div></div>
       </section>
       <section id="view-agenda" class="view hidden">
@@ -623,7 +572,7 @@
         </div>
         <div class="panel" style="margin-top:16px">
           <div class="phead" style="display:flex;justify-content:space-between;align-items:center">
-            <h3>🚫 Horarios no disponibles</h3>
+            <h3>Horarios no disponibles</h3>
             <button class="btn gold" onclick="abrirBloqueo()">+ Bloquear horario</button>
           </div>
           <p class="sub" style="padding:0 16px 4px">Marca cuándo un asesor no puede recibir visitas. El bot no ofrecerá ni agendará en esas horas.</p>
@@ -639,8 +588,8 @@
   <div class="modal lead">
     <div class="mhead"><div><h3 id="mName">—</h3><p class="sub" id="mPhone">—</p></div><button class="close" onclick="cerrarModal()">×</button></div>
     <div class="mtabs">
-      <button class="mtab active" id="mtabChat" onclick="modalTab('chat')">💬 Conversación</button>
-      <button class="mtab" id="mtabGest" onclick="modalTab('gest')">⚙️ Gestión</button>
+      <button class="mtab active" id="mtabChat" onclick="modalTab('chat')"><span class="ii" data-ico="chat"></span> Conversación</button>
+      <button class="mtab" id="mtabGest" onclick="modalTab('gest')"><span class="ii" data-ico="gear"></span> Gestión</button>
     </div>
     <div class="mscroll">
       <div id="viewChat"><div class="chat" id="mChat"></div></div>
@@ -650,7 +599,7 @@
         <div class="notesbox" id="mNotes"></div>
       </div>
     </div>
-    <div class="chatbar" id="chatbar"><input type="file" id="chatFile" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="enviarArchivoChat(this.files)"><button class="attach" onclick="document.getElementById('chatFile').click()" title="Adjuntar imagen o archivo">📎</button><input id="chatInput" placeholder="Escribe un mensaje al cliente..." onkeydown="if(event.key==='Enter')enviarChat()" /><button onclick="enviarChat()">Enviar</button></div>
+    <div class="chatbar" id="chatbar"><input type="file" id="chatFile" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="enviarArchivoChat(this.files)"><button class="attach" onclick="document.getElementById('chatFile').click()" title="Adjuntar imagen o archivo"><span class="ii" data-ico="paperclip"></span></button><input id="chatInput" placeholder="Escribe un mensaje al cliente..." onkeydown="if(event.key==='Enter')enviarChat()" /><button onclick="enviarChat()">Enviar</button></div>
     <div class="actions" id="mActions"></div>
   </div>
 </div>
@@ -665,7 +614,7 @@
       <div class="full"><label>Mensaje</label><textarea id="m_cuerpo" rows="7" placeholder="Hola, te mando la información de la propiedad que viste...&#10;&#10;Cada salto de línea será un párrafo."></textarea></div>
       <div class="full" style="font-size:12.5px;color:var(--muted)">Se enviará con el logo y los colores de la agencia. El cliente puede responder directo a este correo.</div>
     </div>
-    <div class="factions"><button class="btn ghost" onclick="cerrar2('mailOverlay')">Cancelar</button><button class="btn primary" onclick="enviarCorreoLead()">📩 Enviar</button></div>
+    <div class="factions"><button class="btn ghost" onclick="cerrar2('mailOverlay')">Cancelar</button><button class="btn primary" onclick="enviarCorreoLead()"><span class="ii" data-ico="send"></span> Enviar</button></div>
   </div>
 </div>
 <div class="overlay" id="supOverlay">
@@ -690,7 +639,7 @@
       <div><label>Máximo por día</label><input id="c_max" type="number" value="100" min="1" max="250"></div>
       <div class="full"><label>Contactos <span style="font-weight:400;color:var(--muted)">(uno por línea: teléfono, nombre)</span></label>
         <textarea id="c_lista" rows="7" placeholder="5215512345678, Ana Pérez&#10;5215587654321, Luis Ramos&#10;5544332211"></textarea></div>
-      <div class="full"><button class="btn ghost" onclick="document.getElementById('c_file').click()">📥 Cargar desde archivo (CSV)</button>
+      <div class="full"><button class="btn ghost" onclick="document.getElementById('c_file').click()"><span class="ii" data-ico="upload"></span> Cargar desde archivo (CSV)</button>
         <input type="file" id="c_file" accept=".csv,.txt" style="display:none" onchange="cargarListaCamp(this.files)"></div>
       <div class="full" id="c_conteo" style="font-size:12.5px;color:var(--muted)"></div>
     </div>
@@ -722,27 +671,27 @@
     <div class="mhead"><h3 id="estadoTitle">Estado de la propiedad</h3><button class="close" onclick="cerrarEstado()">×</button></div>
     <div style="padding:18px 22px">
       <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">Estado</label>
-      <select id="e_estado" onchange="toggleVentaCampos()" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:14px">
-        <option value="disponible">🟢 Disponible</option>
-        <option value="apartado">🟡 Apartada</option>
-        <option value="vendido">🔴 Vendida</option>
+      <select id="e_estado" onchange="toggleVentaCampos()" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:var(--r);font-size:14px">
+        <option value="disponible">Disponible</option>
+        <option value="apartado">Apartada</option>
+        <option value="vendido">Vendida</option>
       </select>
       <div id="ventaCampos" class="hidden" style="margin-top:14px">
         <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">¿Quién la vendió?</label>
-        <select id="e_asesor" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:14px"></select>
+        <select id="e_asesor" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:var(--r);font-size:14px"></select>
         <label style="font-size:12.5px;font-weight:600;display:block;margin:12px 0 6px">Monto final de venta (MXN)</label>
-        <input id="e_monto" type="number" placeholder="5200000" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:14px" />
+        <input id="e_monto" type="number" placeholder="5200000" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:var(--r);font-size:14px" />
         <label style="font-size:12.5px;font-weight:600;display:block;margin:12px 0 6px">Cliente (opcional)</label>
-        <input id="e_cliente" placeholder="Nombre del comprador" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:14px" />
+        <input id="e_cliente" placeholder="Nombre del comprador" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:var(--r);font-size:14px" />
       </div>
-      <div id="ventaInfoActual" class="hidden" style="margin-top:14px;padding:12px;background:#f0fdf4;border-radius:10px;font-size:13px"></div>
+      <div id="ventaInfoActual" class="hidden" style="margin-top:14px;padding:12px;background:#f0fdf4;border-radius:var(--r);font-size:13px"></div>
     </div>
     <div class="factions"><button class="btn ghost" onclick="cerrarEstado()">Cancelar</button><button class="btn primary" onclick="guardarEstado()">Guardar</button></div>
   </div>
 </div>
 <div class="overlay" id="notiOverlay">
   <div class="modal" style="max-width:480px">
-    <div class="mhead"><h3>🔔 Notificaciones al celular</h3><button class="close" onclick="cerrarNotis()">×</button></div>
+    <div class="mhead"><h3>Notificaciones al celular</h3><button class="close" onclick="cerrarNotis()">×</button></div>
     <div style="padding:18px 22px" id="notiBody">
       <div style="text-align:center;padding:20px;color:var(--muted)">Cargando…</div>
     </div>
@@ -764,15 +713,15 @@
       <div class="full"><label>Dirección <span style="font-weight:400;color:var(--muted)">(se comparte solo si el cliente la pide)</span></label><input id="f_direccion" placeholder="Av. Insurgentes Sur 1234, Del Valle" /></div>
       <div class="full"><label>Ubicación en el mapa <span style="font-weight:400;color:var(--muted)">(opcional — para mandar el pin por WhatsApp. En Google Maps: clic derecho en el punto exacto → clic en las coordenadas para copiarlas)</span></label><div style="display:flex;gap:10px"><input id="f_lat" placeholder="Latitud (ej. 19.4326)" style="flex:1" /><input id="f_lng" placeholder="Longitud (ej. -99.1332)" style="flex:1" /></div></div>
       <div class="full"><label>Fotos de la propiedad <span style="font-weight:400;color:var(--muted)">(selecciona varias de tu computadora)</span></label>
-        <div class="uploadbox" onclick="document.getElementById('f_files').click()">📁 Da clic aquí para elegir fotos (puedes seleccionar varias a la vez)</div>
+        <div class="uploadbox" onclick="document.getElementById('f_files').click()"><span class="ii" data-ico="image"></span> Da clic aquí para elegir fotos (puedes seleccionar varias a la vez)</div>
         <input type="file" id="f_files" accept="image/*" multiple style="display:none" onchange="subirFotos(this.files)">
         <div id="f_thumbs" class="thumbs"></div>
         <textarea id="f_imagenes" rows="1" placeholder="…o si prefieres, pega URLs de fotos (una por línea)" style="margin-top:6px"></textarea>
       </div>
       <div class="full"><label>Video <span style="font-weight:400;color:var(--muted)">(URL directa a un .mp4, opcional)</span></label><input id="f_video" placeholder="https://...mp4" /></div>
-      <div class="full"><label>Estado</label><select id="f_estado"><option value="disponible">🟢 Disponible</option><option value="apartado">🟡 Apartado</option><option value="vendido">🔴 Vendido</option></select></div>
+      <div class="full"><label>Estado</label><select id="f_estado"><option value="disponible">Disponible</option><option value="apartado">Apartado</option><option value="vendido">Vendido</option></select></div>
     </div>
-    <div class="factions"><button class="btn danger hidden" id="btnBorrarProp" onclick="borrarDesdeModal()">🗑 Borrar propiedad</button><span style="flex:1"></span><button class="btn ghost" onclick="cerrar()">Cancelar</button><button class="btn primary" onclick="guardar()">Guardar</button></div>
+    <div class="factions"><button class="btn danger hidden" id="btnBorrarProp" onclick="borrarDesdeModal()"><span class="ii" data-ico="x"></span> Borrar propiedad</button><span style="flex:1"></span><button class="btn ghost" onclick="cerrar()">Cancelar</button><button class="btn primary" onclick="guardar()">Guardar</button></div>
   </div>
 </div>
 
@@ -829,8 +778,8 @@
     <div class="form">
       <div class="full"><label>Número de teléfono <span style="font-weight:400;color:var(--muted)">(con LADA, 10 dígitos)</span></label><input id="e_tel" placeholder="55 1234 5678" /></div>
       <div class="full"><label>Nombre <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input id="e_nombre" placeholder="Ej. Juan" /></div>
-      <div class="full" style="background:#eef4ff;border:1px solid #d5e3ff;border-radius:10px;padding:12px">
-        <p class="sub" style="margin:0;font-size:12.5px;line-height:1.5">📩 Como esta persona aún no te escribe, WhatsApp exige que el <b>primer mensaje sea una plantilla aprobada</b>. Se enviará tu plantilla de apertura; cuando la persona responda, el bot la atiende normal y verás la conversación aquí.</p>
+      <div class="full" style="background:#eef4ff;border:1px solid #d5e3ff;border-radius:var(--r);padding:12px">
+        <p class="sub" style="margin:0;font-size:12.5px;line-height:1.5">Como esta persona aún no te escribe, WhatsApp exige que el <b>primer mensaje sea una plantilla aprobada</b>. Se enviará tu plantilla de apertura; cuando la persona responda, el bot la atiende normal y verás la conversación aquí.</p>
       </div>
     </div>
     <div class="factions"><button class="btn ghost" onclick="cerrarEscribir()">Cancelar</button><button class="btn primary" onclick="enviarApertura()">Enviar mensaje</button></div>
@@ -840,13 +789,90 @@
 <div class="toast" id="toast"></div>
 
 <script>
+/* ===== Iconos de línea (trazados propios, sin librerías externas) ===== */
+const ICO={
+  users:'<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 5.3a3.2 3.2 0 0 1 0 6.2M18 20a6.4 6.4 0 0 0-2.6-5.2"/>',
+  chart:'<path d="M3 3v17a1 1 0 0 0 1 1h17"/><path d="M7 15l3.5-4 3 2.5L21 6"/>',
+  msg:'<path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z"/>',
+  inbox:'<path d="M3 13h4l1.5 3h7L17 13h4"/><path d="M4.4 5.3 3 13v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5l-1.4-7.7A1 1 0 0 0 18.6 4H5.4a1 1 0 0 0-1 1.3z"/>',
+  phone:'<path d="M21.5 16.9v2.5a2 2 0 0 1-2.2 2 19.5 19.5 0 0 1-8.5-3 19 19 0 0 1-5.9-5.9 19.5 19.5 0 0 1-3-8.6A2 2 0 0 1 3.9 2h2.5a2 2 0 0 1 2 1.7c.1 1 .3 1.9.7 2.8a2 2 0 0 1-.5 2.1L7.5 9.7a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>',
+  cpu:'<rect x="7" y="7" width="10" height="10" rx="1.5"/><rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M9 1.5v2M15 1.5v2M9 20.5v2M15 20.5v2M1.5 9h2M1.5 15h2M20.5 9h2M20.5 15h2"/>',
+  bookmark:'<path d="M18 21 12 17l-6 4V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/>',
+  chat:'<path d="M20 14a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/>',
+  flame:'<path d="M12 22a6 6 0 0 0 6-6c0-4-3-6-3-10 0 0-2.5 1.5-2.5 4.5C12.5 8 11 6 11 6S9 8 9 10c0-1-2 1-3 3.5A6 6 0 0 0 12 22z"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  award:'<circle cx="12" cy="9" r="6"/><path d="m8.2 14.3-1.4 7 5.2-2.6 5.2 2.6-1.4-7"/>',
+  archive:'<rect x="2.5" y="3.5" width="19" height="4.5" rx="1"/><path d="M4.5 8v11a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V8M10 12h4"/>',
+  layers:'<path d="m12 2.5 9.5 5-9.5 5-9.5-5z"/><path d="m2.5 16.5 9.5 5 9.5-5M2.5 12l9.5 5 9.5-5"/>',
+  search:'<circle cx="10.5" cy="10.5" r="7"/><path d="m20.5 20.5-5-5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5M12 4v13"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7.5 11.5 4.5 4.5 4.5-4.5M12 16.5V3.5"/>',
+  logout:'<path d="M9.5 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4.5"/><path d="m16.5 16.5 4.5-4.5-4.5-4.5M21 12H9"/>',
+  moon:'<path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/>',
+  sun:'<circle cx="12" cy="12" r="4.2"/><path d="M12 1.5v2.5M12 20v2.5M4 4l1.8 1.8M18.2 18.2 20 20M1.5 12H4M20 12h2.5M4 20l1.8-1.8M18.2 5.8 20 4"/>',
+  wa:'<path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3.5 20.5l1.8-4.8A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.8 9.2c.3 2.2 2 3.9 4.2 4.2l.9-1.2 2 .9c-.2 1-1.1 1.5-2 1.4-2.9-.3-5.2-2.6-5.5-5.5-.1-.9.4-1.8 1.4-2l.9 2z"/>',
+  note:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8.5 13.5h7M8.5 17h4.5"/>',
+  edit:'<path d="M11 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.8 2.8L12 14.6l-3.5.9.9-3.5z"/>',
+  eye:'<path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  clock:'<circle cx="12" cy="12" r="9.2"/><path d="M12 6.8V12l3.4 2"/>',
+  alert:'<path d="M12 2.8 22 20H2z"/><path d="M12 9.5v4.5M12 17.3v.2"/>',
+  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3.5V9h-5.5"/>',
+  slash:'<circle cx="12" cy="12" r="9.2"/><path d="m5.5 5.5 13 13"/>',
+  mail:'<rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="m3 6.5 9 6.5 9-6.5"/>',
+  money:'<circle cx="12" cy="12" r="9.2"/><path d="M12 6.5v11M14.6 9.3c-.5-.7-1.5-1.1-2.6-1.1-1.5 0-2.6.8-2.6 1.9 0 2.6 5.2 1.3 5.2 3.9 0 1.1-1.1 1.9-2.6 1.9-1.1 0-2.1-.4-2.6-1.1"/>',
+  think:'<circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.8 2.8 0 0 1 5.4.9c0 1.9-2.7 2.8-2.7 2.8M12 17v.2"/>',
+  handshake:'<path d="m11 17 2 2 3-3 3 3 3.5-3.5-6-6-3 1.5-3-1.5-6 6L8 19z"/>',
+  calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+  sleep:'<path d="M13 4h6l-6 8h6"/><path d="M4.5 13h5l-5 6h5"/>',
+  star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/>',
+  mark:'<path d="M12 3 4 7v5.5c0 4.5 3.4 8.2 8 9.5 4.6-1.3 8-5 8-9.5V7z"/>',
+};
+function ico(n,cls){ return `<svg class="i ${cls||""}" viewBox="0 0 24 24" aria-hidden="true">${ICO[n]||""}</svg>`; }
+// Pinta todos los <span class="ii" data-ico="..."> que haya en el HTML
+function pintarIconos(raiz){
+  (raiz||document).querySelectorAll(".ii[data-ico]").forEach(el=>{
+    if(el.dataset.listo)return; el.innerHTML=ico(el.dataset.ico); el.dataset.listo="1";
+  });
+}
+
+// Propios del CRM del bot
+Object.assign(ICO,{
+  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.5"/><path d="M9.5 21v-6h5v6"/>',
+  gem:'<path d="m3 8.5 3-5h12l3 5-9 12.5z"/><path d="M3 8.5h18M8.5 8.5 12 21M15.5 8.5 12 21M8.5 8.5 12 3.5l3.5 5"/>',
+  megaphone:'<path d="M3.5 9.5v5a1 1 0 0 0 1 1h3l7 4.5V4L7.5 8.5h-3a1 1 0 0 0-1 1z"/><path d="M18.5 8.5a5 5 0 0 1 0 7"/>',
+  pin:'<path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>',
+  bell:'<path d="M18 8.5a6 6 0 0 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14.5 18 8.5z"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4"/>',
+  trophy:'<path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 5.5H4.5v1a3.5 3.5 0 0 0 3 3.5M17 5.5h2.5v1a3.5 3.5 0 0 1-3 3.5"/><path d="M10 14h4l.6 3.5H9.4zM7.5 20.5h9"/>',
+  trend:'<path d="m3 16 5.5-5.5 3.5 3.5L21 5"/><path d="M15 5h6v6"/>',
+  send:'<path d="M21.5 2.5 10.5 13.5M21.5 2.5 14.5 21.5l-4-8-8-4z"/>',
+  paperclip:'<path d="M20.5 11.5 12 20a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.9-7.8"/>',
+  image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.7" cy="8.7" r="1.7"/><path d="m21 15.5-5-5L5 21.5"/>',
+  key:'<circle cx="7.5" cy="15.5" r="4"/><path d="m10.3 12.7 8.2-8.2M16 7l2.5 2.5M19 4l2 2"/>',
+  lock:'<rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>',
+  door:'<path d="M14.5 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8.5"/><path d="M18 12H10M14.5 8.5 18 12l-3.5 3.5"/>',
+  save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M8 21v-7h8v7M8 3v5h6"/>',
+  folder:'<path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2z"/>',
+  list:'<path d="M8.5 6h12M8.5 12h12M8.5 18h12M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+  filter:'<path d="M3.5 5h17l-6.5 8v6l-4 2v-8z"/>',
+  user:'<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
+  bed:'<path d="M2.5 18v-6a1 1 0 0 1 1-1h13a4 4 0 0 1 4 4v3"/><path d="M2.5 14.5h19M2.5 18v2.5M21.5 18v2.5"/><circle cx="7" cy="8" r="2.2"/>',
+  ban:'<circle cx="12" cy="12" r="9.2"/><path d="m5.5 5.5 13 13"/>',
+  gear:'<circle cx="12" cy="12" r="3.2"/><path d="M19.6 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
+  back:'<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  play:'<path d="M6 4.5 19.5 12 6 19.5z"/>',
+  pause:'<path d="M9 4.5v15M15 4.5v15"/>',
+});
   let PASS="",YO={rol:"dueno"},agentesById={},agentesList=[],intervalo=null,leadActual=null,seleccion=new Set();
   let editandoId=null,editandoAgenteId=null,editandoZonaId=null;
   let zonasList=[];
   let propsList=[];
   let imagenesForm=[]; // URLs de las fotos de la propiedad que se está creando/editando
   function renderThumbs(){
-    document.getElementById("f_thumbs").innerHTML=imagenesForm.map((u,i)=>`<div class="thumb"><img src="${u}" alt=""><button type="button" onclick="quitarFoto(${i})">✕</button></div>`).join("");
+    document.getElementById("f_thumbs").innerHTML=imagenesForm.map((u,i)=>`<div class="thumb"><img src="${u}" alt=""><button type="button" onclick="quitarFoto(${i})">${ico("x","sm")}</button></div>`).join("");
   }
   function quitarFoto(i){imagenesForm.splice(i,1);renderThumbs();}
   async function subirFotos(files){
@@ -938,6 +964,7 @@
   }
 
   function showView(name){
+    setTimeout(()=>pintarIconos(),0);
     document.querySelectorAll(".navitem").forEach(n=>n.classList.toggle("active",n.dataset.view===name));
     document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
     document.getElementById("view-"+name).classList.remove("hidden");
@@ -964,6 +991,7 @@
   function renderLeads(data){
     agentesById=data.agentesById||{};agentesList=data.agentes||[];setZonas(data.zonas);
     if(data.config?.nombreAgencia)document.getElementById("agencyName").textContent=data.config.nombreAgencia;
+    if(data.config?.brandColor) aplicarAcento(data.config.brandColor);
     if(data.config?.logoUrl){const lg=document.getElementById("brandLogo");lg.src=data.config.logoUrl;lg.classList.remove("hidden");document.getElementById("brandDot").classList.add("hidden");}
     pintarMetricas(data.metricas,data.leads);leadsTodos=data.leads||[];poblarZonasFiltro();aplicarFiltros();
     const urgentes=(data.leads||[]).filter(l=>l.escalado&&l.estado!=='en_atencion'&&l.estado!=='cerrado'&&l.estado!=='perdido').length;
@@ -1000,11 +1028,11 @@
     const m=metricasCache, total=m.total||1;
     host.innerHTML=`
       <div class="metric"><div class="label">Leads totales</div><div class="num">${m.total}</div><div class="bar"><i style="width:100%;background:var(--ink)"></i></div></div>
-      <div class="metric hot"><div class="label">🔴 Calientes</div><div class="num">${m.calientes}</div><div class="bar"><i style="width:${(m.calientes/total*100)}%"></i></div></div>
-      <div class="metric warm"><div class="label">🟡 Tibios</div><div class="num">${m.tibios}</div><div class="bar"><i style="width:${(m.tibios/total*100)}%"></i></div></div>
-      <div class="metric cold"><div class="label">🔵 Fríos</div><div class="num">${m.frios}</div><div class="bar"><i style="width:${(m.frios/total*100)}%"></i></div></div>
-      <div class="metric cita"><div class="label">📅 Citas</div><div class="num">${m.citas||0}</div><div class="bar"><i style="width:${((m.citas||0)/total*100)}%"></i></div></div>
-      <div class="metric pipe"><div class="label">💰 Potencial en el embudo</div><div class="num small">${fmtMXN(m.pipeline)}</div><div class="bar"><i style="width:100%"></i></div></div>`;
+      <div class="metric hot"><div class="label"><i class="pto" style="background:var(--hot)"></i>Calientes</div><div class="num">${m.calientes}</div><div class="bar"><i style="width:${(m.calientes/total*100)}%"></i></div></div>
+      <div class="metric warm"><div class="label"><i class="pto" style="background:var(--warm)"></i>Tibios</div><div class="num">${m.tibios}</div><div class="bar"><i style="width:${(m.tibios/total*100)}%"></i></div></div>
+      <div class="metric cold"><div class="label"><i class="pto" style="background:var(--cold)"></i>Fríos</div><div class="num">${m.frios}</div><div class="bar"><i style="width:${(m.frios/total*100)}%"></i></div></div>
+      <div class="metric cita"><div class="label"><i class="pto" style="background:var(--gold)"></i>Citas</div><div class="num">${m.citas||0}</div><div class="bar"><i style="width:${((m.citas||0)/total*100)}%"></i></div></div>
+      <div class="metric pipe"><div class="label">Potencial en el embudo</div><div class="num small">${fmtMXN(m.pipeline)}</div><div class="bar"><i style="width:100%"></i></div></div>`;
   }
   // ---- Buscador y filtros ----
   let leadsTodos=[];
@@ -1030,7 +1058,7 @@
   function aplicarTema(t){
     document.documentElement.classList.toggle("dark",t==="dark");
     const b=document.getElementById("temaBtn");
-    if(b) b.innerHTML = t==="dark" ? "☀️ Modo claro" : "🌙 Modo oscuro";
+    if(b) b.innerHTML = (t==="dark" ? ico("sun","sm") : ico("moon","sm")) + (t==="dark" ? " Modo claro" : " Modo oscuro");
     const meta=document.querySelector('meta[name="theme-color"]');
     if(meta) meta.setAttribute("content", t==="dark" ? "#0d1220" : "#12213A");
   }
@@ -1075,13 +1103,13 @@
     const host=document.getElementById("notiBody");
     const quien=YO&&YO.rol==="asesor"?(YO.nombre||"ti"):"ti";
     if(Notification.permission==="denied"){
-      host.innerHTML='<div class="notiestado off"><b>Bloqueaste las notificaciones.</b><br>Ábrelas de nuevo en el candado 🔒 de la barra de direcciones → Notificaciones → Permitir. Luego recarga.</div>';
+      host.innerHTML='<div class="notiestado off"><b>Bloqueaste las notificaciones.</b><br>Ábrelas de nuevo en el candado de la barra de direcciones → Notificaciones → Permitir. Luego recarga.</div>';
       return;
     }
     if(!activo){
       host.innerHTML=`
         <div class="notiestado off"><b>Están apagadas.</b><br>Actívalas y te van a llegar avisos a este celular aunque tengas el CRM cerrado, igual que WhatsApp.</div>
-        <button class="btn primary" style="width:100%" onclick="activarNotis('${llave}')">🔔 Activar notificaciones</button>`;
+        <button class="btn primary" style="width:100%" onclick="activarNotis('${llave}')">${ico("bell","sm")} Activar notificaciones</button>`;
       return;
     }
     let filas="";
@@ -1091,7 +1119,7 @@
         <label class="sw"><input type="checkbox" ${on?"checked":""} onchange="cambiarPref('${k}',this.checked)"><i></i></label></div>`;
     }
     host.innerHTML=`
-      <div class="notiestado on"><b>✓ Activadas en este dispositivo.</b><br>Los avisos llegan a ${quien} aunque el CRM esté cerrado.</div>
+      <div class="notiestado on"><b>Activadas en este dispositivo.</b><br>Los avisos llegan a ${quien} aunque el CRM esté cerrado.</div>
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:4px">Qué quieres que te avise</div>
       ${filas}
       <div style="display:flex;gap:8px;margin-top:18px">
@@ -1122,7 +1150,7 @@
       const j=await r.json();
       if(!r.ok){toast(j.error||"No se pudo activar");return}
       notiSubActual=sub; notiPrefs=j.prefs||{};
-      toast("Notificaciones activadas ✓");
+      toast("Notificaciones activadas");
       pintarNotis(true,llave);
     }catch(e){
       toast("No se pudo: "+(e.message||"error"));
@@ -1148,7 +1176,7 @@
 
   async function probarNoti(){
     const r=await fetch("/api/push/probar",{method:"POST",headers:JH(),body:"{}"}).then(r=>r.json()).catch(()=>({enviadas:0}));
-    toast(r.enviadas?"Enviada — revisa tu pantalla 📲":"No llegó a ningún dispositivo");
+    toast(r.enviadas?"Enviada — revisa tu pantalla":"No llegó a ningún dispositivo");
   }
 
   // Si tocan la notificación con el CRM abierto, lo lleva al chat.
@@ -1165,7 +1193,16 @@
     if(m){ setTimeout(()=>abrirModal(m[1]),500); history.replaceState({},"","/dashboard"); }
   }
 
-  document.addEventListener("DOMContentLoaded",autoEntrar);
+  /* ---------- Arranque visual ---------- */
+  // Si la agencia configuró su color de marca, ese pisa al dorado.
+  function aplicarAcento(hex){
+    if(!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return;
+    document.documentElement.style.setProperty("--gold",hex);
+    document.documentElement.style.setProperty("--gold-deep",hex);
+    // Fondo tenue derivado del mismo color (12% de opacidad)
+    document.documentElement.style.setProperty("--gold-soft",hex+"1f");
+  }
+  document.addEventListener("DOMContentLoaded",()=>{ pintarIconos(); autoEntrar(); });
   (function(){
     let t="light";
     try{t=localStorage.getItem("crm_tema")|| (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}
@@ -1179,7 +1216,7 @@
     const r=await fetch(`/api/leads/${tel}/email`,{method:"POST",headers:JH(),body:JSON.stringify({email:v})});
     const j=await r.json();
     if(!r.ok){toast(j.error||"No se pudo guardar");return}
-    toast(v?"Correo guardado ✓":"Correo quitado");abrirModal(tel);
+    toast(v?"Correo guardado":"Correo quitado");abrirModal(tel);
   }
   async function abrirCorreo(tel){
     const est=await(await fetch("/api/correo/estado",{headers:AH()})).json();
@@ -1200,7 +1237,7 @@
     const r=await fetch(`/api/leads/${mailTel}/correo`,{method:"POST",headers:JH(),body:JSON.stringify(b)});
     const j=await r.json();
     if(!r.ok){toast(j.error||"No se pudo enviar");return}
-    toast(j.simulado?"Simulado (falta configurar el correo)":"Correo enviado ✓");
+    toast(j.simulado?"Simulado (falta configurar el correo)":"Correo enviado");
     cerrar2("mailOverlay");abrirModal(mailTel);
   }
 
@@ -1224,24 +1261,24 @@
       host.innerHTML=`
         <div class="roihero">${hero}</div>
         <div class="roigrid">
-          <div class="roicard"><div class="ic">🌙</div><div class="n" style="color:var(--hot)">${a.leadsRescatados}</div>
+          <div class="roicard"><div class="ic">${ico("moon")}</div><div class="n" style="color:var(--hot)">${a.leadsRescatados}</div>
             <div class="t">Clientes rescatados</div><div class="d">Escribieron por primera vez fuera de horario. Sin el bot, habrían esperado al día siguiente — o se iban con otra agencia.</div></div>
-          <div class="roicard"><div class="ic">⚡</div><div class="n">${tiempo}</div>
+          <div class="roicard"><div class="ic">${ico("clock")}</div><div class="n">${tiempo}</div>
             <div class="t">Tiempo de respuesta</div><div class="d">Lo que tarda en contestarle a un cliente. El promedio de la industria son horas.</div></div>
           <div class="roicard"><div class="ic">⏱️</div><div class="n">${a.horasAhorradas}</div>
             <div class="t">Horas ahorradas</div><div class="d">${a.mensajesCliente} mensajes atendidos × ${su.minPorLead} min que te tomaría a ti responder cada uno.</div></div>
-          <div class="roicard"><div class="ic">📅</div><div class="n">${res.citas}</div>
+          <div class="roicard"><div class="ic">${ico("calendar")}</div><div class="n">${res.citas}</div>
             <div class="t">Citas agendadas</div><div class="d">El bot las cerró solo, sin que nadie de tu equipo moviera un dedo.</div></div>
-          <div class="roicard"><div class="ic">💰</div><div class="n" style="font-size:24px">${fmtMXN(res.pipeline)}</div>
+          <div class="roicard"><div class="ic">${ico("money")}</div><div class="n" style="font-size:24px">${fmtMXN(res.pipeline)}</div>
             <div class="t">Valor en tu embudo</div><div class="d">Suma de los presupuestos de tus prospectos activos. A ${su.comision}% son ${fmtMXN(res.valorPipeline)} de comisión potencial.</div></div>
-          <div class="roicard"><div class="ic">🌐</div><div class="n">${a.porcentajeFuera}%</div>
+          <div class="roicard"><div class="ic">${ico("target")}</div><div class="n">${a.porcentajeFuera}%</div>
             <div class="t">Fuera de horario</div><div class="d">${a.mensajesFueraDeHorario} de ${a.mensajesCliente} mensajes llegaron cuando tu oficina estaba cerrada.</div></div>
         </div>
         <div class="panel"><div class="phead"><h3>¿A qué hora te escriben tus clientes?</h3></div>
           <div style="padding:16px 20px">
             <div class="roihoras">${horas}</div>
             <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>11pm</span></div>
-            <div class="roinota">🔴 Las barras rojas son mensajes fuera del horario de oficina (antes de 9am, después de 7pm o en domingo). Cada una es un cliente que el bot atendió por ti.</div>
+            <div class="roinota">Las barras marcadas son mensajes fuera del horario de oficina (antes de 9am, después de 7pm o en domingo). Cada una es un cliente que el bot atendió por ti.</div>
           </div></div>
         <div class="roinota" style="text-align:center;padding:0 10px">
           Cálculo basado en: comisión del ${su.comision}%, ${su.minPorLead} minutos por mensaje y ${fmtMXN(su.mensualidad)} de mensualidad.
@@ -1262,7 +1299,7 @@
       minPorLead:Number(document.getElementById("s_minutos").value)};
     const r=await fetch("/api/roi/supuestos",{method:"PUT",headers:JH(),body:JSON.stringify(b)});
     if(!r.ok){toast("No se pudo guardar");return}
-    toast("Actualizado ✓");cerrar2("supOverlay");cargarROI();
+    toast("Actualizado");cerrar2("supOverlay");cargarROI();
   }
 
   // ---- Campañas de prospección saliente ----
@@ -1286,7 +1323,7 @@
               <div class="sub" style="font-size:12.5px">Plantilla: ${escapeHtml(c.plantilla)} · 1 cada ${c.ritmoSegundos}s · máx ${c.maxPorDia}/día</div></div>
             <span class="est est-${c.estado}">${c.estado}</span>
           </div>
-          ${c.notaPausa?`<div style="font-size:12.5px;color:var(--warm,#b45309);margin-top:7px">⚠️ ${escapeHtml(c.notaPausa)}</div>`:""}
+          ${c.notaPausa?`<div style="font-size:12.5px;color:var(--warm,#b45309);margin-top:7px">${ico("alert","sm")} ${escapeHtml(c.notaPausa)}</div>`:""}
           <div class="campbar">
             <i style="width:${pResp}%;background:#16a34a"></i>
             <i style="width:${pEnv}%;background:#2563eb"></i>
@@ -1294,16 +1331,16 @@
           </div>
           <div class="campstat">
             <span><b>${c.total}</b> contactos</span>
-            <span>📤 <b>${c.enviados}</b> enviados</span>
-            <span style="color:#16a34a">💬 <b>${c.respondieron}</b> respondieron (${c.tasaRespuesta}%)</span>
+            <span>${ico("send","sm")} <b>${c.enviados}</b> enviados</span>
+            <span style="color:var(--green)">${ico("chat","sm")} <b>${c.respondieron}</b> respondieron (${c.tasaRespuesta}%)</span>
             <span>⏳ <b>${c.pendientes}</b> pendientes</span>
-            ${c.errores?`<span style="color:#dc2626">⚠️ <b>${c.errores}</b> errores</span>`:""}
+            ${c.errores?`<span style="color:var(--red)">${ico("alert","sm")} <b>${c.errores}</b> errores</span>`:""}
             ${c.omitidos?`<span>↩️ <b>${c.omitidos}</b> omitidos</span>`:""}
           </div>
           <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
             ${acciones}
             <button class="btn ghost" onclick="verCampana('${c.id}')">Ver detalle</button>
-            <button class="btn danger" onclick="borrarCampana('${c.id}')">🗑</button>
+            <button class="btn danger" onclick="borrarCampana('${c.id}')">${ico("x","sm")}</button>
           </div></div>`;
       }).join("");
     }catch(e){host.innerHTML='<div class="empty" style="border:none">No se pudo cargar</div>'}
@@ -1343,7 +1380,7 @@
     const r=await fetch("/api/campanas",{method:"POST",headers:JH(),body:JSON.stringify(b)});
     const j=await r.json();
     if(!r.ok){toast(j.error||"No se pudo crear");return}
-    toast(`Campaña creada con ${j.campana.total} contactos ✓`);
+    toast(`Campaña creada con ${j.campana.total} contactos`);
     cerrarCampana();cargarCampanas();
   }
   async function estadoCampana(id,accion){
@@ -1368,9 +1405,9 @@
     const badge={pendiente:["#6b7280","#f3f4f6"],enviado:["#2563eb","#dbeafe"],respondio:["#16a34a","#dcfce7"],error:["#dc2626","#fee2e2"],omitido:["#6b7280","#f3f4f6"]};
     document.getElementById("cd_cuerpo").innerHTML=`
       <div class="campstat" style="margin-bottom:14px">
-        <span><b>${c.total}</b> contactos</span><span>📤 <b>${c.enviados}</b></span>
-        <span style="color:#16a34a">💬 <b>${c.respondieron}</b> (${c.tasaRespuesta}%)</span>
-        <span>⏳ <b>${c.pendientes}</b></span>${c.errores?`<span style="color:#dc2626">⚠️ <b>${c.errores}</b></span>`:""}</div>
+        <span><b>${c.total}</b> contactos</span><span>${ico("send","sm")} <b>${c.enviados}</b></span>
+        <span style="color:var(--green)">${ico("chat","sm")} <b>${c.respondieron}</b> (${c.tasaRespuesta}%)</span>
+        <span>⏳ <b>${c.pendientes}</b></span>${c.errores?`<span style="color:var(--red)">${ico("alert","sm")} <b>${c.errores}</b></span>`:""}</div>
       <div style="max-height:420px;overflow:auto">
         ${(c.contactos||[]).map(x=>{const b=badge[x.estado]||badge.pendiente;
           return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
@@ -1404,9 +1441,9 @@
         const l=await r.json();
         if(l.nombre&&!document.getElementById("cm_nombre").value) document.getElementById("cm_nombre").value=l.nombre;
         if(l.agenteAsignado&&esDueno()) document.getElementById("cm_agente").value=l.agenteAsignado;
-        av.textContent="✓ Ya es tu cliente: "+(l.nombre||tel)+(l.citaProgramada?" · ya tiene una cita, se reemplazará":"");
+        av.textContent="Ya es tu cliente: "+(l.nombre||tel)+(l.citaProgramada?" · ya tiene una cita, se reemplazará":"");
         av.style.display="block";
-      } else if(r.status===403){ av.textContent="⚠️ Ese cliente está asignado a otro asesor."; av.style.display="block"; }
+      } else if(r.status===403){ av.textContent="Ese cliente está asignado a otro asesor."; av.style.display="block"; }
       else { av.textContent="Cliente nuevo — se dará de alta al agendar."; av.style.display="block"; }
     }catch(e){}
   }
@@ -1426,7 +1463,7 @@
         return;
       }
       if(!r.ok){toast(j.error||"No se pudo agendar");return}
-      toast(j.creado?"Cita agendada y cliente dado de alta ✓":"Cita agendada ✓");
+      toast(j.creado?"Cita agendada y cliente dado de alta":"Cita agendada");
       cerrarCitaManual(); cargarAgenda(); cargarLeads();
     }catch(e){toast("Error de conexión")}
   }
@@ -1444,7 +1481,7 @@
       a.download=m?m[1]:("respaldo-"+new Date().toISOString().slice(0,10)+".json");
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-      toast("Respaldo descargado ✓");
+      toast("Respaldo descargado");
     }catch(e){toast("Error de conexión")}
   }
   async function restaurarRespaldo(files){
@@ -1456,7 +1493,7 @@
       const r=await fetch("/api/backup/restaurar",{method:"POST",headers:JH(),body:JSON.stringify(datos)});
       const j=await r.json();
       if(!r.ok){toast(j.error||"No se pudo restaurar");return}
-      toast(`Restaurado ✓ (${j.leads} leads, ${j.propiedades} propiedades)`);
+      toast(`Restaurado (${j.leads} leads, ${j.propiedades} propiedades)`);
       setTimeout(()=>location.reload(),1200);
     }catch(e){toast("El archivo no es válido")}
   }
@@ -1466,7 +1503,7 @@
     const el=document.getElementById(id); if(!el)return;
     const abierto=!el.classList.contains("hidden");
     el.classList.toggle("hidden",abierto);
-    if(btn) btn.innerHTML= abierto ? "🔍 Buscar y filtrar ▾" : "🔍 Buscar y filtrar ▴";
+    if(btn) btn.innerHTML= ico("search","sm")+" Buscar y filtrar";
     if(!abierto){const inp=el.querySelector('input[type=search]'); if(inp) setTimeout(()=>inp.focus(),60);}
   }
 
@@ -1483,7 +1520,7 @@
     const info=document.getElementById("ventaInfoActual");
     if(est==="vendido"&&p.venta){
       info.classList.remove("hidden");
-      info.innerHTML=`🏆 Vendida por <b>${escapeHtml(p.venta.agenteNombre||"—")}</b>${p.venta.monto?` · ${fmtMXN(p.venta.monto)}`:""}${p.venta.fecha?`<br><span style="color:var(--muted)">${new Date(p.venta.fecha).toLocaleDateString("es-MX",{day:"2-digit",month:"long",year:"numeric"})}</span>`:""}`;
+      info.innerHTML=`${ico("trophy","sm")} Vendida por <b>${escapeHtml(p.venta.agenteNombre||"—")}</b>${p.venta.monto?` · ${fmtMXN(p.venta.monto)}`:""}${p.venta.fecha?`<br><span style="color:var(--muted)">${new Date(p.venta.fecha).toLocaleDateString("es-MX",{day:"2-digit",month:"long",year:"numeric"})}</span>`:""}`;
     } else info.classList.add("hidden");
     toggleVentaCampos();
     document.getElementById("estadoOverlay").classList.add("show");
@@ -1506,7 +1543,7 @@
     try{
       const r=await fetch("/api/properties/"+propEstadoId,{method:"PUT",headers:JH(),body:JSON.stringify(body)});
       if(!r.ok){toast("No se pudo guardar");return}
-      toast(estado==="vendido"?"¡Vendida! 🎉":"Estado actualizado ✓");
+      toast(estado==="vendido"?"Vendida":"Estado actualizado");
       cerrarEstado();cargarProps();
     }catch(e){toast("Error de conexión")}
   }
@@ -1520,7 +1557,7 @@
     const sel=document.getElementById("filtroZona"); if(!sel)return;
     const actual=sel.value;
     const zonas=(zonasList||[]).map(z=>`<option value="${z.id}">${z.nombre||z.id}</option>`).join("");
-    sel.innerHTML='<option value="">📍 Todas las zonas</option>'+zonas;
+    sel.innerHTML='<option value="">Todas las zonas</option>'+zonas;
     sel.value=actual;
   }
   function aplicarFiltros(){
@@ -1563,7 +1600,7 @@
       const pres=l.perfil?.presupuesto?fmtMXN(l.perfil.presupuesto):"—";
       const est=l.estado||"sin_atender";const ei=estadoInfo(l);
       const chips=(l.etiquetas&&l.etiquetas.length)?`<div class="chips">${l.etiquetas.slice(0,3).map(t=>`<span class="chip">${t}</span>`).join("")}</div>`:"";
-      const citaTag=l.citaProgramada?`<div><span class="citatag">📅 ${new Date(l.citaProgramada).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</span></div>`:"";
+      const citaTag=l.citaProgramada?`<div><span class="citatag">${ico("calendar","sm")} ${new Date(l.citaProgramada).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</span></div>`:"";
       return `<tr onclick='abrirModal("${l.telefono}")'>
         <td class="checkcol"><input type="checkbox" class="lead-check" value="${l.telefono}" ${seleccion.has(l.telefono)?'checked':''} onclick="event.stopPropagation();toggleSel('${l.telefono}',this.checked)"></td>
         <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${canalMini[l.canal||'whatsapp']} · ${l.telefono}</div>${chips}${citaTag}</td>
@@ -1599,26 +1636,26 @@
     const ag=(agentesList||[]).find(a=>a.id===l.agenteAsignado);
     const limpia=(t)=>String(t||"").replace(/\[(img|vid|doc):[^\]]*\]/g,"").replace(/\([^)]*\)/g,"").replace(/[🎙️📷🎞️]/g,"").trim();
     const msgs=(l.historial||[]).slice(-10).map(h=>{const t=limpia(h.texto); if(!t)return""; const quien=h.rol==="bot"?"Bot/Asesor":"Cliente"; return `<div style="margin-bottom:6px"><b style="color:${h.rol==='bot'?'#2563eb':'#111'}">${quien}:</b> ${escapeHtml(t)}</div>`;}).filter(Boolean).join("")||'<span class="sub">Sin mensajes.</span>';
-    const fila=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)"><span class="sub">${k}</span><b style="text-align:right">${v}</b></div>`;
+    const fila=(k,v,ic)=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)"><span class="sub" style="display:inline-flex;align-items:center;gap:6px">${ic?ico(ic,"sm"):""}${k}</span><b style="text-align:right;font-weight:500">${v}</b></div>`;
     let ov=document.getElementById("citaOverlay");
     if(!ov){ov=document.createElement("div");ov.id="citaOverlay";ov.className="overlay";ov.addEventListener("click",e=>{if(e.target.id==="citaOverlay")ov.classList.remove("show")});document.body.appendChild(ov);}
     ov.innerHTML=`<div class="modal" style="max-width:540px;max-height:88vh;overflow:auto">
       <div style="padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">
-        <h3 style="margin:0">📋 Detalles de la cita</h3>
-        <button class="calbtn" style="border:none;cursor:pointer" onclick="document.getElementById('citaOverlay').classList.remove('show')">✕</button>
+        <h3 style="margin:0">Detalles de la cita</h3>
+        <button class="calbtn" style="border:none;cursor:pointer" onclick="document.getElementById('citaOverlay').classList.remove('show')">${ico("x","sm")}</button>
       </div>
       <div style="padding:16px 22px">
-        ${fila("🗓️ Cita",citaTxt)}
-        ${fila("👤 Cliente",escapeHtml(l.nombre||"Sin nombre"))}
-        ${fila("📱 Contacto",l.telefono)}
-        ${fila("🧑‍💼 Asesor",ag?ag.nombre:"Sin asignar")}
-        ${fila("📍 Zona",p.zona?(zonaNombre[p.zona]||p.zona):"—")}
-        ${fila("💰 Presupuesto",p.presupuesto?fmtMXN(p.presupuesto):"—")}
-        ${fila("🛏️ Recámaras",p.recamaras||"—")}
-        ${fila("🎯 Propósito",p.proposito||"—")}
-        ${fila("🌡️ Temperatura",(l.temperatura||"—")+" ("+(l.score||0)+")")}
-        <div style="margin-top:16px"><div class="sub" style="margin-bottom:8px;font-weight:600">💬 Resumen de la conversación</div>
-        <div style="font-size:13px;line-height:1.4;max-height:220px;overflow:auto;background:var(--bg,#f7f9fb);padding:12px;border-radius:10px">${msgs}</div></div>
+        ${fila("Cita",citaTxt,"calendar")}
+        ${fila("Cliente",escapeHtml(l.nombre||"Sin nombre"))}
+        ${fila("Contacto",l.telefono,"phone")}
+        ${fila("Asesor",ag?ag.nombre:"Sin asignar")}
+        ${fila("Zona",p.zona?(zonaNombre[p.zona]||p.zona):"—")}
+        ${fila("Presupuesto",p.presupuesto?fmtMXN(p.presupuesto):"—")}
+        ${fila("Recámaras",p.recamaras||"—")}
+        ${fila("Propósito",p.proposito||"—")}
+        ${fila("Temperatura",(l.temperatura||"—")+" ("+(l.score||0)+")")}
+        <div style="margin-top:16px"><div class="sub" style="margin-bottom:8px;font-weight:600">Resumen de la conversación</div>
+        <div style="font-size:13px;line-height:1.4;max-height:220px;overflow:auto;background:var(--bg,#f7f9fb);padding:12px;border-radius:var(--r)">${msgs}</div></div>
         <button class="btn ghost" style="margin-top:14px;width:100%" onclick="document.getElementById('citaOverlay').classList.remove('show');abrirModal('${l.telefono}')">Abrir chat completo →</button>
       </div>
     </div>`;
@@ -1661,10 +1698,10 @@
         cuerpo=escapeHtml(t);
       } else if(d){
         // Documento/archivo: lo mostramos como enlace descargable.
-        extra=`<a href="${escapeHtml(d[1])}" target="_blank" class="chatdoc">📎 ${escapeHtml(d[2])}</a>`;
+        extra=`<a href="${escapeHtml(d[1])}" target="_blank" class="chatdoc">${ico("paperclip","sm")} ${escapeHtml(d[2])}</a>`;
         let t=(h.texto||"").replace(/\[doc:[^\]]+\]/,"").trim();
         cuerpo=escapeHtml(t);
-      } else if((h.texto||"").startsWith("📩")){
+      } else if((h.texto||"").startsWith("\u{1F4E9}")){
         // Correo enviado: se muestra distinto para no confundirlo con WhatsApp
         cuerpo=`<span style="opacity:.9">${escapeHtml(h.texto)}</span>`;
         extra=`<div style="font-size:10.5px;font-weight:600;color:#7c3aed;margin-bottom:3px">POR CORREO</div>`;
@@ -1704,22 +1741,22 @@
     const propVendida=l.venta&&l.venta.propiedadId?propsList.find(x=>x.id===l.venta.propiedadId):null;
     const asesorVentaOpts=(agentesList||[]).map(a=>`<option value="${a.id}" ${l.agenteAsignado===a.id?"selected":""}>${a.nombre}</option>`).join("");
     const ventaBlock=l.venta?`
-      <div class="mrow"><label>💰 Venta</label><div style="font-size:13.5px;flex:1"><b style="color:#16a34a;font-size:15px">${fmtMXN(l.venta.monto||0)}</b>${propVendida?` · ${propVendida.titulo}`:""}<button class="savenote" style="margin-left:10px" onclick="deshacerVenta('${l.telefono}')">Deshacer</button></div></div>`
-      :`<div class="mrow"><label>💰 Registrar venta</label><div style="display:flex;flex-direction:column;gap:7px;flex:1">
+      <div class="mrow"><label>Venta</label><div style="font-size:13.5px;flex:1"><b style="color:#16a34a;font-size:15px">${fmtMXN(l.venta.monto||0)}</b>${propVendida?` · ${propVendida.titulo}`:""}<button class="savenote" style="margin-left:10px" onclick="deshacerVenta('${l.telefono}')">Deshacer</button></div></div>`
+      :`<div class="mrow"><label>Registrar venta</label><div style="display:flex;flex-direction:column;gap:7px;flex:1">
         <select id="ventaProp" onchange="document.getElementById('ventaMonto').value=this.options[this.selectedIndex].dataset.precio||''">${propOpts}</select>
         <select id="ventaAsesor" title="Asesor que vendió">${asesorVentaOpts||'<option value=\"\">— asesor —</option>'}</select>
-        <div style="display:flex;gap:7px"><input id="ventaMonto" type="number" placeholder="Monto final de venta $" style="flex:1"/><button class="cerrar" onclick="registrarVenta('${l.telefono}')">Registrar venta ✓</button></div>
+        <div style="display:flex;gap:7px"><input id="ventaMonto" type="number" placeholder="Monto final de venta $" style="flex:1"/><button class="cerrar" onclick="registrarVenta('${l.telefono}')">Registrar venta</button></div>
         <span class="rsub" style="margin:0">Marca el lead como cerrado y la propiedad como vendida.</span></div></div>`;
     document.getElementById("mManage").innerHTML=`
       <div class="mrow"><label>Estado</label><span class="estado ${ei.cls}">${ei.label}</span></div>
       <div class="mrow"><label>Asignar asesor</label><select onchange="asignar('${l.telefono}',this.value)">${opts}</select></div>
       <div class="mrow"><label>Acción</label><div class="estbtns">
-        <button class="atender ${est==='en_atencion'?'on':''}" onclick="setEstado('${l.telefono}','en_atencion')">✋ Atender</button>
-        <button class="perder ${est==='perdido'?'on':''}" onclick="setEstado('${l.telefono}','perdido')">✕ Perdido</button>
+        <button class="atender ${est==='en_atencion'?'on':''}" onclick="setEstado('${l.telefono}','en_atencion')">Atender</button>
+        <button class="perder ${est==='perdido'?'on':''}" onclick="setEstado('${l.telefono}','perdido')">Perdido</button>
       </div></div>
       ${ventaBlock}
-      <div class="mrow"><label>📅 Cita</label><input type="datetime-local" id="leadCita" /><button class="savenote" onclick="guardarCita('${l.telefono}')">Guardar</button></div>
-      <div class="mrow"><label>📩 Correo</label><input id="leadEmail" placeholder="cliente@correo.com" /><button class="savenote" onclick="guardarEmail('${l.telefono}')">Guardar</button>${l.email?`<button class="savenote" style="background:var(--gold);color:#fff" onclick="abrirCorreo('${l.telefono}')">Escribirle</button>`:""}</div>`;
+      <div class="mrow"><label>Cita</label><input type="datetime-local" id="leadCita" /><button class="savenote" onclick="guardarCita('${l.telefono}')">Guardar</button></div>
+      <div class="mrow"><label>Correo</label><input id="leadEmail" placeholder="cliente@correo.com" /><button class="savenote" onclick="guardarEmail('${l.telefono}')">Guardar</button>${l.email?`<button class="savenote" style="background:var(--gold);color:#fff" onclick="abrirCorreo('${l.telefono}')">Escribirle</button>`:""}</div>`;
     document.getElementById("leadCita").value=isoToLocalInput(l.citaProgramada);
     const le=document.getElementById("leadEmail"); if(le) le.value=l.email||"";
     document.getElementById("mNotes").innerHTML=`
@@ -1742,8 +1779,8 @@ pintarChat(l);
   }
   function isoToLocalInput(iso){if(!iso)return"";const d=new Date(iso);const off=d.getTimezoneOffset()*60000;return new Date(d.getTime()-off).toISOString().slice(0,16)}
   async function asignar(tel,agenteId){await fetch(`/api/leads/${tel}/asignar`,{method:"POST",headers:JH(),body:JSON.stringify({agenteId})});cargarLeads()}
-  async function guardarNotas(tel){const etiquetas=val("leadTags").split(",").map(s=>s.trim()).filter(Boolean);const notas=document.getElementById("leadNotes").value;await fetch(`/api/leads/${tel}/notas`,{method:"POST",headers:JH(),body:JSON.stringify({notas,etiquetas})});toast("Guardado ✓");cargarLeads()}
-  async function guardarCita(tel){const v=document.getElementById("leadCita").value;const iso=v?new Date(v).toISOString():null;await fetch(`/api/leads/${tel}/cita`,{method:"POST",headers:JH(),body:JSON.stringify({cita:iso})});toast("Cita guardada ✓");abrirModal(tel);cargarLeads()}
+  async function guardarNotas(tel){const etiquetas=val("leadTags").split(",").map(s=>s.trim()).filter(Boolean);const notas=document.getElementById("leadNotes").value;await fetch(`/api/leads/${tel}/notas`,{method:"POST",headers:JH(),body:JSON.stringify({notas,etiquetas})});toast("Guardado");cargarLeads()}
+  async function guardarCita(tel){const v=document.getElementById("leadCita").value;const iso=v?new Date(v).toISOString():null;await fetch(`/api/leads/${tel}/cita`,{method:"POST",headers:JH(),body:JSON.stringify({cita:iso})});toast("Cita guardada");abrirModal(tel);cargarLeads()}
   async function enviarChat(){const t=val("chatInput");if(!t||!leadActual)return;document.getElementById("chatInput").value="";await fetch(`/api/leads/${leadActual}/enviar`,{method:"POST",headers:JH(),body:JSON.stringify({texto:t})});await abrirModal(leadActual);cargarLeads()}
   async function enviarArchivoChat(files){
     if(!files||!files.length||!leadActual)return;
@@ -1770,7 +1807,7 @@ pintarChat(l);
     const agenteId=(document.getElementById("ventaAsesor")||{}).value||"";
     const r=await fetch(`/api/leads/${tel}/venta`,{method:"POST",headers:JH(),body:JSON.stringify({propiedadId,monto,agenteId})});
     if(r.status===401){toast("Contraseña incorrecta");return}
-    toast("¡Venta registrada! 🎉");abrirModal(tel);cargarLeads()
+    toast("Venta registrada");abrirModal(tel);cargarLeads()
   }
   async function deshacerVenta(tel){if(!confirm("¿Deshacer esta venta?"))return;await fetch(`/api/leads/${tel}/venta/deshacer`,{method:"POST",headers:JH()});toast("Venta deshecha");abrirModal(tel);cargarLeads()}
   async function tomarControl(tel){await fetch(`/api/leads/${tel}/tomar-control`,{method:"POST",headers:AH()});abrirModal(tel);cargarLeads()}
@@ -1787,10 +1824,10 @@ pintarChat(l);
       pintarMetricasEnAnalisis();
       const a=await(await fetch("/api/analytics",{headers:AH()})).json();
       document.getElementById("anaKpis").innerHTML=`
-        <div class="kpi green"><div class="l">💰 Ingresos totales</div><div class="v">${fmtMXN(a.totales.ingresos)}</div></div>
-        <div class="kpi gold"><div class="l">🏆 Ventas cerradas</div><div class="v">${a.totales.ventas}</div></div>
-        <div class="kpi blue"><div class="l">🎯 Ticket promedio</div><div class="v">${fmtMXN(a.totales.ticket)}</div></div>
-        <div class="kpi"><div class="l">📈 Conversión lead→venta</div><div class="v">${a.totales.conversion}%</div></div>`;
+        <div class="kpi green"><div class="l">Ingresos totales</div><div class="v">${fmtMXN(a.totales.ingresos)}</div></div>
+        <div class="kpi gold"><div class="l">Ventas cerradas</div><div class="v">${a.totales.ventas}</div></div>
+        <div class="kpi blue"><div class="l">Ticket promedio</div><div class="v">${fmtMXN(a.totales.ticket)}</div></div>
+        <div class="kpi"><div class="l">Conversión lead a venta</div><div class="v">${a.totales.conversion}%</div></div>`;
       // Embudo
       const e=a.embudo,max=Math.max(e.leads,1);
       const steps=[["Leads",e.leads],["Calificados",e.calificados],["Con cita",e.citas],["Ventas",e.ventas]];
@@ -1839,7 +1876,7 @@ pintarChat(l);
         const agente=l.agenteAsignado?(agentesById[l.agenteAsignado]||"—"):"Sin asignar";
         const zona=l.perfil?.zona?(zonaNombre[l.perfil.zona]||l.perfil.zona):"—";
         const cal=gcalUrl(l.citaProgramada,"Cita: "+(l.nombre||l.telefono),"Cliente: "+(l.nombre||l.telefono)+" ("+l.telefono+")");
-        return `<tr onclick='abrirModal("${l.telefono}")'><td><b style="${pasada?'color:var(--muted)':''}">${fecha}</b>${pasada?' <span class="sub">(pasada)</span>':''}</td><td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div></td><td class="hide-sm">${zona}</td><td class="hide-sm sub">${agente}</td><td style="white-space:nowrap"><button class="calbtn" style="border:none;cursor:pointer;margin-right:6px" onclick="event.stopPropagation();verDetallesCita('${l.telefono}')">📋 Detalles</button><a href="${cal}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="calbtn">➕ Calendar</a></td></tr>`;
+        return `<tr onclick='abrirModal("${l.telefono}")'><td><b style="${pasada?'color:var(--muted)':''}">${fecha}</b>${pasada?' <span class="sub">(pasada)</span>':''}</td><td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${l.telefono}</div></td><td class="hide-sm">${zona}</td><td class="hide-sm sub">${agente}</td><td style="white-space:nowrap"><button class="calbtn" style="border:none;cursor:pointer;margin-right:6px" onclick="event.stopPropagation();verDetallesCita('${l.telefono}')">${ico("list","sm")} Detalles</button><a href="${cal}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="calbtn">${ico("calendar","sm")} Calendar</a></td></tr>`;
       }).join("")}</tbody></table>`;
     }catch(e){document.getElementById("agendaHost").innerHTML='<div class="empty" style="border:none">Error al cargar</div>'}
   }
@@ -1848,7 +1885,7 @@ pintarChat(l);
   function poblarZonasFiltroProps(){
     const sel=document.getElementById("filtroZonaProp"); if(!sel)return;
     const actual=sel.value;
-    sel.innerHTML='<option value="">📍 Todas las zonas</option>'+(zonasList||[]).map(z=>`<option value="${z.id}">${z.nombre||z.id}</option>`).join("");
+    sel.innerHTML='<option value="">Todas las zonas</option>'+(zonasList||[]).map(z=>`<option value="${z.id}">${z.nombre||z.id}</option>`).join("");
     sel.value=actual;
   }
   function aplicarFiltrosProps(){
@@ -1897,11 +1934,11 @@ pintarChat(l);
         const img=(p.imagenes&&p.imagenes[0])||"";
         const est=p.estado||(p.disponible===false?"vendido":"disponible");
         const estBadge=est==='vendido'?'<span class="nodisp">VENDIDO</span>':est==='apartado'?'<span class="nodisp" style="background:var(--warm,#d97706)">Apartado</span>':'';
-        const ventaInfo=(est==='vendido'&&p.venta)?`<div class="soldby">🏆 Vendida por <b>${p.venta.agenteNombre||'asesor no asignado'}</b>${p.venta.monto?` · ${fmtMXN(p.venta.monto)}`:''}${p.venta.fecha?` · ${new Date(p.venta.fecha).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}`:''}${p.venta.cliente?`<br><span style="color:var(--muted)">Cliente: ${p.venta.cliente}</span>`:''}</div>`:'';
+        const ventaInfo=(est==='vendido'&&p.venta)?`<div class="soldby">${ico("trophy","sm")} Vendida por <b>${p.venta.agenteNombre||'asesor no asignado'}</b>${p.venta.monto?` · ${fmtMXN(p.venta.monto)}`:''}${p.venta.fecha?` · ${new Date(p.venta.fecha).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}`:''}${p.venta.cliente?`<br><span style="color:var(--muted)">Cliente: ${p.venta.cliente}</span>`:''}</div>`:'';
         return `<div class="prop ${est!=='disponible'?'off':''}"><div class="img" style="background-image:url('${img}')"><span class="badge2">${p.operacion==='renta'?'Renta':'Venta'}</span>${estBadge}</div>
           <div class="body"><h3>${p.titulo}</h3><div class="price">${fmtMXN(p.precio)}${p.operacion==='renta'?'/mes':''}</div>
           <div class="specs">${zonaNombre[p.zona]||p.zona||'—'} · ${p.recamaras} rec · ${p.banos} baños · ${p.m2} m²</div><div class="desc">${p.descripcion||''}</div>${ventaInfo}</div>
-          <div class="acts"><button class="btn ghost" onclick='editar(${JSON.stringify(p)})'>✏️ Editar</button><button class="btn ghost estadobtn ${est}" onclick='abrirEstado(${JSON.stringify(p)})'>${est==='vendido'?'🔴 Vendida':est==='apartado'?'🟡 Apartada':'🟢 Disponible'}</button></div></div>`;
+          <div class="acts"><button class="btn ghost" onclick='editar(${JSON.stringify(p)})'>${ico("edit","sm")} Editar</button><button class="btn ghost estadobtn ${est}" onclick='abrirEstado(${JSON.stringify(p)})'>${est==='vendido'?'Vendida':est==='apartado'?'Apartada':'Disponible'}</button></div></div>`;
       }).join("");
     }catch(e){toast("Error al cargar")}
   }
@@ -1957,7 +1994,7 @@ pintarChat(l);
       if(!r.ok){toast("No se pudo guardar");return}
       const jr=await r.json().catch(()=>({}));
       const n=jr.citasAfectadas||0;
-      toast(n>0?`Horario bloqueado ✓ — se avisó a ${n} cliente(s) para reagendar`:"Horario bloqueado ✓");
+      toast(n>0?`Horario bloqueado — se avisó a ${n} cliente(s) para reagendar`:"Horario bloqueado");
       cerrarBloqueo();cargarBloqueos();
     }catch(e){toast("Error de conexión")}
   }
@@ -1975,7 +2012,7 @@ pintarChat(l);
     try{
       const r=await fetch("/api/iniciar-conversacion",{method:"POST",headers:JH(),body:JSON.stringify({telefono:tel,nombre})});
       const j=await r.json();
-      if(j.ok){toast("Mensaje enviado ✓");cerrarEscribir();cargarLeads()}
+      if(j.ok){toast("Mensaje enviado");cerrarEscribir();cargarLeads()}
       else toast(j.error||"No se pudo enviar");
     }catch(e){toast("Error de conexión")}
   }
@@ -1985,7 +2022,7 @@ pintarChat(l);
       const r=await fetch("/api/demo-propiedades",{method:"POST",headers:JH()});
       if(r.status===401){toast("Contraseña incorrecta");return}
       const j=await r.json();
-      toast(j.agregadas>0?`${j.agregadas} propiedades cargadas ✓`:"Ya estaban cargadas");
+      toast(j.agregadas>0?`${j.agregadas} propiedades cargadas`:"Ya estaban cargadas");
       cargarProps();
     }catch(e){toast("Error de conexión")}
   }
@@ -1998,7 +2035,7 @@ pintarChat(l);
     const body={titulo:val("f_titulo"),zona:document.getElementById("f_zona").value,tipo:document.getElementById("f_tipo").value,operacion:document.getElementById("f_operacion").value,precio:val("f_precio"),recamaras:val("f_recamaras"),banos:val("f_banos"),m2:val("f_m2"),descripcion:val("f_descripcion"),direccion:val("f_direccion"),lat:val("f_lat"),lng:val("f_lng"),imagenes,video:val("f_video"),estado:document.getElementById("f_estado").value};
     if(!body.titulo){toast("Ponle un título");return}
     const url=editandoId?"/api/properties/"+editandoId:"/api/properties";
-    try{const r=await fetch(url,{method:editandoId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrar();toast(editandoId?"Actualizada ✓":"Agregada ✓");cargarProps()}catch(e){toast("Error de conexión")}
+    try{const r=await fetch(url,{method:editandoId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrar();toast(editandoId?"Actualizada":"Agregada");cargarProps()}catch(e){toast("Error de conexión")}
   }
   async function borrar(id){if(!confirm("¿Borrar esta propiedad?"))return;try{const r=await fetch("/api/properties/"+id,{method:"DELETE",headers:AH()});if(r.status===401){toast("Contraseña incorrecta");return}toast("Borrada");cargarProps()}catch(e){toast("Error")}}
 
@@ -2031,7 +2068,7 @@ pintarChat(l);
             <div class="st alerta"><div class="n">${pend}</div><div class="l">Pendientes</div></div>
             <div class="st cita"><div class="n">${citas}</div><div class="l">Citas</div></div>
           </div>
-          <div style="font-size:12px;color:var(--muted);margin:6px 0">🔑 PIN del CRM: <b style="font-family:monospace;font-size:13px;letter-spacing:1px">${a.pin||"—"}</b></div>
+          <div style="font-size:12px;color:var(--muted);margin:6px 0">PIN del CRM: <b style="font-family:monospace;font-size:13px;letter-spacing:1px">${a.pin||"—"}</b></div>
           <div class="mx"><button class="btn ghost" onclick='editarAgente(${JSON.stringify(a)})'>Editar</button><button class="btn danger" onclick="borrarAgente('${a.id}')">Borrar</button></div>
         </div>`;
       }).join("");
@@ -2046,7 +2083,7 @@ pintarChat(l);
     const body={nombre:val("a_nombre"),telefono:val("a_telefono"),pin:val("a_pin"),zonas:getZonasChecks(),activo:document.getElementById("a_activo").checked};
     if(!body.nombre){toast("Ponle nombre al agente");return}
     const url=editandoAgenteId?"/api/agents/"+editandoAgenteId:"/api/agents";
-    try{const r=await fetch(url,{method:editandoAgenteId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrarAgente();toast(editandoAgenteId?"Actualizado ✓":"Agregado ✓");cargarAgentes()}catch(e){toast("Error de conexión")}
+    try{const r=await fetch(url,{method:editandoAgenteId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrarAgente();toast(editandoAgenteId?"Actualizado":"Agregado");cargarAgentes()}catch(e){toast("Error de conexión")}
   }
   async function borrarAgente(id){if(!confirm("¿Borrar este agente?"))return;try{const r=await fetch("/api/agents/"+id,{method:"DELETE",headers:AH()});if(r.status===401){toast("Contraseña incorrecta");return}toast("Borrado");cargarAgentes()}catch(e){toast("Error")}}
 
@@ -2060,7 +2097,7 @@ pintarChat(l);
       list.innerHTML=zs.map(z=>{
         const alias=(z.aliases||[]).join(", ");
         const precio=z.precioM2?(" · "+fmtMXN(z.precioM2)+"/m²"):"";
-        return `<div class="agent"><div class="ainfo"><b>${z.nombre}</b> <span class="pill ${z.activa===false?'off':''}">${z.activa===false?'inactiva':'activa'}</span><div class="meta">🔎 ${alias||'sin palabras clave'}${precio}</div>${z.nota?`<div class="meta" style="margin-top:4px;line-height:1.4">${z.nota}</div>`:''}</div>
+        return `<div class="agent"><div class="ainfo"><b>${z.nombre}</b> <span class="pill ${z.activa===false?'off':''}">${z.activa===false?'inactiva':'activa'}</span><div class="meta">${alias||'sin palabras clave'}${precio}</div>${z.nota?`<div class="meta" style="margin-top:4px;line-height:1.4">${z.nota}</div>`:''}</div>
           <div class="aacts"><button class="btn ghost" onclick='editarZona(${JSON.stringify(z)})'>Editar</button><button class="btn danger" onclick="borrarZona('${z.id}','${(z.nombre||'').replace(/'/g,'')}')">Borrar</button></div></div>`;
       }).join("");
     }catch(e){toast("Error al cargar zonas")}
@@ -2072,7 +2109,7 @@ pintarChat(l);
     const body={nombre:val("z_nombre"),aliases:val("z_aliases"),precioM2:val("z_precio"),nota:val("z_nota"),activa:document.getElementById("z_activa").checked};
     if(!body.nombre){toast("Ponle nombre a la zona");return}
     const url=editandoZonaId?"/api/zones/"+editandoZonaId:"/api/zones";
-    try{const r=await fetch(url,{method:editandoZonaId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrarZona();toast(editandoZonaId?"Actualizada ✓":"Agregada ✓");cargarZonas()}catch(e){toast("Error de conexión")}
+    try{const r=await fetch(url,{method:editandoZonaId?"PUT":"POST",headers:JH(),body:JSON.stringify(body)});if(r.status===401){toast("Contraseña incorrecta");return}if(!r.ok){toast("Error al guardar");return}cerrarZona();toast(editandoZonaId?"Actualizada":"Agregada");cargarZonas()}catch(e){toast("Error de conexión")}
   }
   async function borrarZona(id,nombre){
     if(!confirm('¿Borrar la zona "'+nombre+'"?\n\nLas propiedades y agentes que ya la tengan conservarán su etiqueta, pero el bot dejará de ofrecerla.'))return;
