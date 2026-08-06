@@ -86,11 +86,11 @@
   /* Métricas */
   .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:24px}
   .metric{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:17px 18px 15px;box-shadow:var(--shadow)}
-  .metric .label{font-size:11.5px;color:var(--muted);font-weight:500}
-  .metric .num{font-size:26px;font-weight:700;letter-spacing:-.03em;margin-top:5px}
+  .metric .label{font-size:11.5px;color:var(--muted);font-weight:500;display:flex;align-items:center}
+  .metric .num{font-size:26px;font-weight:600;letter-spacing:-.025em;margin-top:6px;font-variant-numeric:tabular-nums;color:var(--ink)}
   .metric .num.small{font-size:18px}
-  .metric.alert .num,.metric.hot .num{color:var(--hot)}
-  .metric.warm .num{color:var(--warm)}.metric.cold .num{color:var(--cold)}.metric.cita .num{color:var(--green)}
+  .metric .num{color:var(--ink)}
+  
   .metric .bar{height:3px;border-radius:2px;margin-top:10px;background:var(--line);overflow:hidden}
   .metric .bar i{display:block;height:100%}
   .metric.alert .bar i,.metric.hot .bar i{background:var(--hot)}
@@ -271,6 +271,50 @@
   .rsub{font-size:11.5px;color:var(--muted2);margin-left:8px}
   .member .av{background:var(--card2);color:var(--ink);border:1px solid var(--line2);font-weight:600}
   .navitem:focus-visible,.btn:focus-visible,.mtab:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* --- Recuperado: layout de Análisis y Equipo (se había perdido) --- */
+.teamsum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.teamsum .ts{flex:1;min-width:140px;background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:13px 15px;box-shadow:var(--shadow)}
+.teamsum .ts .n{font-size:23px;font-weight:700;letter-spacing:-.02em}
+.teamsum .ts .l{font-size:11.5px;color:var(--muted);font-weight:500}
+.member{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);box-shadow:var(--shadow);padding:15px 17px;margin-bottom:11px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.member .who{flex:1;min-width:160px}
+.member .who b{font-size:14.5px}
+.member .who .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.member .stats{display:flex;gap:18px;text-align:center}
+.member .stats .st .n{font-size:18px;font-weight:700;line-height:1}
+.member .stats .st .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
+.member .mx{display:flex;gap:7px}
+.uploadbox{border:2px dashed var(--glass-bd,#d5deec);border-radius:var(--r);padding:16px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;background:var(--glass,#f7f9fd);transition:.15s}
+.uploadbox:hover{background:#fff;border-color:var(--gold-deep,#c08a2a);color:var(--ink,#1b2436)}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.thumb{position:relative;width:74px;height:74px;border-radius:var(--r);overflow:hidden;border:1px solid var(--glass-bd,#e4e9f2)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb button{position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:50%;background:rgba(20,25,40,.75);color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0}
+.thumb button:hover{background:var(--red,#d9534f)}
+.chatimg{display:block;max-width:180px;max-height:180px;border-radius:var(--r);margin-bottom:5px;cursor:pointer;border:1px solid rgba(0,0,0,.08)}
+.chatdoc{display:inline-block;background:rgba(224,169,60,.18);color:#12213a;padding:7px 11px;border-radius:var(--r);text-decoration:none;font-weight:600;font-size:13px;margin-bottom:4px}
+.chatbar .attach{background:transparent;border:none;font-size:19px;padding:0 6px;cursor:pointer;opacity:.7}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:15px 17px}
+.kpi .l{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.kpi .v{font-size:23px;font-weight:800;color:var(--ink);letter-spacing:-.5px}
+.fstep{margin-bottom:12px}
+.fstep .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.fconv{font-size:11px;color:var(--muted);text-align:right;margin-top:3px}
+.rankrow{margin-bottom:13px}
+.rankrow .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;align-items:baseline}
+.rankrow .nm{font-weight:600}
+.rankrow .vv{font-weight:700;color:#16a34a}
+.member .stats{display:flex;gap:20px;flex-wrap:wrap}
+.member .stats .st{text-align:center;min-width:52px}
+.member .stats .st .n{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
+.member .stats .st .l{font-size:11px;color:var(--muted2);font-weight:500}
+.member .stats .st.alerta .n{color:var(--hot)}
+.member .stats .st.cita .n{color:var(--gold)}
+.kpi .v{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi.green .v,.kpi.gold .v,.kpi.blue .v{color:var(--ink)}
+.teamsum .ts .n{font-variant-numeric:tabular-nums}
+.chatbar .attach:hover{background:var(--card2)}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
   @media (max-width:820px){ .member .stats{gap:13px} }
 </style>
