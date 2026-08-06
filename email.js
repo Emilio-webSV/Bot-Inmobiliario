@@ -29,35 +29,38 @@ export function extraerEmail(texto) {
 // Plantilla HTML con la marca de la agencia. Simple, limpia y se ve bien en
 // cualquier cliente de correo (nada de CSS moderno que Outlook rompa).
 export function plantillaHTML({ agencia, logoUrl, titulo, saludo, cuerpo, cta, ctaUrl, pie, color }) {
-  const acento = color || "#2E8B6F";
+  const acento = color || "#00AEB4";   // cian oscuro de la marca
   const esc = (t) => String(t || "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
   const parrafos = String(cuerpo || "").split("\n").filter(Boolean)
-    .map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#3F4B55">${esc(p)}</p>`).join("");
+    .map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#4A4F6B">${esc(p)}</p>`).join("");
   const botones = cta && ctaUrl
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0"><tr><td style="border-radius:8px;background:${acento}">
-       <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">${esc(cta)}</a>
+       <a href="${ctaUrl}" style="display:inline-block;padding:12px 26px;font-size:15px;font-weight:600;color:#0B2226;text-decoration:none">${esc(cta)}</a>
        </td></tr></table>` : "";
   const cabecera = logoUrl
     ? `<img src="${logoUrl}" alt="${esc(agencia)}" style="max-height:44px;max-width:190px">`
-    : `<div style="font-size:20px;font-weight:700;color:#16232E">${esc(agencia)}</div>`;
+    : `<div style="font-size:20px;font-weight:700;color:#282A47">${esc(agencia)}</div>`;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#F4F7F6;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F7F6;padding:28px 12px">
+<body style="margin:0;padding:0;background:#F1F3F6;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F3F6;padding:28px 12px">
  <tr><td align="center">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #E4E7EC">
    <tr><td style="padding:24px 30px 0">${cabecera}</td></tr>
    <tr><td style="padding:20px 30px 0">
-     ${titulo ? `<h1 style="margin:0 0 6px;font-size:22px;line-height:1.3;color:#16232E">${esc(titulo)}</h1>` : ""}
-     ${saludo ? `<p style="margin:0 0 16px;font-size:15px;color:#3F4B55">${esc(saludo)}</p>` : ""}
+     ${titulo ? `<h1 style="margin:0 0 6px;font-size:22px;line-height:1.3;color:#282A47">${esc(titulo)}</h1>` : ""}
+     ${saludo ? `<p style="margin:0 0 16px;font-size:15px;color:#4A4F6B">${esc(saludo)}</p>` : ""}
      ${parrafos}${botones}
    </td></tr>
    <tr><td style="padding:8px 30px 26px">
      <hr style="border:none;border-top:1px solid #E4E7EC;margin:18px 0">
-     <p style="margin:0;font-size:12.5px;line-height:1.6;color:#8A97A3">${esc(pie || `${agencia} — gracias por tu interés.`)}</p>
+     <p style="margin:0;font-size:12.5px;line-height:1.6;color:#8A90AB">${esc(pie || `${agencia} — gracias por tu interés.`)}</p>
    </td></tr>
   </table>
-  <p style="margin:16px 0 0;font-size:11.5px;color:#9AA8B2">Si no esperabas este correo, puedes ignorarlo.</p>
+  <p style="margin:16px 0 0;font-size:11.5px;color:#9098B0">Si no esperabas este correo, puedes ignorarlo.</p>
+  <p style="margin:8px 0 0;font-size:11px;color:#B0B6C9;letter-spacing:.02em">
+    Asistente con tecnología de <span style="color:#282A47;font-weight:600">Realtor Solutions</span><span style="color:#00AEB4;font-weight:600">&nbsp;AI</span>
+  </p>
  </td></tr>
 </table></body></html>`;
 }
