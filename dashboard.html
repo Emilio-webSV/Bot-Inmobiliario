@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CRM Inmobiliario</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#F7F8FA">
+<meta name="theme-color" content="#F8F9FB">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -22,28 +22,28 @@
      la configuración, ese gana (se inyecta desde JS sobre :root).
      ========================================================================= */
   :root{
-    --canvas:#F7F8FA; --card:#FFFFFF; --card2:#F1F3F6;
-    --ink:#282A47; --ink-soft:#3F4463; --muted:#5F6480; --muted2:#9098B0;
-    --line:#E4E7EC; --line2:#D5D9E0;
-    --gold:#00AEB4; --gold-deep:#00858A; --gold-soft:#E2F7F8;
+    --canvas:#F8F9FB; --card:#FFFFFF; --card2:#F3F5F8;
+    --ink:#282A47; --ink-soft:#3F4463; --muted:#5A5F7A; --muted2:#6E7396;
+    --line:#EAEDF1; --line2:#DDE1E8;
+    --gold:#0B8089; --gold-deep:#0B8089; --gold-soft:#E8F4F5;
     --r:6px; --r2:10px;
-    --shadow:0 1px 2px rgba(0,0,0,.04);
+    --shadow:0 1px 2px rgba(40,42,71,.035);
     /* Puntitos de estado: es lo ÚNICO con color en las listas */
-    --hot:#BE123C; --warm:#D97706; --cold:#3B82F6;
-    --green:#16A34A; --red:#DC2626;
+    --hot:#B95567; --warm:#A16826; --cold:#4674BE;
+    --green:#2E8454; --red:#B95567;
     --hot-bg:transparent;--warm-bg:transparent;--cold-bg:transparent;--green-bg:transparent;
   }
   html.dark{
-    --canvas:#191A2E; --card:#22243D; --card2:#2B2D4A;
-    --ink:#EDEDF2; --ink-soft:#C8CBE0; --muted:#A2A5C0; --muted2:#6E7196;
-    --line:#33355A; --line2:#414470;
-    --gold:#00E4E6; --gold-deep:#5BF0F1; --gold-soft:#0E2E3A;
-    --shadow:0 1px 2px rgba(0,0,0,.3);
-    --hot:#FB7185; --warm:#FBBF24; --cold:#60A5FA; --green:#4ADE80; --red:#F87171;
+    --canvas:#1C1D33; --card:#252740; --card2:#2E304E;
+    --ink:#ECEDF4; --ink-soft:#C8CBE0; --muted:#A8ACC6; --muted2:#979CBA;
+    --line:#36385E; --line2:#474A78;
+    --gold:#3EB3BB; --gold-deep:#5FC7CE; --gold-soft:#12303A;
+    --shadow:0 1px 2px rgba(0,0,0,.22);
+    --hot:#D68594; --warm:#C29547; --cold:#7D9ED4; --green:#48B176; --red:#D68594;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--canvas);color:var(--ink);
-    line-height:1.55;-webkit-font-smoothing:antialiased;font-feature-settings:"cv02","cv03","cv04","tnum"}
+    line-height:1.6;-webkit-font-smoothing:antialiased;font-feature-settings:"cv02","cv03","cv04","tnum"}
   svg.i{width:17px;height:17px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
   svg.i.sm{width:14px;height:14px} svg.i.lg{width:22px;height:22px}
   .hidden{display:none!important}
@@ -77,6 +77,12 @@
   .navitem .ic{display:flex;align-items:center;flex-shrink:0}
   .navitem .badge{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--gold);background:none;padding:0;
     font-variant-numeric:tabular-nums}
+  .firma{display:flex;align-items:center;gap:7px;padding:0 3px 11px;font-size:10.5px;color:var(--muted2);
+    line-height:1.35;letter-spacing:.01em;opacity:.9}
+  .firma svg.i{width:13px;height:13px;color:var(--muted2);opacity:.85}
+  .firma b{font-weight:600;color:var(--muted);font-style:normal}
+  .firma i{font-style:normal;font-weight:600;color:var(--gold);margin-left:2px}
+  .gate .firma{justify-content:center;padding:16px 0 0;border-top:1px solid var(--line);margin-top:18px}
   .sidefoot{margin-top:auto;padding:12px 4px 2px;border-top:1px solid var(--line)}
   .cuenta{display:flex;align-items:center;gap:4px}
   .cuenta .av{width:26px;height:26px;border-radius:50%;background:var(--card2);border:1px solid var(--line2);
@@ -322,7 +328,7 @@
 .rankrow{margin-bottom:13px}
 .rankrow .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;align-items:baseline}
 .rankrow .nm{font-weight:600}
-.rankrow .vv{font-weight:700;color:#16a34a}
+.rankrow .vv{font-weight:700;color:#2E8454}
 .member .stats{display:flex;gap:20px;flex-wrap:wrap}
 .member .stats .st{text-align:center;min-width:52px}
 .member .stats .st .n{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
@@ -376,9 +382,9 @@
 
   .filtrobar{padding:10px 20px 0}
   .filtrotoggle{font-size:13px}
-  .estadobtn.disponible{color:#16a34a;border-color:#bbf7d0}
-  .estadobtn.apartado{color:#d97706;border-color:#fde68a}
-  .estadobtn.vendido{color:#dc2626;border-color:#fecaca}
+  .estadobtn.disponible{color:#2E8454;border-color:#bbf7d0}
+  .estadobtn.apartado{color:#A16826;border-color:#fde68a}
+  .estadobtn.vendido{color:#B95567;border-color:#fecaca}
   /* Reacción estilo WhatsApp: burbujita pegada abajo del mensaje */
   .msg{position:relative}
   .msg.conreac{margin-bottom:20px}
@@ -442,7 +448,7 @@
   .sw input:checked+i{background:#22c55e}
   .sw input:checked+i:before{transform:translateX(19px)}
   html.dark .sw i{background:#3c4a63}
-  .notiestado{padding:12px 14px;border-radius:var(--r);font-size:13px;line-height:1.55;margin-bottom:14px}
+  .notiestado{padding:12px 14px;border-radius:var(--r);font-size:13px;line-height:1.6;margin-bottom:14px}
   .notiestado.on{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
   .notiestado.off{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412}
   html.dark .notiestado.on{background:#14261c;border-color:#1e4030;color:#86efac}
@@ -453,7 +459,7 @@
   .campcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:16px;margin-bottom:12px}
   .campcard .est{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:600}
   .est-borrador{background:#f3f4f6;color:#6b7280}.est-enviando{background:#dbeafe;color:#2563eb}
-  .est-pausada{background:#fef3c7;color:#b45309}.est-terminada{background:#dcfce7;color:#16a34a}
+  .est-pausada{background:#fef3c7;color:#b45309}.est-terminada{background:#dcfce7;color:#2E8454}
   .campbar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0;display:flex}
   .campbar i{display:block;height:100%}
   .campstat{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
@@ -486,6 +492,7 @@
   <div style="height:12px"></div>
   <button class="btn gold" style="width:100%" onclick="entrar()">Entrar</button>
   <p id="gateErr" style="color:var(--red);margin-top:10px;display:none">Contraseña o PIN incorrecto</p>
+  <div class="firma"><span class="ii" data-ico="marca"></span><span>Con tecnología de <b>Realtor Solutions</b><i>AI</i></span></div>
 </div>
 
 <!-- APP -->
@@ -513,6 +520,10 @@
       </div>
       <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restaurarRespaldo(this.files)">
       <div class="sidefoot">
+        <div class="firma" title="Sistema desarrollado por Realtor Solutions AI">
+          <span class="ii" data-ico="marca"></span>
+          <span>Con tecnología de <b>Realtor Solutions</b><i>AI</i></span>
+        </div>
         <div class="cuenta">
           <span class="av" id="avYo"></span>
           <span class="nm" id="quienSoy">Dueño</span>
@@ -885,6 +896,7 @@ const ICO={
   x:'<path d="M18 6 6 18M6 6l12 12"/>',
   refresh:'<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3.5V9h-5.5"/>',
   slash:'<circle cx="12" cy="12" r="9.2"/><path d="m5.5 5.5 13 13"/>',
+  marca:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5.8 9.3V17a2 2 0 0 0 2 2h1.6v2.6L13.6 19H16a2 2 0 0 0 2-2V9.3"/><circle cx="12" cy="9" r="1"/><circle cx="9.2" cy="14" r=".9"/><circle cx="12" cy="14" r=".9"/><circle cx="14.8" cy="14" r=".9"/>',
   mas:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   mail:'<rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="m3 6.5 9 6.5 9-6.5"/>',
   money:'<circle cx="12" cy="12" r="9.2"/><path d="M12 6.5v11M14.6 9.3c-.5-.7-1.5-1.1-2.6-1.1-1.5 0-2.6.8-2.6 1.9 0 2.6 5.2 1.3 5.2 3.9 0 1.1-1.1 1.9-2.6 1.9-1.1 0-2.1-.4-2.6-1.1"/>',
@@ -1129,7 +1141,7 @@ Object.assign(ICO,{
     const b=document.getElementById("temaBtn");
     if(b){ b.innerHTML = t==="dark" ? ico("sun","sm") : ico("moon","sm"); b.title = t==="dark" ? "Modo claro" : "Modo oscuro"; }
     const meta=document.querySelector('meta[name="theme-color"]');
-    if(meta) meta.setAttribute("content", t==="dark" ? "#191A2E" : "#F7F8FA");
+    if(meta) meta.setAttribute("content", t==="dark" ? "#1C1D33" : "#F8F9FB");
   }
   function toggleTema(){
     const nuevo=document.documentElement.classList.contains("dark")?"light":"dark";
@@ -1416,9 +1428,9 @@ Object.assign(ICO,{
           </div>
           ${c.notaPausa?`<div style="font-size:12.5px;color:var(--warm,#b45309);margin-top:7px">${ico("alert","sm")} ${escapeHtml(c.notaPausa)}</div>`:""}
           <div class="campbar">
-            <i style="width:${pResp}%;background:#16a34a"></i>
+            <i style="width:${pResp}%;background:#2E8454"></i>
             <i style="width:${pEnv}%;background:#2563eb"></i>
-            <i style="width:${pErr}%;background:#dc2626"></i>
+            <i style="width:${pErr}%;background:#B95567"></i>
           </div>
           <div class="campstat">
             <span><b>${c.total}</b> contactos</span>
@@ -1493,7 +1505,7 @@ Object.assign(ICO,{
   async function verCampana(id){
     const c=await(await fetch("/api/campanas/"+id,{headers:AH()})).json();
     document.getElementById("cd_titulo").textContent=c.nombre;
-    const badge={pendiente:["#6b7280","#f3f4f6"],enviado:["#2563eb","#dbeafe"],respondio:["#16a34a","#dcfce7"],error:["#dc2626","#fee2e2"],omitido:["#6b7280","#f3f4f6"]};
+    const badge={pendiente:["#6b7280","#f3f4f6"],enviado:["#2563eb","#dbeafe"],respondio:["#2E8454","#dcfce7"],error:["#B95567","#fee2e2"],omitido:["#6b7280","#f3f4f6"]};
     document.getElementById("cd_cuerpo").innerHTML=`
       <div class="campstat" style="margin-bottom:14px">
         <span><b>${c.total}</b> contactos</span><span>${ico("send","sm")} <b>${c.enviados}</b></span>
@@ -1832,7 +1844,7 @@ Object.assign(ICO,{
     const propVendida=l.venta&&l.venta.propiedadId?propsList.find(x=>x.id===l.venta.propiedadId):null;
     const asesorVentaOpts=(agentesList||[]).map(a=>`<option value="${a.id}" ${l.agenteAsignado===a.id?"selected":""}>${a.nombre}</option>`).join("");
     const ventaBlock=l.venta?`
-      <div class="mrow"><label>Venta</label><div style="font-size:13.5px;flex:1"><b style="color:#16a34a;font-size:15px">${fmtMXN(l.venta.monto||0)}</b>${propVendida?` · ${propVendida.titulo}`:""}<button class="savenote" style="margin-left:10px" onclick="deshacerVenta('${l.telefono}')">Deshacer</button></div></div>`
+      <div class="mrow"><label>Venta</label><div style="font-size:13.5px;flex:1"><b style="color:#2E8454;font-size:15px">${fmtMXN(l.venta.monto||0)}</b>${propVendida?` · ${propVendida.titulo}`:""}<button class="savenote" style="margin-left:10px" onclick="deshacerVenta('${l.telefono}')">Deshacer</button></div></div>`
       :`<div class="mrow"><label>Registrar venta</label><div style="display:flex;flex-direction:column;gap:7px;flex:1">
         <select id="ventaProp" onchange="document.getElementById('ventaMonto').value=this.options[this.selectedIndex].dataset.precio||''">${propOpts}</select>
         <select id="ventaAsesor" title="Asesor que vendió">${asesorVentaOpts||'<option value=\"\">— asesor —</option>'}</select>
@@ -2024,7 +2036,7 @@ pintarChat(l);
       grid.innerHTML=props.map(p=>{
         const img=(p.imagenes&&p.imagenes[0])||"";
         const est=p.estado||(p.disponible===false?"vendido":"disponible");
-        const estBadge=est==='vendido'?'<span class="nodisp">VENDIDO</span>':est==='apartado'?'<span class="nodisp" style="background:var(--warm,#d97706)">Apartado</span>':'';
+        const estBadge=est==='vendido'?'<span class="nodisp">VENDIDO</span>':est==='apartado'?'<span class="nodisp" style="background:var(--warm,#A16826)">Apartado</span>':'';
         const ventaInfo=(est==='vendido'&&p.venta)?`<div class="soldby">${ico("trophy","sm")} Vendida por <b>${p.venta.agenteNombre||'asesor no asignado'}</b>${p.venta.monto?` · ${fmtMXN(p.venta.monto)}`:''}${p.venta.fecha?` · ${new Date(p.venta.fecha).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}`:''}${p.venta.cliente?`<br><span style="color:var(--muted)">Cliente: ${p.venta.cliente}</span>`:''}</div>`:'';
         return `<div class="prop ${est!=='disponible'?'off':''}"><div class="img" style="background-image:url('${img}')"><span class="badge2">${p.operacion==='renta'?'Renta':'Venta'}</span>${estBadge}</div>
           <div class="body"><h3>${p.titulo}</h3><div class="price">${fmtMXN(p.precio)}${p.operacion==='renta'?'/mes':''}</div>
