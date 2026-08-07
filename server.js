@@ -21,7 +21,7 @@ import {
   getCampanas, getCampana, crearCampana, actualizarCampana, borrarCampana, marcarContacto, marcarRespuestaCampana,
 } from "./store.js";
 import { generarRespuesta } from "./gemini.js";
-import { enviarTexto, enviarImagen, enviarTextoOPlantilla, enviarPlantilla, enviarDocumento } from "./whatsapp.js";
+import { enviarTexto, enviarImagen, enviarTextoOPlantilla, enviarPlantilla, enviarDocumento, plantillasAprobadas } from "./whatsapp.js";
 import { enviarTextoCanal, enviarImagenCanal, enviarVideoCanal, enviarUbicacionCanal } from "./canales.js";
 import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./vision.js";
 import { enviarCorreo, plantillaHTML, extraerEmail, correoActivo } from "./email.js";
@@ -1747,6 +1747,10 @@ function resumenCampana(c) {
   };
 }
 
+app.get("/api/campanas/diagnostico", async (req, res) => {
+  if (!soloDueno(req, res)) return;
+  res.json(await plantillasAprobadas());
+});
 app.get("/api/campanas", (req, res) => {
   if (!checarAdmin(req, res)) return;
   res.json({ campanas: getCampanas().map(resumenCampana) });

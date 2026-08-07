@@ -270,16 +270,6 @@
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .2s;z-index:100}
   .toast.show{opacity:1}
 
-  @media (max-width:820px){
-    .tabbar{display:flex}
-    .sidebar{display:none}
-    .layout{flex-direction:column}
-    .main{padding:14px 14px calc(96px + env(safe-area-inset-bottom))}
-    .topbar{margin-bottom:16px}
-    .topbar h2{font-size:26px;letter-spacing:-.02em}
-    .metrics{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}
-    .overlay{padding:0}
-  }
   /* ============================================================
      Ajustes finos del sistema (sustituye al "restyle premium" viejo)
      ============================================================ */
@@ -508,6 +498,21 @@
   .campstat{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
   .campstat b{color:var(--ink)}
 
+
+  /* =========================================================================
+     CELULAR — va al final a propósito: estas reglas deben ganarle a todo lo
+     de arriba. Si alguien mueve este bloque, la barra de abajo deja de verse.
+     ========================================================================= */
+  @media (max-width:820px){
+    .tabbar{display:flex}
+    .sidebar{display:none}
+    .layout{flex-direction:column}
+    .main{padding:14px 14px calc(96px + env(safe-area-inset-bottom))}
+    .topbar{margin-bottom:16px}
+    .topbar h2{font-size:26px;letter-spacing:-.02em}
+    .metrics{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}
+    .overlay{padding:0}
+  }
 </style>
 </head>
 <body>
@@ -555,7 +560,6 @@
       </div>
       <div class="navgroup">
         <div class="gtitle">Gestión</div>
-        <div class="navitem solo-dueno" data-view="campanas" onclick="showView('campanas')"><span class="ic ii" data-ico="megaphone"></span> Campañas</div>
         <div class="navitem solo-dueno" data-view="agentes" onclick="showView('agentes')"><span class="ic ii" data-ico="user"></span> Equipo</div>
         <div class="navitem solo-dueno" data-view="zonas" onclick="showView('zonas')"><span class="ic ii" data-ico="pin"></span> Zonas</div>
       </div>
@@ -591,7 +595,7 @@
           <button class="danger" onclick="bulk('borrar')"><span class="ii" data-ico="x"></span> Borrar</button>
         </div>
         <div class="panel">
-          <div class="phead" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h3>Leads por prioridad</h3><button class="btn gold" onclick="abrirEscribir()"><span class="ii" data-ico="edit"></span> Escribir a un número</button></div>
+          <div class="phead" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h3>Leads por prioridad</h3></div>
           <div class="filtrobar"><button class="btn ghost filtrotoggle" onclick="toggleFiltros('filtrosLeads',this)"><span class="ii" data-ico="search"></span> Buscar y filtrar</button></div>
           <div class="filtros hidden" id="filtrosLeads">
             <input id="buscarLead" type="search" placeholder="Buscar por nombre, teléfono, nota o etiqueta..." oninput="aplicarFiltros()" />
@@ -640,6 +644,9 @@
       </section>
 
       <!-- EQUIPO -->
+      <!-- Campañas: apagadas hasta tener plantillas aprobadas en Meta.
+           Para reactivarlas: vuelve a poner el renglón del menú lateral y
+           el de la hoja de celular (busca "campanas"). El motor sigue completo. -->
       <section id="view-campanas" class="view hidden">
         <div class="toolbar"><span></span><button class="btn gold" onclick="abrirCampana()">+ Nueva campaña</button></div>
         <div class="avisocamp">
@@ -731,7 +738,11 @@
     <div class="mhead"><h3>Nueva campaña</h3><button class="close" onclick="cerrarCampana()">×</button></div>
     <div class="form">
       <div class="full"><label>Nombre de la campaña</label><input id="c_nombre" placeholder="Clientes de Polanco — agosto"></div>
-      <div class="full"><label>Plantilla aprobada de Meta <span style="font-weight:400;color:var(--muted)">(el nombre exacto, ej. seguimiento_cliente)</span></label><input id="c_plantilla" placeholder="seguimiento_cliente"></div>
+      <div class="full"><label>Plantilla aprobada de Meta</label>
+        <select id="c_plantilla_sel" onchange="elegirPlantilla()" style="margin-bottom:8px"><option value="">Cargando…</option></select>
+        <input id="c_plantilla" placeholder="o escribe el nombre exacto">
+        <div id="c_plantillaInfo" style="font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5"></div>
+      </div>
       <div><label>Un mensaje cada <span style="font-weight:400;color:var(--muted)">(segundos)</span></label><input id="c_ritmo" type="number" value="10" min="5"></div>
       <div><label>Máximo por día</label><input id="c_max" type="number" value="100" min="1" max="250"></div>
       <div class="full"><label>Contactos <span style="font-weight:400;color:var(--muted)">(uno por línea: teléfono, nombre)</span></label>
@@ -1076,7 +1087,7 @@ Object.assign(ICO,{
     else if(name==='analisis')cargarAnalisis();
     else if(name==='agenda')cargarAgenda();
     else if(name==='props')cargarProps();
-    else if(name==='campanas')cargarCampanas();
+    else if(name==='campanas'){ showView('leads'); return; }   // sección apagada
     else if(name==='agentes')cargarAgentes();
     else if(name==='zonas')cargarZonas();
   }
@@ -1320,7 +1331,6 @@ Object.assign(ICO,{
 
   /* ---------- Navegación de celular (barra de abajo) ---------- */
   const MAS_SECCIONES = [
-    { v:"campanas", ico:"megaphone", txt:"Campañas", dueno:true },
     { v:"agentes",  ico:"user",      txt:"Equipo",   dueno:true },
     { v:"zonas",    ico:"pin",       txt:"Zonas",    dueno:true },
   ];
@@ -1424,6 +1434,47 @@ Object.assign(ICO,{
 
 
 
+
+  /* ---------- Plantillas: se leen de Meta, no se escriben a mano ---------- */
+  let PLANTILLAS_META=null;
+  async function cargarPlantillasMeta(){
+    const sel=document.getElementById("c_plantilla_sel");
+    const info=document.getElementById("c_plantillaInfo");
+    try{
+      const d=await(await fetch("/api/campanas/diagnostico",{headers:AH()})).json();
+      PLANTILLAS_META=d;
+      if(!d.listo){
+        sel.innerHTML='<option value="">— no pude leer las plantillas —</option>';
+        info.innerHTML=`<b style="color:var(--hot)">${esc(d.motivo||"Revisa la configuración de WhatsApp")}</b>`;
+        return;
+      }
+      const ps=d.plantillas||[];
+      if(!ps.length){
+        sel.innerHTML='<option value="">— no tienes ninguna plantilla —</option>';
+        info.innerHTML='Todavía no creas plantillas en Meta. Ve a <b>WhatsApp Manager → Plantillas de mensajes → Crear</b>.';
+        return;
+      }
+      sel.innerHTML='<option value="">Elige una…</option>'+ps.map(p=>{
+        const et = p.sirve ? "" : p.estado!=="APPROVED" ? ` — ${p.estado}` : ` — necesita 2 datos, tiene ${p.huecos}`;
+        return `<option value="${esc(p.nombre)}" ${p.sirve?"":"disabled"}>${esc(p.nombre)}${et}</option>`;
+      }).join("");
+      const utiles=d.utiles||0;
+      info.innerHTML = utiles
+        ? `Número <b>${esc(d.numero||"—")}</b> · ${d.aprobadas} aprobada${d.aprobadas===1?"":"s"}, <b>${utiles}</b> sirve${utiles===1?"":"n"} para campañas.`
+        : `<b style="color:var(--warm)">Ninguna de tus ${ps.length} plantillas sirve para campañas.</b> La campaña manda 2 datos (nombre y agencia), así que la plantilla debe tener exactamente <b>{{1}}</b> y <b>{{2}}</b> en el cuerpo.`;
+    }catch(e){
+      sel.innerHTML='<option value="">— error —</option>';
+      info.textContent="No pude consultar Meta.";
+    }
+  }
+  function elegirPlantilla(){
+    const v=document.getElementById("c_plantilla_sel").value;
+    if(v) document.getElementById("c_plantilla").value=v;
+    const p=(PLANTILLAS_META?.plantillas||[]).find(x=>x.nombre===v);
+    if(p) document.getElementById("c_plantillaInfo").innerHTML=
+      `<b>Así les va a llegar:</b><br><span style="color:var(--ink)">${esc(p.texto).replace(/\{\{1\}\}/g,"<b>[nombre]</b>").replace(/\{\{2\}\}/g,"<b>[tu agencia]</b>")}</span>`;
+  }
+
   // ---- Campañas de prospección saliente ----
   let campEditando=null;
   function cerrar2(id){document.getElementById(id).classList.remove("show")}
@@ -1471,7 +1522,9 @@ Object.assign(ICO,{
     ["c_nombre","c_plantilla","c_lista"].forEach(i=>document.getElementById(i).value="");
     document.getElementById("c_ritmo").value=10;document.getElementById("c_max").value=100;
     document.getElementById("c_conteo").textContent="";
+    document.getElementById("c_plantillaInfo").innerHTML="";
     document.getElementById("campOverlay").classList.add("show");
+    cargarPlantillasMeta();
   }
   function cerrarCampana(){document.getElementById("campOverlay").classList.remove("show")}
   function parseLista(txt){

@@ -192,3 +192,53 @@ async function enviar(body, to) {
     return { error: true, motivo: "No se pudo conectar con WhatsApp" };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Diagnóstico de campañas.
+// Le pregunta a Meta qué plantillas tiene aprobadas esta cuenta, para que en el
+// CRM salgan en una lista en vez de escribirlas a mano (y equivocarse).
+// ---------------------------------------------------------------------------
+export async function plantillasAprobadas() {
+  const TOKEN = process.env.WHATSAPP_TOKEN;
+  const PHONE_ID = process.env.WHATSAPP_PHONE_ID;
+  const V = process.env.WHATSAPP_API_VERSION || "v21.0";
+  if (!TOKEN || !PHONE_ID) {
+    return { listo: false, motivo: "Falta configurar WHATSAPP_TOKEN o WHATSAPP_PHONE_ID.", plantillas: [] };
+  }
+  try {
+    // 1) Del número sacamos a qué cuenta de WhatsApp (WABA) pertenece
+    const rn = await fetch(`https://graph.facebook.com/${V}/${PHONE_ID}?fields=whatsapp_business_account_id,display_phone_number,verified_name,quality_rating`,
+      { headers: { Authorization: `Bearer ${TOKEN}` } });
+    const dn = await rn.json();
+    if (dn.error) return { listo: false, motivo: traducirErrorMeta(dn.error.code, dn.error.message), plantillas: [] };
+
+    const waba = dn.whatsapp_business_account_id;
+    if (!waba) return { listo: false, motivo: "No pude leer la cuenta de WhatsApp Business del número.", plantillas: [] };
+
+    // 2) Y de la cuenta, sus plantillas
+    const rt = await fetch(`https://graph.facebook.com/${V}/${waba}/message_templates?limit=100&fields=name,status,category,language,components`,
+      { headers: { Authorization: `Bearer ${TOKEN}` } });
+    const dt = await rt.json();
+    if (dt.error) return { listo: false, motivo: traducirErrorMeta(dt.error.code, dt.error.message), plantillas: [] };
+
+    const plantillas = (dt.data || []).map((p) => {
+      const body = (p.components || []).find((c) => c.type === "BODY");
+      const texto = body?.text || "";
+      const huecos = (texto.match(/\{\{\d+\}\}/g) || []).length;
+      return {
+        nombre: p.name, estado: p.status, categoria: p.category, idioma: p.language,
+        texto, huecos,
+        sirve: p.status === "APPROVED" && huecos === 2,   // la campaña manda 2 datos
+      };
+    });
+    return {
+      listo: true,
+      numero: dn.display_phone_number, nombreVerificado: dn.verified_name, calidad: dn.quality_rating,
+      plantillas,
+      aprobadas: plantillas.filter((p) => p.estado === "APPROVED").length,
+      utiles: plantillas.filter((p) => p.sirve).length,
+    };
+  } catch (e) {
+    return { listo: false, motivo: "No pude conectar con Meta: " + e.message, plantillas: [] };
+  }
+}
