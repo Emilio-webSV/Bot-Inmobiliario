@@ -60,15 +60,15 @@
 
   /* Layout con sidebar */
   .layout{display:flex;min-height:100vh}
-  .sidebar{width:236px;flex-shrink:0;background:var(--card);border-right:1px solid var(--line);padding:0 12px 14px;
+  .sidebar{position:relative;width:236px;flex-shrink:0;background:var(--card);border-right:1px solid var(--line);padding:0 12px 14px;
     display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
-  .sbrand{display:flex;align-items:center;gap:10px;padding:22px 8px 18px}
+  .sbrand{display:flex;align-items:center;gap:10px;padding:20px 9px 22px}
   .sbrand .dot{width:28px;height:28px;color:var(--ink);flex-shrink:0}
   .sbrand h1{font-size:13.5px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
   .sbrand p{font-size:11px;color:var(--muted2)}
-  .brandlogo{max-width:26px;max-height:26px;border-radius:4px;object-fit:contain}
-  .navgroup{margin-bottom:22px}
-  .gtitle{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted2);padding:0 8px;margin-bottom:8px}
+  .brandlogo{width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0}
+  .navgroup{margin-bottom:26px}
+  .gtitle{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);padding:0 9px;margin-bottom:6px;opacity:.75}
   .navitem{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:var(--r);font-size:13.5px;font-weight:500;
     color:var(--muted);cursor:pointer;margin-bottom:1px;transition:.13s;user-select:none}
   .navitem:hover{background:var(--card2);color:var(--ink)}
@@ -77,7 +77,23 @@
   .navitem .ic{display:flex;align-items:center;flex-shrink:0}
   .navitem .badge{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--gold);background:none;padding:0;
     font-variant-numeric:tabular-nums}
-  .sidefoot{margin-top:auto;padding:14px 2px 0;border-top:1px solid var(--line);font-size:11px;color:var(--muted2)}
+  .sidefoot{margin-top:auto;padding:12px 4px 2px;border-top:1px solid var(--line)}
+  .cuenta{display:flex;align-items:center;gap:4px}
+  .cuenta .av{width:26px;height:26px;border-radius:50%;background:var(--card2);border:1px solid var(--line2);
+    display:grid;place-items:center;font-size:11px;font-weight:600;color:var(--ink);flex-shrink:0}
+  .cuenta .nm{flex:1;min-width:0;font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;margin-left:4px}
+  .mini{width:28px;height:28px;display:grid;place-items:center;border:none;border-radius:var(--r);
+    background:transparent;color:var(--muted2);cursor:pointer;flex-shrink:0;transition:.13s;padding:0}
+  .mini:hover{background:var(--card2);color:var(--ink)}
+  .menucta{position:absolute;bottom:52px;left:12px;width:198px;background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r2);box-shadow:0 8px 28px rgba(0,0,0,.13);padding:5px;z-index:40}
+  html.dark .menucta{box-shadow:0 8px 28px rgba(0,0,0,.5)}
+  .menucta button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 9px;border:none;border-radius:var(--r);
+    background:transparent;color:var(--ink-soft);font-family:inherit;font-size:13px;text-align:left;cursor:pointer}
+  .menucta button:hover{background:var(--card2);color:var(--ink)}
+  .menucta hr{border:none;border-top:1px solid var(--line);margin:4px 0}
+
   .main{flex:1;min-width:0;padding:24px 30px 70px;max-width:1500px}
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
   .topbar h2{font-size:22px;font-weight:700;letter-spacing:-.02em}
@@ -247,10 +263,12 @@
     .sidebar{width:100%;height:auto;position:static;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;padding:12px}
     .sbrand{border:none;margin:0;padding:0 10px 0 4px;flex-shrink:0}
     .navgroup{margin:0!important;display:flex;gap:4px;flex-shrink:0}
-    .gtitle{display:none}.sidefoot{display:none}
-    .temabtn{width:auto;white-space:nowrap;padding:8px 11px;border:1px solid var(--line);margin:0}
-    .temabtn+.temabtn{margin-top:0}
-    .sidebar{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:25}
+    .gtitle{display:none}
+    .sidefoot{margin:0;padding:0 0 0 8px;border-top:none;border-left:1px solid var(--line);flex-shrink:0}
+    .cuenta .nm{display:none}
+    .cuenta .av{margin-right:2px}
+    .menucta{bottom:auto;top:56px;left:auto;right:12px}
+    .sidebar{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:25;gap:10px}
     .navitem{white-space:nowrap;margin-bottom:0}
     .main{padding:18px 16px 48px}
     .metrics{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}
@@ -493,16 +511,16 @@
         <div class="navitem solo-dueno" data-view="agentes" onclick="showView('agentes')"><span class="ic ii" data-ico="user"></span> Equipo</div>
         <div class="navitem solo-dueno" data-view="zonas" onclick="showView('zonas')"><span class="ic ii" data-ico="pin"></span> Zonas</div>
       </div>
-      <div class="navgroup" style="margin-top:auto;margin-bottom:0">
-        <div class="gtitle">Cuenta</div>
-        <button class="temabtn" id="notiBtn" onclick="abrirNotis()" title="Notificaciones al celular"><span class="ii" data-ico="bell"></span> Notificaciones</button>
-        <button class="temabtn solo-dueno" onclick="descargarRespaldo()" title="Descargar una copia de todos tus datos"><span class="ii" data-ico="download"></span> Descargar respaldo</button>
-        <button class="temabtn solo-dueno" onclick="document.getElementById('restoreFile').click()" title="Restaurar desde un respaldo"><span class="ii" data-ico="refresh"></span> Restaurar respaldo</button>
-        <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restaurarRespaldo(this.files)">
-        <button class="temabtn" id="temaBtn" onclick="toggleTema()" title="Cambiar tema">Tema</button>
-        <button class="temabtn" onclick="cerrarSesion()" title="Salir"><span class="ii" data-ico="door"></span> Cerrar sesión</button>
+      <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restaurarRespaldo(this.files)">
+      <div class="sidefoot">
+        <div class="cuenta">
+          <span class="av" id="avYo"></span>
+          <span class="nm" id="quienSoy">Dueño</span>
+          <button class="mini" id="notiBtn" onclick="abrirNotis()" title="Notificaciones al celular"><span class="ii" data-ico="bell"></span></button>
+          <button class="mini" id="temaBtn" onclick="toggleTema()" title="Cambiar tema"></button>
+          <button class="mini" onclick="menuCuenta(event)" title="Más opciones"><span class="ii" data-ico="mas"></span></button>
+        </div>
       </div>
-      <div class="sidefoot">CRM en vivo · se actualiza solo</div>
     </aside>
 
     <main class="main">
@@ -867,6 +885,7 @@ const ICO={
   x:'<path d="M18 6 6 18M6 6l12 12"/>',
   refresh:'<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3.5V9h-5.5"/>',
   slash:'<circle cx="12" cy="12" r="9.2"/><path d="m5.5 5.5 13 13"/>',
+  mas:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   mail:'<rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="m3 6.5 9 6.5 9-6.5"/>',
   money:'<circle cx="12" cy="12" r="9.2"/><path d="M12 6.5v11M14.6 9.3c-.5-.7-1.5-1.1-2.6-1.1-1.5 0-2.6.8-2.6 1.9 0 2.6 5.2 1.3 5.2 3.9 0 1.1-1.1 1.9-2.6 1.9-1.1 0-2.1-.4-2.6-1.1"/>',
   think:'<circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.8 2.8 0 0 1 5.4.9c0 1.9-2.7 2.8-2.7 2.8M12 17v.2"/>',
@@ -1090,7 +1109,11 @@ Object.assign(ICO,{
     document.querySelectorAll(".solo-dueno").forEach(el=>el.classList.toggle("hidden",asesor));
     // Etiqueta de quién entró
     const sb=document.querySelector(".sbrand div:last-child p");
-    if(sb) sb.textContent = asesor ? ("Asesor · "+(YO.nombre||"")) : "Inmobiliario";
+    if(sb) sb.textContent = asesor ? "Asesor" : "Inmobiliario";
+    const q=document.getElementById("quienSoy"), a=document.getElementById("avYo");
+    const nom = asesor ? (YO.nombre||"Asesor") : "Dueño";
+    if(q) q.textContent = nom;
+    if(a) a.textContent = nom.trim().charAt(0).toUpperCase();
     // Botones que un asesor no debe usar
     document.body.classList.toggle("modo-asesor",asesor);
     if(asesor){
@@ -1104,7 +1127,7 @@ Object.assign(ICO,{
   function aplicarTema(t){
     document.documentElement.classList.toggle("dark",t==="dark");
     const b=document.getElementById("temaBtn");
-    if(b) b.innerHTML = (t==="dark" ? ico("sun","sm") : ico("moon","sm")) + (t==="dark" ? " Modo claro" : " Modo oscuro");
+    if(b){ b.innerHTML = t==="dark" ? ico("sun","sm") : ico("moon","sm"); b.title = t==="dark" ? "Modo claro" : "Modo oscuro"; }
     const meta=document.querySelector('meta[name="theme-color"]');
     if(meta) meta.setAttribute("content", t==="dark" ? "#191A2E" : "#F7F8FA");
   }
@@ -1238,6 +1261,24 @@ Object.assign(ICO,{
     const m=location.search.match(/lead=(\d+)/);
     if(m){ setTimeout(()=>abrirModal(m[1]),500); history.replaceState({},"","/dashboard"); }
   }
+
+
+  /* ---------- Menú de cuenta (el resto de opciones, fuera de la vista) ---------- */
+  function menuCuenta(ev){
+    ev.stopPropagation();
+    const viejo=document.getElementById("menuCta");
+    if(viejo){ viejo.remove(); return; }
+    const dueno = !YO || YO.rol==="dueno";
+    const m=document.createElement("div");
+    m.id="menuCta"; m.className="menucta";
+    m.innerHTML =
+      (dueno?`<button onclick="descargarRespaldo();cerrarMenuCta()">${ico("download","sm")} Descargar respaldo</button>
+              <button onclick="document.getElementById('restoreFile').click();cerrarMenuCta()">${ico("refresh","sm")} Restaurar respaldo</button><hr>`:"")
+      + `<button onclick="cerrarSesion()">${ico("door","sm")} Cerrar sesión</button>`;
+    document.querySelector(".sidebar").appendChild(m);
+    setTimeout(()=>document.addEventListener("click", cerrarMenuCta, { once:true }), 0);
+  }
+  function cerrarMenuCta(){ const m=document.getElementById("menuCta"); if(m) m.remove(); }
 
   /* ---------- Arranque visual ---------- */
   // Si la agencia configuró su color de marca, ese pisa al dorado.
