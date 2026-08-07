@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CRM Inmobiliario</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#F8F9FB">
+<meta name="theme-color" content="#FAFAFA">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -22,24 +22,24 @@
      la configuración, ese gana (se inyecta desde JS sobre :root).
      ========================================================================= */
   :root{
-    --canvas:#F8F9FB; --card:#FFFFFF; --card2:#F3F5F8;
-    --ink:#282A47; --ink-soft:#3F4463; --muted:#5A5F7A; --muted2:#6E7396;
-    --line:#EAEDF1; --line2:#DDE1E8;
-    --gold:#0B8089; --gold-deep:#0B8089; --gold-soft:#E8F4F5;
+    --canvas:#FAFAFA; --card:#FFFFFF; --card2:#F4F5F7;
+    --ink:#303540; --ink-soft:#454B57; --muted:#606876; --muted2:#6F7785;
+    --line:#E8EAED; --line2:#DADDE2;
+    --gold:#10828E; --gold-deep:#10828E; --gold-soft:#E9F5F6;
     --r:6px; --r2:10px;
-    --shadow:0 1px 2px rgba(40,42,71,.035);
+    --shadow:0 1px 2px rgba(20,22,26,.04);
     /* Puntitos de estado: es lo ÚNICO con color en las listas */
-    --hot:#B95567; --warm:#A16826; --cold:#4674BE;
-    --green:#2E8454; --red:#B95567;
+    --hot:#AF8389; --warm:#A28B6D; --cold:#7C91AB;
+    --green:#61987D; --red:#AF8389;
     --hot-bg:transparent;--warm-bg:transparent;--cold-bg:transparent;--green-bg:transparent;
   }
   html.dark{
-    --canvas:#1C1D33; --card:#252740; --card2:#2E304E;
-    --ink:#ECEDF4; --ink-soft:#C8CBE0; --muted:#A8ACC6; --muted2:#979CBA;
-    --line:#36385E; --line2:#474A78;
-    --gold:#3EB3BB; --gold-deep:#5FC7CE; --gold-soft:#12303A;
+    --canvas:#15171C; --card:#1D2026; --card2:#24282F;
+    --ink:#DCDFE5; --ink-soft:#C2C7D0; --muted:#9298A5; --muted2:#828997;
+    --line:#2A2E36; --line2:#363B45;
+    --gold:#38B4C2; --gold-deep:#5FCBD6; --gold-soft:#14313A;
     --shadow:0 1px 2px rgba(0,0,0,.22);
-    --hot:#D68594; --warm:#C29547; --cold:#7D9ED4; --green:#48B176; --red:#D68594;
+    --hot:#986169; --warm:#806C52; --cold:#5B728F; --green:#4E7963; --red:#986169;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--canvas);color:var(--ink);
@@ -124,22 +124,22 @@
   .phead{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
   .phead h3{font-size:15px;font-weight:600}
   .exportbtn{font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:8px 13px;border:1px solid var(--line);border-radius:var(--r);background:#fff}
-  .exportbtn:hover{background:#f3f5f8}
+  .exportbtn:hover{background:#F4F5F7}
   table{width:100%;border-collapse:collapse}
-  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:11px 20px;background:#f7f9fb;border-bottom:1px solid var(--line)}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:11px 20px;background:var(--card2);border-bottom:1px solid var(--line)}
   tbody td{padding:13px 20px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle}
   tbody tr{cursor:pointer;transition:background .12s}
-  tbody tr:hover{background:#f7f9fb}
+  tbody tr:hover{background:var(--card2)}
   tbody tr:last-child td{border-bottom:none}
   .name{font-weight:600}.sub{font-size:12px;color:var(--muted)}
   .temp{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px}
-  .temp.caliente{color:var(--hot);background:var(--hot-bg)}.temp.tibio{color:#a96a10;background:var(--warm-bg)}.temp.frio{color:var(--cold);background:var(--cold-bg)}
+  .temp.caliente{color:var(--hot);background:var(--hot-bg)}.temp.tibio{color:var(--warm);background:var(--warm-bg)}.temp.frio{color:var(--cold);background:var(--cold-bg)}
   .temp .pip{width:7px;height:7px;border-radius:50%;background:currentColor}
   .estado{font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;white-space:nowrap}
   .estado.sin_atender{color:var(--hot);background:var(--hot-bg)}.estado.en_atencion{color:var(--cold);background:var(--cold-bg)}
   .estado.cerrado{color:var(--green);background:var(--green-bg)}.estado.perdido{color:var(--muted);background:#eee}
-  .estado.bot{color:#1d4ed8;background:#e7efff}
-  .estado.bot::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#2563eb;margin-right:6px;vertical-align:middle;animation:vivo 1.4s infinite}
+  .estado.bot{color:var(--cold);background:var(--card2)}
+  .estado.bot::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--cold);margin-right:6px;vertical-align:middle;animation:vivo 1.4s infinite}
   .estado.urgente{color:#fff;background:var(--hot);animation:urge 1.4s infinite}
   @keyframes vivo{0%{box-shadow:0 0 0 0 rgba(37,99,235,.55)}70%{box-shadow:0 0 0 6px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
   @keyframes urge{0%,100%{opacity:1}50%{opacity:.65}}
@@ -168,7 +168,7 @@
   .btn:hover{border-color:var(--muted2);background:var(--card2)}
   .btn.primary{background:var(--ink);border-color:var(--ink);color:var(--canvas);font-weight:600}
   .btn.primary:hover{opacity:.86;background:var(--ink)}
-  .btn.oro{background:var(--gold);border-color:var(--gold);color:#0B2226;font-weight:600}
+  .btn.oro{background:var(--gold);border-color:var(--gold);color:#08282C;font-weight:600}
   .btn.oro:hover{opacity:.9;background:var(--gold)}
   .btn.ghost{background:transparent}
   .btn.danger{color:var(--red)} .btn.danger:hover{border-color:var(--red)}
@@ -176,7 +176,7 @@
   .btn.primary{background:var(--ink);color:#fff}
   .btn.gold{background:var(--gold);color:#fff}
   .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink-soft)}
-  .btn.danger{background:#fff;border:1px solid #f0c9c4;color:var(--red)}
+  .btn.danger{background:#fff;border:1px solid var(--line2);color:var(--red)}
   .btn:active{transform:translateY(1px)}
   .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
   .toolbar h3{font-size:16px}
@@ -188,7 +188,7 @@
   .prop .img .badge2{position:absolute;top:8px;left:8px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:rgba(20,21,26,.8);color:#fff}
   .prop .img .nodisp{position:absolute;top:8px;right:8px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--red);color:#fff}
   .prop.off .img{filter:grayscale(.55);opacity:.72}
-  .prop .soldby{margin-top:8px;font-size:12px;background:#eafaf0;border:1px solid #c9eede;color:#15803d;padding:7px 10px;border-radius:8px;line-height:1.5}
+  .prop .soldby{margin-top:8px;font-size:12px;background:var(--card2);border:1px solid var(--line2);color:var(--green);padding:7px 10px;border-radius:8px;line-height:1.5}
   .prop .body{padding:14px;flex:1;display:flex;flex-direction:column;gap:6px}
   .prop .body h3{font-size:15px;line-height:1.3}
   .prop .price{font-size:17px;font-weight:700;color:var(--gold-deep)}
@@ -227,7 +227,7 @@
   .profile{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 18px;padding:16px 22px;border-bottom:1px solid var(--line)}
   .profile div span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block}
   .profile div b{font-size:14px;font-weight:600}
-  .manage{padding:14px 22px;border-bottom:1px solid var(--line);background:#f7f9fb}
+  .manage{padding:14px 22px;border-bottom:1px solid var(--line);background:var(--card2)}
   .manage .mrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
   .manage .mrow:last-child{margin-bottom:0}
   .manage label{font-size:12px;color:var(--muted);font-weight:600;min-width:92px;margin:0}
@@ -245,10 +245,10 @@
   .chat{padding:16px 16px 20px;background:var(--card2);min-height:240px;background-image:radial-gradient(rgba(255,255,255,.5) 1px,transparent 0);background-size:18px 18px}
   .msg{max-width:78%;padding:6px 9px 4px;border-radius:var(--r);font-size:13.5px;line-height:1.35;margin-bottom:8px;box-shadow:0 1px 1px rgba(0,0,0,.1);word-wrap:break-word}
   .msg.user{background:#fff;border-top-left-radius:2px}
-  .msg.bot{background:#d9fdd3;margin-left:auto;border-top-right-radius:2px}
-  .msg .t{display:block;font-size:10px;color:#667781;margin-top:1px;text-align:right;line-height:1}
-  .msg .tick{color:#8696a0;font-size:10px}
-  .msg .tick.leido{color:#53bdeb}
+  .msg.bot{background:var(--gold-soft);margin-left:auto;border-top-right-radius:2px}
+  .msg .t{display:block;font-size:10px;color:var(--muted2);margin-top:1px;text-align:right;line-height:1}
+  .msg .tick{color:var(--muted2);font-size:10px}
+  .msg .tick.leido{color:var(--gold)}
   .chatbar{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--line);background:#fff}
   .chatbar input{flex:1;font-family:inherit;font-size:13px;padding:9px 13px;border:1px solid var(--line);border-radius:20px;color:var(--ink)}
   .chatbar button{font-family:inherit;font-size:13px;font-weight:600;padding:9px 18px;border-radius:20px;border:none;background:var(--gold);color:#fff;cursor:pointer}
@@ -265,18 +265,15 @@
   .toast.show{opacity:1}
 
   @media (max-width:820px){
+    .barramovil{display:flex}
     .layout{flex-direction:column}
-    .sidebar{width:100%;height:auto;position:static;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;padding:12px}
-    .sbrand{border:none;margin:0;padding:0 10px 0 4px;flex-shrink:0}
-    .navgroup{margin:0!important;display:flex;gap:4px;flex-shrink:0}
-    .gtitle{display:none}
-    .sidefoot{margin:0;padding:0 0 0 8px;border-top:none;border-left:1px solid var(--line);flex-shrink:0}
-    .cuenta .nm{display:none}
-    .cuenta .av{margin-right:2px}
-    .menucta{bottom:auto;top:56px;left:auto;right:12px}
-    .sidebar{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:25;gap:10px}
-    .navitem{white-space:nowrap;margin-bottom:0}
-    .main{padding:18px 16px 48px}
+    /* La barra lateral se vuelve un cajón que entra desde la izquierda */
+    .sidebar{position:fixed;top:0;left:0;bottom:0;width:270px;max-width:84vw;height:100dvh;z-index:45;
+      transform:translateX(-102%);transition:transform .26s cubic-bezier(.4,0,.2,1);
+      box-shadow:2px 0 24px rgba(0,0,0,.28);padding-bottom:18px;border-right:1px solid var(--line)}
+    .sidebar.abierto{transform:translateX(0)}
+    .navitem{padding:11px;font-size:14.5px}
+    .main{padding:16px 14px 52px}
     .metrics{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}
   }
   /* ============================================================
@@ -309,15 +306,15 @@
 .member .stats .st .n{font-size:18px;font-weight:700;line-height:1}
 .member .stats .st .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
 .member .mx{display:flex;gap:7px}
-.uploadbox{border:2px dashed var(--glass-bd,#d5deec);border-radius:var(--r);padding:16px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;background:var(--glass,#f7f9fd);transition:.15s}
-.uploadbox:hover{background:#fff;border-color:var(--gold-deep,#c08a2a);color:var(--ink,#1b2436)}
+.uploadbox{border:2px dashed var(--glass-bd,var(--line2));border-radius:var(--r);padding:16px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;background:var(--glass,var(--card));transition:.15s}
+.uploadbox:hover{background:#fff;border-color:var(--gold-deep,var(--gold));color:var(--ink,var(--card2))}
 .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.thumb{position:relative;width:74px;height:74px;border-radius:var(--r);overflow:hidden;border:1px solid var(--glass-bd,#e4e9f2)}
+.thumb{position:relative;width:74px;height:74px;border-radius:var(--r);overflow:hidden;border:1px solid var(--glass-bd,var(--line))}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .thumb button{position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:50%;background:rgba(20,25,40,.75);color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0}
-.thumb button:hover{background:var(--red,#d9534f)}
+.thumb button:hover{background:var(--red,var(--red))}
 .chatimg{display:block;max-width:180px;max-height:180px;border-radius:var(--r);margin-bottom:5px;cursor:pointer;border:1px solid rgba(0,0,0,.08)}
-.chatdoc{display:inline-block;background:rgba(224,169,60,.18);color:#12213a;padding:7px 11px;border-radius:var(--r);text-decoration:none;font-weight:600;font-size:13px;margin-bottom:4px}
+.chatdoc{display:inline-block;background:rgba(224,169,60,.18);color:var(--ink);padding:7px 11px;border-radius:var(--r);text-decoration:none;font-weight:600;font-size:13px;margin-bottom:4px}
 .chatbar .attach{background:transparent;border:none;font-size:19px;padding:0 6px;cursor:pointer;opacity:.7}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:15px 17px}
 .kpi .l{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
@@ -328,7 +325,7 @@
 .rankrow{margin-bottom:13px}
 .rankrow .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;align-items:baseline}
 .rankrow .nm{font-weight:600}
-.rankrow .vv{font-weight:700;color:#2E8454}
+.rankrow .vv{font-weight:700;color:#61987D}
 .member .stats{display:flex;gap:20px;flex-wrap:wrap}
 .member .stats .st{text-align:center;min-width:52px}
 .member .stats .st .n{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
@@ -336,6 +333,7 @@
 .member .stats .st.alerta .n{color:var(--hot)}
 .member .stats .st.cita .n{color:var(--gold)}
 .kpi .v{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .kpi .d{font-size:11.5px;color:var(--muted2);margin-top:7px;line-height:1.45}
 .kpi.green .v,.kpi.gold .v,.kpi.blue .v{color:var(--ink)}
 .teamsum .ts .n{font-variant-numeric:tabular-nums}
 .chatbar .attach:hover{background:var(--card2)}
@@ -370,10 +368,10 @@
   /* Buscador y filtros de leads */
   .filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)}
   .filtros input[type=search]{flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);font-size:13.5px;font-family:inherit;outline:none}
-  .filtros input[type=search]:focus{border-color:#2563eb}
+  .filtros input[type=search]:focus{border-color:var(--cold)}
   .filtros select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;font-family:inherit;background:#fff;cursor:pointer}
   .filtros .btn{padding:8px 14px;font-size:13px}
-  .filtroinfo{padding:8px 20px;font-size:12.5px;color:var(--muted);background:#f7f9fb;border-bottom:1px solid var(--line)}
+  .filtroinfo{padding:8px 20px;font-size:12.5px;color:var(--muted);background:var(--card2);border-bottom:1px solid var(--line)}
   @media (max-width:680px){
     .filtros{padding:10px 12px;gap:6px}
     .filtros input[type=search]{min-width:100%;font-size:16px}
@@ -382,9 +380,9 @@
 
   .filtrobar{padding:10px 20px 0}
   .filtrotoggle{font-size:13px}
-  .estadobtn.disponible{color:#2E8454;border-color:#bbf7d0}
-  .estadobtn.apartado{color:#A16826;border-color:#fde68a}
-  .estadobtn.vendido{color:#B95567;border-color:#fecaca}
+  .estadobtn.disponible{color:#61987D;border-color:var(--line2)}
+  .estadobtn.apartado{color:#A28B6D;border-color:var(--line2)}
+  .estadobtn.vendido{color:#AF8389;border-color:var(--line2)}
   /* Reacción estilo WhatsApp: burbujita pegada abajo del mensaje */
   .msg{position:relative}
   .msg.conreac{margin-bottom:20px}
@@ -397,28 +395,42 @@
   .temabtn:hover{background:var(--card2);color:var(--ink)}
   
 
+  /* ====== Celular: barra con tres barritas y cajón lateral ====== */
+  .barramovil{display:none;position:sticky;top:0;z-index:40;background:var(--card);border-bottom:1px solid var(--line);
+    padding:9px 8px;align-items:center;gap:6px}
+  .barramovil .tituloMovil{flex:1;min-width:0;padding-left:2px}
+  .barramovil .tituloMovil b{display:block;font-size:16px;font-weight:600;letter-spacing:-.01em;line-height:1.2}
+  .barramovil .tituloMovil span{display:block;font-size:11.5px;color:var(--muted2)}
+  .hamb{width:40px;height:40px;display:grid;place-items:center;border:none;border-radius:var(--r);
+    background:transparent;color:var(--ink-soft);cursor:pointer;flex-shrink:0;padding:0}
+  .hamb:active{background:var(--card2)}
+  .hamb svg.i{width:21px;height:21px}
+  .capa{display:none;position:fixed;inset:0;background:rgba(15,17,22,.5);z-index:44;
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);opacity:0;transition:opacity .22s}
+  .capa.on{display:block;opacity:1}
+
   /* ====== Ajustes del tema oscuro ====== */
   html.dark body{background:var(--canvas);color:var(--ink)}
   html.dark .panel,html.dark .modal,html.dark .prop,html.dark .metric,html.dark .kpi,html.dark .card,html.dark .gate{background:var(--card);border-color:var(--line);color:var(--ink)}
-  html.dark input,html.dark select,html.dark textarea{background:#1b2231;color:var(--ink);border-color:var(--line)}
-  html.dark input::placeholder,html.dark textarea::placeholder{color:#6b7385}
-  html.dark thead th{background:#1a2130;color:var(--muted);border-color:var(--line)}
+  html.dark input,html.dark select,html.dark textarea{background:var(--card2);color:var(--ink);border-color:var(--line)}
+  html.dark input::placeholder,html.dark textarea::placeholder{color:var(--card2)}
+  html.dark thead th{background:var(--card2);color:var(--muted);border-color:var(--line)}
   html.dark tbody td{border-color:var(--line)}
-  html.dark tbody tr:hover{background:#1a2130}
+  html.dark tbody tr:hover{background:var(--card2)}
   html.dark .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
-  html.dark .btn.ghost:hover{background:#1f2735}
+  html.dark .btn.ghost:hover{background:var(--card2)}
   html.dark .sub,html.dark .empty{color:var(--muted)}
   html.dark .filtros,html.dark .phead,html.dark .mhead,html.dark .factions,html.dark .profile{border-color:var(--line)}
-  html.dark .filtroinfo{background:#161d2b;color:var(--muted)}
-  html.dark .mscroll{background:#0f141f}
-  html.dark .msg.user{background:#232b3b;color:var(--ink)}
-  html.dark .msg.bot{background:#1e3a2b;color:#dff5e6}
-  html.dark .msg .t{color:#8d96a8}
-  html.dark .reacbubble{background:#232b3b;border-color:var(--line);color:var(--ink)}
-  html.dark .chatbar{background:#151b29;border-color:var(--line)}
-  html.dark .estado.perdido{background:#252c3d;color:var(--muted)}
+  html.dark .filtroinfo{background:var(--card2);color:var(--muted)}
+  html.dark .mscroll{background:var(--card2)}
+  html.dark .msg.user{background:var(--card2);color:var(--ink)}
+  html.dark .msg.bot{background:var(--gold-soft);color:var(--ink)}
+  html.dark .msg .t{color:var(--muted2)}
+  html.dark .reacbubble{background:var(--card2);border-color:var(--line);color:var(--ink)}
+  html.dark .chatbar{background:var(--card2);border-color:var(--line)}
+  html.dark .estado.perdido{background:var(--card2);color:var(--muted)}
   
-  html.dark .soldby{background:#16301f;color:#b7e6c6}
+  html.dark .soldby{background:var(--card2);color:var(--green)}
 
   /* Modo asesor: sin botones de administración */
   body.modo-asesor .btn.gold[onclick*="abrirNueva"],
@@ -443,42 +455,28 @@
   .notirow .nm{flex:1;font-size:13.5px}
   .sw{position:relative;width:44px;height:25px;flex:0 0 auto;cursor:pointer}
   .sw input{opacity:0;width:0;height:0;position:absolute}
-  .sw i{position:absolute;inset:0;background:#cbd5e1;border-radius:99px;transition:.2s}
+  .sw i{position:absolute;inset:0;background:var(--line2);border-radius:99px;transition:.2s}
   .sw i:before{content:"";position:absolute;width:19px;height:19px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
-  .sw input:checked+i{background:#22c55e}
+  .sw input:checked+i{background:var(--gold)}
   .sw input:checked+i:before{transform:translateX(19px)}
-  html.dark .sw i{background:#3c4a63}
+  html.dark .sw i{background:var(--card2)}
   .notiestado{padding:12px 14px;border-radius:var(--r);font-size:13px;line-height:1.6;margin-bottom:14px}
-  .notiestado.on{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
-  .notiestado.off{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412}
-  html.dark .notiestado.on{background:#14261c;border-color:#1e4030;color:#86efac}
-  html.dark .notiestado.off{background:#2a1d12;border-color:#4a3320;color:#fdba74}
+  .notiestado.on{background:var(--card2);border:1px solid var(--line2);color:var(--green)}
+  .notiestado.off{background:var(--card2);border:1px solid var(--line2);color:var(--warm)}
+  html.dark .notiestado.on{background:var(--card2);border-color:var(--line2);color:var(--green)}
+  html.dark .notiestado.off{background:var(--card2);border-color:var(--line2);color:var(--warm)}
 
-  .avisocamp{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:13px 16px;border-radius:var(--r2);font-size:13px;margin-bottom:16px;line-height:1.55}
-  html.dark .avisocamp{background:#16233a;border-color:#1e3a5f;color:#93c5fd}
+  .avisocamp{background:var(--card2);border:1px solid var(--line2);color:var(--cold);padding:13px 16px;border-radius:var(--r2);font-size:13px;margin-bottom:16px;line-height:1.55}
+  html.dark .avisocamp{background:var(--card2);border-color:var(--line2);color:var(--cold)}
   .campcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:16px;margin-bottom:12px}
   .campcard .est{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:600}
-  .est-borrador{background:#f3f4f6;color:#6b7280}.est-enviando{background:#dbeafe;color:#2563eb}
-  .est-pausada{background:#fef3c7;color:#b45309}.est-terminada{background:#dcfce7;color:#2E8454}
+  .est-borrador{color:var(--muted)}.est-enviando{background:var(--card2);color:var(--cold)}
+  .est-pausada{background:var(--card2);color:var(--warm)}.est-terminada{background:var(--card2);color:#61987D}
   .campbar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0;display:flex}
   .campbar i{display:block;height:100%}
   .campstat{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
   .campstat b{color:var(--ink)}
 
-  .roihero{background:var(--ink);color:var(--canvas);border-radius:var(--r2);padding:30px;margin-bottom:16px;text-align:center}
-  .roihero .n{font-size:56px;font-weight:800;line-height:1.05;color:#3FA98A}
-  .roihero .l{font-size:15px;color:#AEBBC4;margin-top:6px}
-  .roihero .sub{font-size:13px;color:#7E8D99;margin-top:14px}
-  .roigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:13px;margin-bottom:16px}
-  .roicard{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:18px}
-  .roicard .ic{font-size:22px;margin-bottom:8px}
-  .roicard .n{font-size:30px;font-weight:700;line-height:1.1}
-  .roicard .t{font-size:14px;font-weight:600;margin-top:5px}
-  .roicard .d{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.45}
-  .roihoras{display:flex;align-items:flex-end;gap:2px;height:90px;margin-top:12px}
-  .roihoras i{flex:1;background:var(--gold,#2d52c4);border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
-  .roihoras i.off{background:#e0483b}
-  .roinota{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -497,6 +495,12 @@
 
 <!-- APP -->
 <div id="app" class="hidden">
+  <div class="barramovil">
+    <button class="hamb" onclick="abrirMenu()" aria-label="Abrir menú"><span class="ii" data-ico="menu"></span></button>
+    <div class="tituloMovil"><b id="tituloMovilTxt">Leads</b><span id="subMovilTxt"></span></div>
+    <button class="hamb" onclick="abrirNotis()" aria-label="Notificaciones"><span class="ii" data-ico="bell"></span></button>
+  </div>
+  <div class="capa" id="capaMenu" onclick="cerrarMenu()"></div>
   <div class="layout">
     <aside class="sidebar">
       <div class="sbrand">
@@ -508,7 +512,6 @@
         <div class="gtitle">Principal</div>
         <div class="navitem active" data-view="leads" onclick="showView('leads')"><span class="ic ii" data-ico="users"></span> Leads <span class="badge hidden" id="navLeadsBadge">0</span></div>
         <div class="navitem" data-view="analisis" onclick="showView('analisis')"><span class="ic ii" data-ico="trend"></span> Análisis</div>
-        <div class="navitem" data-view="roi" onclick="showView('roi')"><span class="ic ii" data-ico="gem"></span> Tu retorno</div>
         <div class="navitem" data-view="agenda" onclick="showView('agenda')"><span class="ic ii" data-ico="calendar"></span> Agenda <span class="badge hidden" id="navAgendaBadge">0</span></div>
         <div class="navitem" data-view="props" onclick="showView('props')"><span class="ic ii" data-ico="home"></span> Propiedades</div>
       </div>
@@ -625,7 +628,6 @@
       <!-- ANÁLISIS -->
       <section id="view-analisis" class="view hidden">
         <div class="toolbar"><h3>Análisis de ventas</h3></div>
-        <div class="metrics" id="anaMetrics"></div>
         <div id="anaKpis" class="kpis"></div>
         <div class="anagrid">
           <div class="panel"><div class="phead"><h3>Embudo de conversión</h3></div><div id="anaFunnel" style="padding:16px"></div></div>
@@ -635,10 +637,6 @@
       </section>
 
       <!-- AGENDA -->
-      <section id="view-roi" class="view hidden">
-        <div class="toolbar"><h3>Lo que te está devolviendo</h3><button class="btn ghost solo-dueno" onclick="abrirSupuestos()"><span class="ii" data-ico="gear"></span> Ajustar cálculo</button></div>
-        <div id="roiHost"><div class="empty" style="border:none">Calculando…</div></div>
-      </section>
       <section id="view-agenda" class="view hidden">
         <div class="panel">
           <div class="phead" style="display:flex;justify-content:space-between;align-items:center"><h3>Próximas citas</h3><button class="btn gold" onclick="abrirCitaManual()">+ Agendar cita</button></div>
@@ -691,18 +689,6 @@
     <div class="factions"><button class="btn ghost" onclick="cerrar2('mailOverlay')">Cancelar</button><button class="btn primary" onclick="enviarCorreoLead()"><span class="ii" data-ico="send"></span> Enviar</button></div>
   </div>
 </div>
-<div class="overlay" id="supOverlay">
-  <div class="modal" style="max-width:460px">
-    <div class="mhead"><h3>Ajustar el cálculo</h3><button class="close" onclick="cerrar2('supOverlay')">×</button></div>
-    <div class="form">
-      <div class="full"><label>Tu comisión promedio (%)</label><input id="s_comision" type="number" step="0.5" placeholder="4"></div>
-      <div class="full"><label>Lo que pagas al mes ($)</label><input id="s_mensualidad" type="number" placeholder="3000"></div>
-      <div class="full"><label>Minutos que te tomaría atender cada mensaje</label><input id="s_minutos" type="number" placeholder="8"></div>
-      <div class="full" style="font-size:12.5px;color:var(--muted)">Estos números se usan para calcular tu retorno. Ajústalos a tu realidad para que las cifras sean tuyas.</div>
-    </div>
-    <div class="factions"><button class="btn ghost" onclick="cerrar2('supOverlay')">Cancelar</button><button class="btn primary" onclick="guardarSupuestos()">Guardar</button></div>
-  </div>
-</div>
 <div class="overlay" id="campOverlay">
   <div class="modal" style="max-width:560px">
     <div class="mhead"><h3>Nueva campaña</h3><button class="close" onclick="cerrarCampana()">×</button></div>
@@ -731,7 +717,7 @@
     <div class="mhead"><h3>Agendar una cita</h3><button class="close" onclick="cerrarCitaManual()">×</button></div>
     <div class="form">
       <div class="full"><label>WhatsApp del cliente <span style="font-weight:400;color:var(--muted)">(con código de país, ej. 5215512345678)</span></label><input id="cm_tel" placeholder="5215512345678" oninput="buscarLeadCita()" /></div>
-      <div class="full" id="cm_aviso" style="display:none;font-size:12.5px;color:var(--green,#2e9e4f);margin-top:-6px"></div>
+      <div class="full" id="cm_aviso" style="display:none;font-size:12.5px;color:var(--green,var(--green));margin-top:-6px"></div>
       <div class="full"><label>Nombre del cliente</label><input id="cm_nombre" placeholder="Ana Pérez" /></div>
       <div><label>Fecha y hora</label><input type="datetime-local" id="cm_fecha" /></div>
       <div><label>Asesor</label><select id="cm_agente"></select></div>
@@ -758,7 +744,7 @@
         <label style="font-size:12.5px;font-weight:600;display:block;margin:12px 0 6px">Cliente (opcional)</label>
         <input id="e_cliente" placeholder="Nombre del comprador" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:var(--r);font-size:14px" />
       </div>
-      <div id="ventaInfoActual" class="hidden" style="margin-top:14px;padding:12px;background:#f0fdf4;border-radius:var(--r);font-size:13px"></div>
+      <div id="ventaInfoActual" class="hidden" style="margin-top:14px;padding:12px;background:var(--card2);border-radius:var(--r);font-size:13px"></div>
     </div>
     <div class="factions"><button class="btn ghost" onclick="cerrarEstado()">Cancelar</button><button class="btn primary" onclick="guardarEstado()">Guardar</button></div>
   </div>
@@ -852,7 +838,7 @@
     <div class="form">
       <div class="full"><label>Número de teléfono <span style="font-weight:400;color:var(--muted)">(con LADA, 10 dígitos)</span></label><input id="e_tel" placeholder="55 1234 5678" /></div>
       <div class="full"><label>Nombre <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input id="e_nombre" placeholder="Ej. Juan" /></div>
-      <div class="full" style="background:#eef4ff;border:1px solid #d5e3ff;border-radius:var(--r);padding:12px">
+      <div class="full" style="background:var(--card2);border:1px solid var(--line2);border-radius:var(--r);padding:12px">
         <p class="sub" style="margin:0;font-size:12.5px;line-height:1.5">Como esta persona aún no te escribe, WhatsApp exige que el <b>primer mensaje sea una plantilla aprobada</b>. Se enviará tu plantilla de apertura; cuando la persona responda, el bot la atiende normal y verás la conversación aquí.</p>
       </div>
     </div>
@@ -896,6 +882,7 @@ const ICO={
   x:'<path d="M18 6 6 18M6 6l12 12"/>',
   refresh:'<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3.5V9h-5.5"/>',
   slash:'<circle cx="12" cy="12" r="9.2"/><path d="m5.5 5.5 13 13"/>',
+  menu:'<path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/>',
   marca:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5.8 9.3V17a2 2 0 0 0 2 2h1.6v2.6L13.6 19H16a2 2 0 0 0 2-2V9.3"/><circle cx="12" cy="9" r="1"/><circle cx="9.2" cy="14" r=".9"/><circle cx="12" cy="14" r=".9"/><circle cx="14.8" cy="14" r=".9"/>',
   mas:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   mail:'<rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="m3 6.5 9 6.5 9-6.5"/>',
@@ -1045,13 +1032,14 @@ Object.assign(ICO,{
     document.querySelectorAll(".navitem").forEach(n=>n.classList.toggle("active",n.dataset.view===name));
     document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
     document.getElementById("view-"+name).classList.remove("hidden");
+    const tm=document.getElementById("tituloMovilTxt");
+    if(tm) tm.textContent={leads:"Leads",analisis:"Análisis",agenda:"Agenda",props:"Propiedades",campanas:"Campañas",agentes:"Equipo",zonas:"Zonas"}[name]||"CRM";
     document.getElementById("pageTitle").textContent={leads:"Leads",analisis:"Análisis de ventas",agenda:"Agenda",props:"Propiedades",agentes:"Equipo",zonas:"Zonas"}[name];
     document.getElementById("upd").textContent=name==='leads'?document.getElementById("upd").textContent:"";
     if(name==='leads')cargarLeads();
     else if(name==='analisis')cargarAnalisis();
     else if(name==='agenda')cargarAgenda();
     else if(name==='props')cargarProps();
-    else if(name==='roi')cargarROI();
     else if(name==='campanas')cargarCampanas();
     else if(name==='agentes')cargarAgentes();
     else if(name==='zonas')cargarZonas();
@@ -1067,7 +1055,10 @@ Object.assign(ICO,{
   }
   function renderLeads(data){
     agentesById=data.agentesById||{};agentesList=data.agentes||[];setZonas(data.zonas);
-    if(data.config?.nombreAgencia)document.getElementById("agencyName").textContent=data.config.nombreAgencia;
+    if(data.config?.nombreAgencia){
+      document.getElementById("agencyName").textContent=data.config.nombreAgencia;
+      const sm=document.getElementById("subMovilTxt"); if(sm) sm.textContent=data.config.nombreAgencia;
+    }
     if(data.config?.brandColor) aplicarAcento(data.config.brandColor);
     if(data.config?.logoUrl){const lg=document.getElementById("brandLogo");lg.src=data.config.logoUrl;lg.classList.remove("hidden");document.getElementById("brandDot").classList.add("hidden");}
     pintarMetricas(data.metricas,data.leads);leadsTodos=data.leads||[];poblarZonasFiltro();aplicarFiltros();
@@ -1100,17 +1091,6 @@ Object.assign(ICO,{
     const t=document.getElementById("filtroTemp"); if(t)t.value="caliente";
     aplicarFiltros();
   }
-  function pintarMetricasEnAnalisis(){
-    const host=document.getElementById("anaMetrics"); if(!host||!metricasCache)return;
-    const m=metricasCache, total=m.total||1;
-    host.innerHTML=`
-      <div class="metric"><div class="label">Leads totales</div><div class="num">${m.total}</div><div class="bar"><i style="width:100%;background:var(--ink)"></i></div></div>
-      <div class="metric hot"><div class="label"><i class="pto" style="background:var(--hot)"></i>Calientes</div><div class="num">${m.calientes}</div><div class="bar"><i style="width:${(m.calientes/total*100)}%"></i></div></div>
-      <div class="metric warm"><div class="label"><i class="pto" style="background:var(--warm)"></i>Tibios</div><div class="num">${m.tibios}</div><div class="bar"><i style="width:${(m.tibios/total*100)}%"></i></div></div>
-      <div class="metric cold"><div class="label"><i class="pto" style="background:var(--cold)"></i>Fríos</div><div class="num">${m.frios}</div><div class="bar"><i style="width:${(m.frios/total*100)}%"></i></div></div>
-      <div class="metric cita"><div class="label"><i class="pto" style="background:var(--gold)"></i>Citas</div><div class="num">${m.citas||0}</div><div class="bar"><i style="width:${((m.citas||0)/total*100)}%"></i></div></div>
-      <div class="metric pipe"><div class="label">Potencial en el embudo</div><div class="num small">${fmtMXN(m.pipeline)}</div><div class="bar"><i style="width:100%"></i></div></div>`;
-  }
   // ---- Buscador y filtros ----
   let leadsTodos=[];
   // ---- Roles: el dueño ve todo; el asesor solo lo suyo ----
@@ -1141,7 +1121,7 @@ Object.assign(ICO,{
     const b=document.getElementById("temaBtn");
     if(b){ b.innerHTML = t==="dark" ? ico("sun","sm") : ico("moon","sm"); b.title = t==="dark" ? "Modo claro" : "Modo oscuro"; }
     const meta=document.querySelector('meta[name="theme-color"]');
-    if(meta) meta.setAttribute("content", t==="dark" ? "#1C1D33" : "#F8F9FB");
+    if(meta) meta.setAttribute("content", t==="dark" ? "#15171C" : "#FAFAFA");
   }
   function toggleTema(){
     const nuevo=document.documentElement.classList.contains("dark")?"light":"dark";
@@ -1275,6 +1255,26 @@ Object.assign(ICO,{
   }
 
 
+
+  /* ---------- Menú de celular ---------- */
+  function abrirMenu(){
+    document.querySelector(".sidebar").classList.add("abierto");
+    document.getElementById("capaMenu").classList.add("on");
+    document.body.style.overflow = "hidden";
+  }
+  function cerrarMenu(){
+    document.querySelector(".sidebar").classList.remove("abierto");
+    document.getElementById("capaMenu").classList.remove("on");
+    document.body.style.overflow = "";
+    cerrarMenuCta();
+  }
+  // Al elegir una sección, el cajón se cierra solo
+  document.addEventListener("click", (e) => {
+    if (e.target.closest(".navitem") && window.innerWidth <= 820) setTimeout(cerrarMenu, 120);
+  });
+  // Si giras el teléfono o creces la ventana, se limpia
+  window.addEventListener("resize", () => { if (window.innerWidth > 820) cerrarMenu(); });
+
   /* ---------- Menú de cuenta (el resto de opciones, fuera de la vista) ---------- */
   function menuCuenta(ev){
     ev.stopPropagation();
@@ -1344,66 +1344,7 @@ Object.assign(ICO,{
     cerrar2("mailOverlay");abrirModal(mailTel);
   }
 
-  // ---- Panel de retorno (ROI) ----
-  async function cargarROI(){
-    const host=document.getElementById("roiHost"); if(!host)return;
-    try{
-      const r=await(await fetch("/api/roi",{headers:AH()})).json();
-      const a=r.atencion,res=r.resultados,ret=r.retorno,su=r.supuestos;
-      const maxH=Math.max(...r.porHora,1);
-      const horas=r.porHora.map((n,h)=>{
-        const off=(h<9||h>=19);
-        return `<i class="${off?'off':''}" style="height:${Math.max(2,n/maxH*100)}%" title="${h}:00 — ${n} mensajes"></i>`;
-      }).join("");
-      const tiempo=a.tiempoRespuestaSeg<60?`${a.tiempoRespuestaSeg} seg`:`${Math.round(a.tiempoRespuestaSeg/60)} min`;
-      const hero = ret.roi>0
-        ? `<div class="n">${ret.roi}×</div><div class="l">Por cada peso invertido, te ha regresado ${ret.roi}</div>
-           <div class="sub">${fmtMXN(res.comisionGenerada)} en comisiones · ${fmtMXN(ret.invertido)} invertidos en ${ret.mesesOperando} ${ret.mesesOperando===1?"mes":"meses"}</div>`
-        : `<div class="n">${fmtMXN(res.valorPipeline)}</div><div class="l">En comisiones potenciales dentro de tu embudo</div>
-           <div class="sub">Cuando cierres tu primera venta con un lead del sistema, aquí verás tu retorno real.</div>`;
-      host.innerHTML=`
-        <div class="roihero">${hero}</div>
-        <div class="roigrid">
-          <div class="roicard"><div class="ic">${ico("moon")}</div><div class="n" style="color:var(--hot)">${a.leadsRescatados}</div>
-            <div class="t">Clientes rescatados</div><div class="d">Escribieron por primera vez fuera de horario. Sin el bot, habrían esperado al día siguiente — o se iban con otra agencia.</div></div>
-          <div class="roicard"><div class="ic">${ico("clock")}</div><div class="n">${tiempo}</div>
-            <div class="t">Tiempo de respuesta</div><div class="d">Lo que tarda en contestarle a un cliente. El promedio de la industria son horas.</div></div>
-          <div class="roicard"><div class="ic">⏱️</div><div class="n">${a.horasAhorradas}</div>
-            <div class="t">Horas ahorradas</div><div class="d">${a.mensajesCliente} mensajes atendidos × ${su.minPorLead} min que te tomaría a ti responder cada uno.</div></div>
-          <div class="roicard"><div class="ic">${ico("calendar")}</div><div class="n">${res.citas}</div>
-            <div class="t">Citas agendadas</div><div class="d">El bot las cerró solo, sin que nadie de tu equipo moviera un dedo.</div></div>
-          <div class="roicard"><div class="ic">${ico("money")}</div><div class="n" style="font-size:24px">${fmtMXN(res.pipeline)}</div>
-            <div class="t">Valor en tu embudo</div><div class="d">Suma de los presupuestos de tus prospectos activos. A ${su.comision}% son ${fmtMXN(res.valorPipeline)} de comisión potencial.</div></div>
-          <div class="roicard"><div class="ic">${ico("target")}</div><div class="n">${a.porcentajeFuera}%</div>
-            <div class="t">Fuera de horario</div><div class="d">${a.mensajesFueraDeHorario} de ${a.mensajesCliente} mensajes llegaron cuando tu oficina estaba cerrada.</div></div>
-        </div>
-        <div class="panel"><div class="phead"><h3>¿A qué hora te escriben tus clientes?</h3></div>
-          <div style="padding:16px 20px">
-            <div class="roihoras">${horas}</div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px"><span>12am</span><span>6am</span><span>12pm</span><span>6pm</span><span>11pm</span></div>
-            <div class="roinota">Las barras marcadas son mensajes fuera del horario de oficina (antes de 9am, después de 7pm o en domingo). Cada una es un cliente que el bot atendió por ti.</div>
-          </div></div>
-        <div class="roinota" style="text-align:center;padding:0 10px">
-          Cálculo basado en: comisión del ${su.comision}%, ${su.minPorLead} minutos por mensaje y ${fmtMXN(su.mensualidad)} de mensualidad.
-          ${esDueno()?'Puedes ajustarlos con el botón de arriba.':''}
-        </div>`;
-    }catch(e){host.innerHTML='<div class="empty" style="border:none">No se pudo calcular</div>'}
-  }
-  async function abrirSupuestos(){
-    const r=await(await fetch("/api/roi",{headers:AH()})).json();
-    document.getElementById("s_comision").value=r.supuestos.comision;
-    document.getElementById("s_mensualidad").value=r.supuestos.mensualidad;
-    document.getElementById("s_minutos").value=r.supuestos.minPorLead;
-    document.getElementById("supOverlay").classList.add("show");
-  }
-  async function guardarSupuestos(){
-    const b={comision:Number(document.getElementById("s_comision").value),
-      mensualidad:Number(document.getElementById("s_mensualidad").value),
-      minPorLead:Number(document.getElementById("s_minutos").value)};
-    const r=await fetch("/api/roi/supuestos",{method:"PUT",headers:JH(),body:JSON.stringify(b)});
-    if(!r.ok){toast("No se pudo guardar");return}
-    toast("Actualizado");cerrar2("supOverlay");cargarROI();
-  }
+
 
   // ---- Campañas de prospección saliente ----
   let campEditando=null;
@@ -1426,11 +1367,11 @@ Object.assign(ICO,{
               <div class="sub" style="font-size:12.5px">Plantilla: ${escapeHtml(c.plantilla)} · 1 cada ${c.ritmoSegundos}s · máx ${c.maxPorDia}/día</div></div>
             <span class="est est-${c.estado}">${c.estado}</span>
           </div>
-          ${c.notaPausa?`<div style="font-size:12.5px;color:var(--warm,#b45309);margin-top:7px">${ico("alert","sm")} ${escapeHtml(c.notaPausa)}</div>`:""}
+          ${c.notaPausa?`<div style="font-size:12.5px;color:var(--warm,var(--warm));margin-top:7px">${ico("alert","sm")} ${escapeHtml(c.notaPausa)}</div>`:""}
           <div class="campbar">
-            <i style="width:${pResp}%;background:#2E8454"></i>
-            <i style="width:${pEnv}%;background:#2563eb"></i>
-            <i style="width:${pErr}%;background:#B95567"></i>
+            <i style="width:${pResp}%;background:#61987D"></i>
+            <i style="width:${pEnv}%;background:var(--cold)"></i>
+            <i style="width:${pErr}%;background:#AF8389"></i>
           </div>
           <div class="campstat">
             <span><b>${c.total}</b> contactos</span>
@@ -1505,7 +1446,7 @@ Object.assign(ICO,{
   async function verCampana(id){
     const c=await(await fetch("/api/campanas/"+id,{headers:AH()})).json();
     document.getElementById("cd_titulo").textContent=c.nombre;
-    const badge={pendiente:["#6b7280","#f3f4f6"],enviado:["#2563eb","#dbeafe"],respondio:["#2E8454","#dcfce7"],error:["#B95567","#fee2e2"],omitido:["#6b7280","#f3f4f6"]};
+    const badge={pendiente:["var(--muted)","var(--card2)"],enviado:["var(--cold)","var(--card2)"],respondio:["#61987D","var(--card2)"],error:["#AF8389","var(--card2)"],omitido:["var(--muted)","var(--card2)"]};
     document.getElementById("cd_cuerpo").innerHTML=`
       <div class="campstat" style="margin-bottom:14px">
         <span><b>${c.total}</b> contactos</span><span>${ico("send","sm")} <b>${c.enviados}</b></span>
@@ -1738,7 +1679,7 @@ Object.assign(ICO,{
     const citaTxt=l.citaProgramada?new Date(l.citaProgramada).toLocaleString("es-MX",{weekday:"long",day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"}):"—";
     const ag=(agentesList||[]).find(a=>a.id===l.agenteAsignado);
     const limpia=(t)=>String(t||"").replace(/\[(img|vid|doc):[^\]]*\]/g,"").replace(/\([^)]*\)/g,"").replace(/[🎙️📷🎞️]/g,"").trim();
-    const msgs=(l.historial||[]).slice(-10).map(h=>{const t=limpia(h.texto); if(!t)return""; const quien=h.rol==="bot"?"Bot/Asesor":"Cliente"; return `<div style="margin-bottom:6px"><b style="color:${h.rol==='bot'?'#2563eb':'#111'}">${quien}:</b> ${escapeHtml(t)}</div>`;}).filter(Boolean).join("")||'<span class="sub">Sin mensajes.</span>';
+    const msgs=(l.historial||[]).slice(-10).map(h=>{const t=limpia(h.texto); if(!t)return""; const quien=h.rol==="bot"?"Bot/Asesor":"Cliente"; return `<div style="margin-bottom:6px"><b style="color:${h.rol==='bot'?'var(--cold)':'#111'}">${quien}:</b> ${escapeHtml(t)}</div>`;}).filter(Boolean).join("")||'<span class="sub">Sin mensajes.</span>';
     const fila=(k,v,ic)=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)"><span class="sub" style="display:inline-flex;align-items:center;gap:6px">${ic?ico(ic,"sm"):""}${k}</span><b style="text-align:right;font-weight:500">${v}</b></div>`;
     let ov=document.getElementById("citaOverlay");
     if(!ov){ov=document.createElement("div");ov.id="citaOverlay";ov.className="overlay";ov.addEventListener("click",e=>{if(e.target.id==="citaOverlay")ov.classList.remove("show")});document.body.appendChild(ov);}
@@ -1758,7 +1699,7 @@ Object.assign(ICO,{
         ${fila("Propósito",p.proposito||"—")}
         ${fila("Temperatura",(l.temperatura||"—")+" ("+(l.score||0)+")")}
         <div style="margin-top:16px"><div class="sub" style="margin-bottom:8px;font-weight:600">Resumen de la conversación</div>
-        <div style="font-size:13px;line-height:1.4;max-height:220px;overflow:auto;background:var(--bg,#f7f9fb);padding:12px;border-radius:var(--r)">${msgs}</div></div>
+        <div style="font-size:13px;line-height:1.4;max-height:220px;overflow:auto;background:var(--bg,var(--card2));padding:12px;border-radius:var(--r)">${msgs}</div></div>
         <button class="btn ghost" style="margin-top:14px;width:100%" onclick="document.getElementById('citaOverlay').classList.remove('show');abrirModal('${l.telefono}')">Abrir chat completo →</button>
       </div>
     </div>`;
@@ -1807,7 +1748,7 @@ Object.assign(ICO,{
       } else if((h.texto||"").startsWith("\u{1F4E9}")){
         // Correo enviado: se muestra distinto para no confundirlo con WhatsApp
         cuerpo=`<span style="opacity:.9">${escapeHtml(h.texto)}</span>`;
-        extra=`<div style="font-size:10.5px;font-weight:600;color:#7c3aed;margin-bottom:3px">POR CORREO</div>`;
+        extra=`<div style="font-size:10.5px;font-weight:600;color:var(--muted);margin-bottom:3px">POR CORREO</div>`;
       } else if(vid){
         // GIF o video corto: se muestra reproducible en el chat del CRM.
         extra=`<video src="${escapeHtml(vid[1])}" class="chatimg" controls muted loop playsinline preload="metadata"></video>`;
@@ -1844,7 +1785,7 @@ Object.assign(ICO,{
     const propVendida=l.venta&&l.venta.propiedadId?propsList.find(x=>x.id===l.venta.propiedadId):null;
     const asesorVentaOpts=(agentesList||[]).map(a=>`<option value="${a.id}" ${l.agenteAsignado===a.id?"selected":""}>${a.nombre}</option>`).join("");
     const ventaBlock=l.venta?`
-      <div class="mrow"><label>Venta</label><div style="font-size:13.5px;flex:1"><b style="color:#2E8454;font-size:15px">${fmtMXN(l.venta.monto||0)}</b>${propVendida?` · ${propVendida.titulo}`:""}<button class="savenote" style="margin-left:10px" onclick="deshacerVenta('${l.telefono}')">Deshacer</button></div></div>`
+      <div class="mrow"><label>Venta</label><div style="font-size:13.5px;flex:1"><b style="color:#61987D;font-size:15px">${fmtMXN(l.venta.monto||0)}</b>${propVendida?` · ${propVendida.titulo}`:""}<button class="savenote" style="margin-left:10px" onclick="deshacerVenta('${l.telefono}')">Deshacer</button></div></div>`
       :`<div class="mrow"><label>Registrar venta</label><div style="display:flex;flex-direction:column;gap:7px;flex:1">
         <select id="ventaProp" onchange="document.getElementById('ventaMonto').value=this.options[this.selectedIndex].dataset.precio||''">${propOpts}</select>
         <select id="ventaAsesor" title="Asesor que vendió">${asesorVentaOpts||'<option value=\"\">— asesor —</option>'}</select>
@@ -1924,13 +1865,16 @@ pintarChat(l);
   /* ---------- ANÁLISIS DE VENTAS ---------- */
   async function cargarAnalisis(){
     try{
-      pintarMetricasEnAnalisis();
       const a=await(await fetch("/api/analytics",{headers:AH()})).json();
       document.getElementById("anaKpis").innerHTML=`
-        <div class="kpi green"><div class="l">Ingresos totales</div><div class="v">${fmtMXN(a.totales.ingresos)}</div></div>
-        <div class="kpi gold"><div class="l">Ventas cerradas</div><div class="v">${a.totales.ventas}</div></div>
-        <div class="kpi blue"><div class="l">Ticket promedio</div><div class="v">${fmtMXN(a.totales.ticket)}</div></div>
-        <div class="kpi"><div class="l">Conversión lead a venta</div><div class="v">${a.totales.conversion}%</div></div>`;
+        <div class="kpi"><div class="l">Ingresos totales</div><div class="v">${fmtMXN(a.totales.ingresos)}</div>
+          <div class="d">Suma de las ${a.totales.ventas} venta${a.totales.ventas===1?"":"s"} que registraste</div></div>
+        <div class="kpi"><div class="l">Ventas cerradas</div><div class="v">${a.totales.ventas}</div>
+          <div class="d">Leads marcados como cerrados en el CRM</div></div>
+        <div class="kpi"><div class="l">Ticket promedio</div><div class="v">${fmtMXN(a.totales.ticket)}</div>
+          <div class="d">Ingresos totales ÷ ${a.totales.ventas} venta${a.totales.ventas===1?"":"s"}</div></div>
+        <div class="kpi"><div class="l">Conversión lead a venta</div><div class="v">${a.totales.conversion}%</div>
+          <div class="d">De cada 100 leads, ${Math.round(a.totales.conversion)} terminaron en venta</div></div>`;
       // Embudo
       const e=a.embudo,max=Math.max(e.leads,1);
       const steps=[["Leads",e.leads],["Calificados",e.calificados],["Con cita",e.citas],["Ventas",e.ventas]];
@@ -2036,7 +1980,7 @@ pintarChat(l);
       grid.innerHTML=props.map(p=>{
         const img=(p.imagenes&&p.imagenes[0])||"";
         const est=p.estado||(p.disponible===false?"vendido":"disponible");
-        const estBadge=est==='vendido'?'<span class="nodisp">VENDIDO</span>':est==='apartado'?'<span class="nodisp" style="background:var(--warm,#A16826)">Apartado</span>':'';
+        const estBadge=est==='vendido'?'<span class="nodisp">VENDIDO</span>':est==='apartado'?'<span class="nodisp" style="background:var(--warm,#A28B6D)">Apartado</span>':'';
         const ventaInfo=(est==='vendido'&&p.venta)?`<div class="soldby">${ico("trophy","sm")} Vendida por <b>${p.venta.agenteNombre||'asesor no asignado'}</b>${p.venta.monto?` · ${fmtMXN(p.venta.monto)}`:''}${p.venta.fecha?` · ${new Date(p.venta.fecha).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}`:''}${p.venta.cliente?`<br><span style="color:var(--muted)">Cliente: ${p.venta.cliente}</span>`:''}</div>`:'';
         return `<div class="prop ${est!=='disponible'?'off':''}"><div class="img" style="background-image:url('${img}')"><span class="badge2">${p.operacion==='renta'?'Renta':'Venta'}</span>${estBadge}</div>
           <div class="body"><h3>${p.titulo}</h3><div class="price">${fmtMXN(p.precio)}${p.operacion==='renta'?'/mes':''}</div>

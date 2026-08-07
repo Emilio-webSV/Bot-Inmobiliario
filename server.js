@@ -27,6 +27,7 @@ import { descargarMediaWhatsApp, analizarImagen, transcribirAudio } from "./visi
 import { enviarCorreo, plantillaHTML, extraerEmail, correoActivo } from "./email.js";
 import { alertarDev, instalarCazadorDeErrores, alertasActivas, destinoAlertas } from "./alertas.js";
 import { notificar, suscribir, desuscribir, llavePublica, guardarPrefs, misSuscripciones, AVISOS } from "./push.js";
+import { armar as armarMosaico, leer as leerMosaico, activo as mosaicoActivo } from "./mosaico.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
@@ -44,6 +45,19 @@ const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 // Se sirven PÚBLICAS (sin contraseña) para que WhatsApp pueda descargarlas.
 app.use("/uploads", express.static(UPLOADS_DIR));
+
+// El servidor necesita saber su propia dirección para armar las ligas que
+// WhatsApp va a descargar (fotos, mosaicos). Si no está PUBLIC_URL, la
+// aprendemos de la primera petición que llegue.
+let DOMINIO_PROPIO = process.env.PUBLIC_URL || "";
+app.use((req, _res, next) => {
+  if (!DOMINIO_PROPIO && req.get("host")) {
+    const proto = req.get("x-forwarded-proto") || (req.secure ? "https" : "http");
+    DOMINIO_PROPIO = `${proto}://${req.get("host")}`;
+  }
+  next();
+});
+export const miDominio = () => DOMINIO_PROPIO;
 
 const PORT = process.env.PORT || 3000;
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "cambia_esto";
@@ -338,13 +352,42 @@ app.post("/webhook", async (req, res) => {
 // ---------------------------------------------------------------------------
 // Lógica central: qué hace el bot con cada mensaje entrante
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Aviso al celular cuando un asesor tomó el chat (bot desactivado).
+// Se ve como una notificación normal de WhatsApp: el nombre arriba y lo que
+// escribió abajo. Al tocarla, el CRM abre ESE chat.
+// OJO: solo se manda si humanoEnControl está encendido. Mientras el bot
+// atienda, no molestamos a nadie.
+// ---------------------------------------------------------------------------
+function avisarChatHumano(lead, texto, tipo) {
+  if (!lead || !lead.humanoEnControl) return;          // el bot sigue atendiendo: no avisar
+  const quien = lead.nombre || lead.telefono;
+  // Igual que WhatsApp: si no es texto, se describe el tipo de archivo
+  const cuerpo = {
+    foto:  "📷 Foto",
+    audio: "🎤 Nota de voz",
+    video: "🎬 Video",
+    doc:   "📄 Archivo",
+  }[tipo] || String(texto || "").replace(/\[(img|vid|doc):[^\]]*\]/g, "").trim().slice(0, 140) || "Mensaje nuevo";
+
+  notificar("mensaje_chat", {
+    titulo: quien,
+    cuerpo,
+    url: `/dashboard?lead=${lead.telefono}`,
+    tag: `chat-${lead.telefono}`,                       // se apilan como en WhatsApp
+    urgente: true,                                      // vibra y se queda hasta que la veas
+  }, lead.agenteAsignado || null).catch(() => {});
+  console.log(`[aviso] Chat de ${quien}: "${String(cuerpo).slice(0, 40)}"`);
+}
+
 // El cliente mandó algo que no es texto (imagen, audio, sticker...). El bot
 // todavía no "ve" imágenes, así que responde con gracia en vez de quedarse callado.
 async function manejarNoTexto(remitente, nombre, canal) {
   let lead = getLead(remitente);
   if (!lead) lead = upsertLead(remitente, { nombre, canal });
   pushHistorial(remitente, "user", "[imagen/archivo recibido]");
-  if (lead.humanoEnControl) return; // si un asesor ya está atendiendo, no respondas
+  if (lead.humanoEnControl) { avisarChatHumano(lead, null, "doc"); return; }
   const msg = "¡Gracias! 😄 Oye, mejor cuéntame qué andas buscando —zona, presupuesto, recámaras— y te encuentro algo padre. 🏠";
   await enviarYRegistrar(canal, remitente, msg);
 }
@@ -358,6 +401,7 @@ async function manejarVideoGif(remitente, nombre, canal, media, caption) {
   const tok = url ? `[vid:${url}] ` : "";
   if (lead.humanoEnControl) {
     pushHistorial(remitente, "user", `🎞️ ${tok}${caption || ""}`.trim());
+    avisarChatHumano(lead, caption, caption ? null : "video");
     return;
   }
   const capTxt = caption ? ` Escribió junto al GIF: "${caption}".` : "";
@@ -372,6 +416,7 @@ async function manejarAudio(remitente, nombre, canal, audio) {
   if (!lead) lead = upsertLead(remitente, { nombre, canal });
   if (lead.humanoEnControl) {
     pushHistorial(remitente, "user", "[🎙️ nota de voz]");
+    avisarChatHumano(lead, null, "audio");
     return; // un asesor ya está atendiendo
   }
 
@@ -416,6 +461,7 @@ async function manejarImagen(remitente, nombre, canal, imagen, caption) {
     // Un asesor ya está atendiendo: el bot NO responde, pero SÍ registra la imagen
     // para que el humano la VEA en el panel (antes se perdía).
     pushHistorial(remitente, "user", `📷 ${tok}${caption || ""}`.trim());
+    avisarChatHumano(lead, caption, caption ? null : "foto");
     return;
   }
 
@@ -564,14 +610,9 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
       url: `/dashboard?lead=${telefono}`,
       tag: `nuevo-${telefono}`,
     }).catch(() => {});
-  } else if (lead.humanoEnControl) {
-    // 🔔 Un asesor lleva este chat a mano -> le avisa SOLO a él
-    notificar("mensaje_chat", {
-      titulo: `💬 ${lead.nombre || telefono}`,
-      cuerpo: String(texto).slice(0, 120),
-      url: `/dashboard?lead=${telefono}`,
-      tag: `chat-${telefono}`,
-    }, lead.agenteAsignado || null).catch(() => {});
+  } else {
+    // Si un asesor tomó el chat, le llega el mensaje como notificación normal.
+    avisarChatHumano(lead, texto);
   }
 
   // 1) ¿Está frustrado? -> escalar a humano y no seguir con el bot
@@ -759,10 +800,31 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
     const fmt = (n) => "$" + (n || 0).toLocaleString("es-MX");
     const caption = `🏡 ${prop.titulo}\n${fmt(prop.precio)}${prop.operacion === "renta" ? "/mes" : ""} · ${prop.recamaras} rec · ${prop.banos} baños · ${prop.m2} m²`;
     const fotos = (prop.imagenes || []).slice(0, 4);
-    for (let i = 0; i < fotos.length; i++) {
-      await enviarImagenCanal(canal, telefono, fotos[i], i === 0 ? caption : "");
+
+    // Meta cobra por mensaje enviado. Si son varias fotos las pegamos en una
+    // sola imagen: 1 mensaje en vez de 4, y el cliente las ve todas de golpe.
+    let mandadas = 0;
+    if (mosaicoActivo() && fotos.length > 1 && (process.env.PUBLIC_URL || DOMINIO_PROPIO)) {
+      const m = await armarMosaico(fotos).catch(() => null);
+      if (m) {
+        const base = process.env.PUBLIC_URL || DOMINIO_PROPIO;
+        const urlM = `${base}/mosaico/${m.id}.jpg`;
+        const r = await enviarImagenCanal(canal, telefono, urlM, caption).catch(() => null);
+        if (r && !r.error) {
+          mandadas = m.cuantas;
+          pushHistorial(telefono, "bot", `[${m.cuantas} fotos en una imagen] ${prop.titulo}`);
+          console.log(`[mosaico] ${m.cuantas} fotos -> 1 mensaje (${prop.titulo})`);
+        }
+      }
     }
-    pushHistorial(telefono, "bot", `[${fotos.length} foto(s) enviada(s)] ${prop.titulo}`);
+    // Respaldo: si el mosaico no salió, van una por una como siempre.
+    if (!mandadas) {
+      for (let i = 0; i < fotos.length; i++) {
+        await enviarImagenCanal(canal, telefono, fotos[i], i === 0 ? caption : "");
+      }
+      mandadas = fotos.length;
+      pushHistorial(telefono, "bot", `[${fotos.length} foto(s) enviada(s)] ${prop.titulo}`);
+    }
     marcarEnviada(telefono, prop.id);
     upsertLead(telefono, { ultimaPropiedadMostrada: prop.id });
     if (prop.video) {
@@ -1834,15 +1896,17 @@ app.get("/dashboard", (req, res) => {
 
 // --- PWA: permite "instalar" el CRM como app en el celular o la compu ---
 app.get("/manifest.json", (req, res) => {
+  const cfg = getConfig() || {};
+  const agencia = cfg.nombreAgencia || "CRM Inmobiliario";
   res.json({
-    name: "CRM Inmobiliario",
-    short_name: "CRM",
+    name: agencia,
+    short_name: agencia.length > 12 ? agencia.slice(0, 12) : agencia,
     start_url: "/dashboard",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#282A47",
-    theme_color: "#282A47",
+    background_color: cfg.brandColor && /^#[0-9a-f]{6}$/i.test(cfg.brandColor) ? cfg.brandColor : "#282A47",
+    theme_color: cfg.brandColor && /^#[0-9a-f]{6}$/i.test(cfg.brandColor) ? cfg.brandColor : "#282A47",
     icons: [
       { src: "/pwa-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
       { src: "/pwa-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
@@ -1895,11 +1959,23 @@ self.addEventListener("notificationclick", (event) => {
 });
 `.trim());
 });
+// WhatsApp descarga el mosaico de aquí. No lleva contraseña: la liga es un
+// hash impredecible y el contenido caduca a las 12 horas.
+app.get("/mosaico/:id.jpg", (req, res) => {
+  const buf = leerMosaico(String(req.params.id).replace(/[^a-f0-9]/gi, ""));
+  if (!buf) return res.status(404).send("No disponible");
+  res.set("Content-Type", "image/jpeg").set("Cache-Control", "public, max-age=43200").send(buf);
+});
+
 app.get("/favicon.svg", (req, res) => {
   res.set("Content-Type", "image/svg+xml").set("Cache-Control", "public, max-age=86400");
   res.send(`<svg viewBox="0 0 384 384" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#282A47" d="M 192 25.363281 L 19.207031 161.136719 L 62.257812 161.136719 L 192 59.191406 L 321.742188 161.136719 L 364.792969 161.136719 Z M 192 25.363281"/><path fill="#282A47" d="M 253.183594 43.214844 L 287.871094 43.214844 C 288.542969 43.214844 289.1875 43.480469 289.664062 43.957031 C 290.136719 44.433594 290.402344 45.078125 290.398438 45.75 L 290.398438 103.898438 L 250.65625 103.898438 L 250.65625 45.75 C 250.65625 45.078125 250.921875 44.433594 251.394531 43.957031 C 251.871094 43.480469 252.511719 43.214844 253.183594 43.214844 Z M 253.183594 43.214844"/><path fill="#282A47" d="M 163.433594 216.351562 C 163.433594 222.246094 158.652344 227.023438 152.761719 227.023438 C 146.867188 227.023438 142.085938 222.246094 142.085938 216.351562 C 142.085938 210.457031 146.867188 205.679688 152.761719 205.679688 C 158.652344 205.679688 163.433594 210.457031 163.433594 216.351562 Z M 163.433594 216.351562"/><path fill="#282A47" d="M 202.671875 216.351562 C 202.671875 222.246094 197.894531 227.023438 192 227.023438 C 186.105469 227.023438 181.328125 222.246094 181.328125 216.351562 C 181.328125 210.457031 186.105469 205.679688 192 205.679688 C 197.894531 205.679688 202.671875 210.457031 202.671875 216.351562 Z M 202.671875 216.351562"/><path fill="#282A47" d="M 241.914062 216.351562 C 241.914062 222.246094 237.132812 227.023438 231.238281 227.023438 C 225.347656 227.023438 220.566406 222.246094 220.566406 216.351562 C 220.566406 210.457031 225.347656 205.679688 231.238281 205.679688 C 237.132812 205.679688 241.914062 210.457031 241.914062 216.351562 Z M 241.914062 216.351562"/><path fill="none" stroke="#282A47" stroke-width="26.595" stroke-linejoin="miter" d="M 80.355469 132.210938 L 80.355469 272.28125 C 80.355469 278.179688 82.699219 283.835938 86.871094 288.007812 C 91.042969 292.179688 96.699219 294.523438 102.601562 294.523438 L 132.234375 294.523438 L 132.234375 333.660156 L 190.378906 294.523438 L 281.398438 294.523438 C 287.300781 294.523438 292.957031 292.179688 297.128906 288.007812 C 301.300781 283.835938 303.644531 278.179688 303.644531 272.28125 L 303.644531 132.210938"/><path fill="#00AEB4" d="M 203.503906 119.265625 C 203.503906 125.617188 198.355469 130.769531 192 130.769531 C 185.644531 130.769531 180.496094 125.617188 180.496094 119.265625 C 180.496094 112.910156 185.644531 107.761719 192 107.761719 C 198.355469 107.761719 203.503906 112.910156 203.503906 119.265625 Z M 203.503906 119.265625"/></svg>`);
 });
+// El ícono de la app instalada: si la agencia subió su logo, ese manda.
+// Así el asesor ve SU marca en la pantalla de inicio del celular, no la nuestra.
 app.get(["/pwa-icon-192.png", "/pwa-icon-512.png", "/apple-touch-icon.png"], (req, res) => {
+  const logo = getConfig()?.logoUrl;
+  if (logo && /^https?:\/\//i.test(logo)) return res.redirect(302, logo);
   const f = req.path.includes("512") ? "pwa-icon-512.png" : "pwa-icon-192.png";
   res.sendFile(path.join(__dirname, f));
 });

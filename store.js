@@ -28,7 +28,7 @@ const DEFAULT_DB = {
     nombreAgencia: "Inmobiliaria Demo",
     tono: "profesional y cálido", // formal | relajado | lujoso
     idiomaDefault: "es",
-    brandColor: "#d9a526", // color de acento del CRM (personalizable)
+    brandColor: "#0B8089", // color de acento del CRM (personalizable)
     // Parámetros para calcular el retorno de inversión (editables desde el CRM)
     roiComision: 4,        // % de comisión promedio de la agencia
     roiMensualidad: 3000,  // lo que paga por el servicio al mes
