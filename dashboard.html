@@ -32,6 +32,8 @@
     --hot:#AF8389; --warm:#A28B6D; --cold:#7C91AB;
     --green:#61987D; --red:#AF8389;
     --hot-bg:transparent;--warm-bg:transparent;--cold-bg:transparent;--green-bg:transparent;
+    --vidrio:rgba(255,255,255,.72); --vidrio-bd:rgba(48,53,64,.10); --vidrio-luz:rgba(255,255,255,.9);
+    --vidrio-on:rgba(48,53,64,.07);
   }
   html.dark{
     --canvas:#15171C; --card:#1D2026; --card2:#24282F;
@@ -40,6 +42,8 @@
     --gold:#38B4C2; --gold-deep:#5FCBD6; --gold-soft:#14313A;
     --shadow:0 1px 2px rgba(0,0,0,.22);
     --hot:#986169; --warm:#806C52; --cold:#5B728F; --green:#4E7963; --red:#986169;
+    --vidrio:rgba(29,32,38,.72); --vidrio-bd:rgba(255,255,255,.09); --vidrio-luz:rgba(255,255,255,.06);
+    --vidrio-on:rgba(255,255,255,.09);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--canvas);color:var(--ink);
@@ -178,7 +182,8 @@
   .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink-soft)}
   .btn.danger{background:#fff;border:1px solid var(--line2);color:var(--red)}
   .btn:active{transform:translateY(1px)}
-  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+  .conteo{flex:1;font-size:12.5px;color:var(--muted)}
+  .toolbar{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:18px;min-height:2px}
   .toolbar h3{font-size:16px}
 
   /* Propiedades */
@@ -203,13 +208,14 @@
   .scard .sub{font-size:13px;color:var(--muted);margin-bottom:18px}
   .frow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
   label{font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px}
-  .agent{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
-  .agent:last-child{border-bottom:none}
-  .agent .ainfo b{font-size:14px}.agent .ainfo .meta{font-size:12px;color:var(--muted)}
+  .agent{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:16px 18px;margin-bottom:10px}
+  .agent:last-child{margin-bottom:0}
+  .agent .ainfo{flex:1;min-width:0}
+  .agent .ainfo b{font-size:14.5px;font-weight:600}.agent .ainfo .meta{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.5}
   .agent .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;color:var(--muted)}
   .agent .pill:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green)}
   .agent .pill.off:before{background:var(--muted2)}
-  .agent .aacts{display:flex;gap:8px}.agent .aacts .btn{padding:7px 12px;font-size:12px}
+  .agent .aacts{display:flex;gap:8px;flex-shrink:0}.agent .aacts .btn{padding:7px 12px;font-size:12px}
 
   /* Modales */
   .overlay{position:fixed;inset:0;background:rgba(20,21,26,.45);display:none;align-items:flex-start;justify-content:center;padding:34px 16px;z-index:50;overflow-y:auto}
@@ -265,16 +271,14 @@
   .toast.show{opacity:1}
 
   @media (max-width:820px){
-    .barramovil{display:flex}
+    .tabbar{display:flex}
+    .sidebar{display:none}
     .layout{flex-direction:column}
-    /* La barra lateral se vuelve un cajón que entra desde la izquierda */
-    .sidebar{position:fixed;top:0;left:0;bottom:0;width:270px;max-width:84vw;height:100dvh;z-index:45;
-      transform:translateX(-102%);transition:transform .26s cubic-bezier(.4,0,.2,1);
-      box-shadow:2px 0 24px rgba(0,0,0,.28);padding-bottom:18px;border-right:1px solid var(--line)}
-    .sidebar.abierto{transform:translateX(0)}
-    .navitem{padding:11px;font-size:14.5px}
-    .main{padding:16px 14px 52px}
+    .main{padding:14px 14px calc(96px + env(safe-area-inset-bottom))}
+    .topbar{margin-bottom:16px}
+    .topbar h2{font-size:26px;letter-spacing:-.02em}
     .metrics{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}
+    .overlay{padding:0}
   }
   /* ============================================================
      Ajustes finos del sistema (sustituye al "restyle premium" viejo)
@@ -298,7 +302,7 @@
 .teamsum .ts{flex:1;min-width:140px;background:var(--card);border:1px solid var(--line);border-radius:var(--r2);padding:13px 15px;box-shadow:var(--shadow)}
 .teamsum .ts .n{font-size:23px;font-weight:700;letter-spacing:-.02em}
 .teamsum .ts .l{font-size:11.5px;color:var(--muted);font-weight:500}
-.member{background:var(--card);border:1px solid var(--line);border-radius:var(--r2);box-shadow:var(--shadow);padding:15px 17px;margin-bottom:11px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.member{padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r2);box-shadow:var(--shadow);padding:15px 17px;margin-bottom:11px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .member .who{flex:1;min-width:160px}
 .member .who b{font-size:14.5px}
 .member .who .meta{font-size:12px;color:var(--muted);margin-top:2px}
@@ -395,19 +399,46 @@
   .temabtn:hover{background:var(--card2);color:var(--ink)}
   
 
-  /* ====== Celular: barra con tres barritas y cajón lateral ====== */
-  .barramovil{display:none;position:sticky;top:0;z-index:40;background:var(--card);border-bottom:1px solid var(--line);
-    padding:9px 8px;align-items:center;gap:6px}
-  .barramovil .tituloMovil{flex:1;min-width:0;padding-left:2px}
-  .barramovil .tituloMovil b{display:block;font-size:16px;font-weight:600;letter-spacing:-.01em;line-height:1.2}
-  .barramovil .tituloMovil span{display:block;font-size:11.5px;color:var(--muted2)}
-  .hamb{width:40px;height:40px;display:grid;place-items:center;border:none;border-radius:var(--r);
-    background:transparent;color:var(--ink-soft);cursor:pointer;flex-shrink:0;padding:0}
-  .hamb:active{background:var(--card2)}
-  .hamb svg.i{width:21px;height:21px}
-  .capa{display:none;position:fixed;inset:0;background:rgba(15,17,22,.5);z-index:44;
+
+  /* ====== Celular: barra de abajo con vidrio esmerilado ====== */
+  .tabbar{display:none;position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));
+    z-index:46;padding:7px 6px;border-radius:26px;
+    background:var(--vidrio);
+    -webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);
+    border:1px solid var(--vidrio-bd);box-shadow:0 10px 34px rgba(0,0,0,.22),inset 0 1px 0 var(--vidrio-luz)}
+  .tabbar .tb{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:8px 2px 7px;border:none;border-radius:19px;background:transparent;color:var(--muted);
+    font-family:inherit;font-size:10.5px;font-weight:500;cursor:pointer;transition:.16s;-webkit-tap-highlight-color:transparent}
+  .tabbar .tb b{font-weight:500;font-size:10.5px;letter-spacing:-.01em;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .tabbar .tb svg.i{width:21px;height:21px;stroke-width:1.6;transition:.16s}
+  .tabbar .tb.on{background:var(--vidrio-on);color:var(--ink)}
+  .tabbar .tb.on svg.i{color:var(--gold);stroke-width:1.9}
+  .tabbar .tb:active{transform:scale(.94)}
+  .tabbar .tb .pt{position:absolute;top:6px;right:calc(50% - 16px);min-width:16px;height:16px;padding:0 4px;
+    border-radius:99px;background:var(--hot);color:#fff;font-size:9.5px;font-weight:700;font-style:normal;
+    display:grid;place-items:center;line-height:1}
+
+  /* Hoja de "Más", también de vidrio */
+  .velo{display:none;position:fixed;inset:0;z-index:47;background:rgba(10,12,16,.4);
     -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);opacity:0;transition:opacity .22s}
-  .capa.on{display:block;opacity:1}
+  .velo.on{display:block;opacity:1}
+  .hoja{display:none;position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:48;
+    padding:10px 12px 16px;border-radius:26px;
+    background:var(--vidrio);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+    border:1px solid var(--vidrio-bd);box-shadow:0 18px 50px rgba(0,0,0,.32),inset 0 1px 0 var(--vidrio-luz);
+    transform:translateY(115%);transition:transform .3s cubic-bezier(.32,.72,0,1)}
+  .hoja.on{display:block;transform:translateY(0)}
+  .hoja .asa{width:38px;height:4px;border-radius:99px;background:var(--muted2);opacity:.45;margin:2px auto 14px}
+  .hojagrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .hojagrid button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+    padding:15px 6px;border:1px solid var(--vidrio-bd);border-radius:17px;background:var(--vidrio-on);
+    color:var(--ink);font-family:inherit;font-size:11.5px;font-weight:500;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;transition:.14s;text-align:center;line-height:1.25}
+  .hojagrid button:active{transform:scale(.95)}
+  .hojagrid button svg.i{width:20px;height:20px;color:var(--gold)}
+  .hojagrid .ancho{grid-column:span 3;flex-direction:row;justify-content:flex-start;gap:11px;padding:13px 15px}
+  .hojagrid .ancho svg.i{color:var(--muted)}
 
   /* ====== Ajustes del tema oscuro ====== */
   html.dark body{background:var(--canvas);color:var(--ink)}
@@ -495,12 +526,19 @@
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <div class="barramovil">
-    <button class="hamb" onclick="abrirMenu()" aria-label="Abrir menú"><span class="ii" data-ico="menu"></span></button>
-    <div class="tituloMovil"><b id="tituloMovilTxt">Leads</b><span id="subMovilTxt"></span></div>
-    <button class="hamb" onclick="abrirNotis()" aria-label="Notificaciones"><span class="ii" data-ico="bell"></span></button>
+  <nav class="tabbar" id="tabbar">
+    <button class="tb" data-view="leads" onclick="showView('leads')"><span class="ii" data-ico="users"></span><b>Leads</b><i class="pt hidden" id="tbLeadsPt"></i></button>
+    <button class="tb" data-view="agenda" onclick="showView('agenda')"><span class="ii" data-ico="calendar"></span><b>Agenda</b><i class="pt hidden" id="tbAgendaPt"></i></button>
+    <button class="tb" data-view="props" onclick="showView('props')"><span class="ii" data-ico="home"></span><b>Propiedades</b></button>
+    <button class="tb" data-view="analisis" onclick="showView('analisis')"><span class="ii" data-ico="trend"></span><b>Análisis</b></button>
+    <button class="tb" onclick="abrirMas()"><span class="ii" data-ico="mas"></span><b>Más</b></button>
+  </nav>
+  <div class="velo" id="veloMas" onclick="cerrarMas()"></div>
+  <div class="hoja" id="hojaMas">
+    <div class="asa"></div>
+    <div class="hojagrid" id="hojaGrid"></div>
   </div>
-  <div class="capa" id="capaMenu" onclick="cerrarMenu()"></div>
+
   <div class="layout">
     <aside class="sidebar">
       <div class="sbrand">
@@ -580,7 +618,7 @@
 
       <!-- PROPIEDADES -->
       <section id="view-props" class="view hidden">
-        <div class="toolbar"><h3 id="count">Propiedades</h3><div style="display:flex;gap:8px"><button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button></div></div>
+        <div class="toolbar"><span id="count" class="conteo"></span><div style="display:flex;gap:8px"><button class="btn gold" onclick="abrirNueva()">+ Agregar propiedad</button></div></div>
         <div class="filtrobar"><button class="btn ghost filtrotoggle" onclick="toggleFiltros('filtrosProps',this)"><span class="ii" data-ico="search"></span> Buscar y filtrar</button></div>
         <div class="filtros hidden" id="filtrosProps" style="border:1px solid var(--line);border-radius:var(--r2);margin-bottom:14px;background:#fff">
           <input id="buscarProp" type="search" placeholder="Buscar propiedad por título, zona o descripción..." oninput="aplicarFiltrosProps()" />
@@ -603,7 +641,7 @@
 
       <!-- EQUIPO -->
       <section id="view-campanas" class="view hidden">
-        <div class="toolbar"><h3>Campañas de prospección</h3><button class="btn gold" onclick="abrirCampana()">+ Nueva campaña</button></div>
+        <div class="toolbar"><span></span><button class="btn gold" onclick="abrirCampana()">+ Nueva campaña</button></div>
         <div class="avisocamp">
           <b>¿Qué es esto?</b> Sirve para escribirle PRIMERO a una lista de personas que aún no te han contactado.
           WhatsApp solo permite hacerlo con <b>plantillas aprobadas por Meta</b>. Los mensajes salen despacio a propósito:
@@ -612,7 +650,7 @@
         <div id="campHost"><div class="empty" style="border:none">Cargando…</div></div>
       </section>
       <section id="view-agentes" class="view hidden">
-        <div class="toolbar"><h3>Equipo</h3><button class="btn gold" onclick="abrirAgente()">+ Agregar asesor</button></div>
+        <div class="toolbar"><span></span><button class="btn gold" onclick="abrirAgente()">+ Agregar asesor</button></div>
         <p class="sub" style="font-size:13px;color:var(--muted);margin-bottom:16px">El bot asigna cada lead al asesor según su zona. Cuando cae un lead calificado, le llega por WhatsApp. Abajo ves la carga de trabajo de cada quien en tiempo real.</p>
         <div id="teamSummary" class="teamsum"></div>
         <div id="agentList"></div>
@@ -620,17 +658,16 @@
 
       <!-- ZONAS -->
       <section id="view-zonas" class="view hidden">
-        <div class="toolbar"><h3>Zonas</h3><button class="btn gold" onclick="abrirZona()">+ Agregar zona</button></div>
+        <div class="toolbar"><span></span><button class="btn gold" onclick="abrirZona()">+ Agregar zona</button></div>
         <p class="sub" style="font-size:13px;color:var(--muted);margin-bottom:16px">Estas son las zonas que maneja la agencia. El bot solo trabaja con estas, las usa para sonar como experto local, y aquí se sincronizan con las propiedades y los agentes.</p>
         <div id="zoneList"></div>
       </section>
 
       <!-- ANÁLISIS -->
       <section id="view-analisis" class="view hidden">
-        <div class="toolbar"><h3>Análisis de ventas</h3></div>
+        <div class="metrics" id="anaMetrics"></div>
         <div id="anaKpis" class="kpis"></div>
         <div class="anagrid">
-          <div class="panel"><div class="phead"><h3>Embudo de conversión</h3></div><div id="anaFunnel" style="padding:16px"></div></div>
           <div class="panel"><div class="phead"><h3>Ventas por asesor</h3></div><div id="anaAsesor" style="padding:8px 16px 16px"></div></div>
         </div>
         <div class="panel"><div class="phead"><h3>Ingresos por zona</h3></div><div id="anaZona" style="padding:8px 16px 16px"></div></div>
@@ -1029,11 +1066,10 @@ Object.assign(ICO,{
 
   function showView(name){
     setTimeout(()=>pintarIconos(),0);
+    pintarTabs(name);
     document.querySelectorAll(".navitem").forEach(n=>n.classList.toggle("active",n.dataset.view===name));
     document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
     document.getElementById("view-"+name).classList.remove("hidden");
-    const tm=document.getElementById("tituloMovilTxt");
-    if(tm) tm.textContent={leads:"Leads",analisis:"Análisis",agenda:"Agenda",props:"Propiedades",campanas:"Campañas",agentes:"Equipo",zonas:"Zonas"}[name]||"CRM";
     document.getElementById("pageTitle").textContent={leads:"Leads",analisis:"Análisis de ventas",agenda:"Agenda",props:"Propiedades",agentes:"Equipo",zonas:"Zonas"}[name];
     document.getElementById("upd").textContent=name==='leads'?document.getElementById("upd").textContent:"";
     if(name==='leads')cargarLeads();
@@ -1057,15 +1093,16 @@ Object.assign(ICO,{
     agentesById=data.agentesById||{};agentesList=data.agentes||[];setZonas(data.zonas);
     if(data.config?.nombreAgencia){
       document.getElementById("agencyName").textContent=data.config.nombreAgencia;
-      const sm=document.getElementById("subMovilTxt"); if(sm) sm.textContent=data.config.nombreAgencia;
     }
     if(data.config?.brandColor) aplicarAcento(data.config.brandColor);
     if(data.config?.logoUrl){const lg=document.getElementById("brandLogo");lg.src=data.config.logoUrl;lg.classList.remove("hidden");document.getElementById("brandDot").classList.add("hidden");}
     pintarMetricas(data.metricas,data.leads);leadsTodos=data.leads||[];poblarZonasFiltro();aplicarFiltros();
     const urgentes=(data.leads||[]).filter(l=>l.escalado&&l.estado!=='en_atencion'&&l.estado!=='cerrado'&&l.estado!=='perdido').length;
     const b=document.getElementById("navLeadsBadge");b.textContent=urgentes;b.classList.toggle("hidden",!urgentes);
+    globitoTab("tbLeadsPt",urgentes);
     const up=(data.leads||[]).filter(l=>l.citaProgramada&&new Date(l.citaProgramada).getTime()>Date.now()).length;
     const ab=document.getElementById("navAgendaBadge");ab.textContent=up;ab.classList.toggle("hidden",!up);
+    globitoTab("tbAgendaPt",up);
     document.getElementById("upd").textContent="Actualizado "+new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
   }
   function pintarMetricas(m,leads){
@@ -1090,6 +1127,22 @@ Object.assign(ICO,{
     const e=document.getElementById("filtroEstado"); if(e)e.value="sin_atender";
     const t=document.getElementById("filtroTemp"); if(t)t.value="caliente";
     aplicarFiltros();
+  }
+
+  function pintarMetricasEnAnalisis(){
+    const host=document.getElementById("anaMetrics"); if(!host||!metricasCache)return;
+    const m=metricasCache, total=m.total||1;
+    const caja=(l,v,pto,ancho)=>`<div class="metric">
+      <div class="label">${pto?`<i class="pto" style="background:${pto}"></i>`:""}${l}</div>
+      <div class="num${String(v).length>6?" small":""}">${v}</div>
+      <div class="bar"><i style="width:${ancho}%;background:${pto||"var(--ink)"}"></i></div></div>`;
+    host.innerHTML =
+      caja("Leads totales", m.total, null, 100) +
+      caja("Calientes", m.calientes, "var(--hot)",  m.calientes/total*100) +
+      caja("Tibios",    m.tibios,    "var(--warm)", m.tibios/total*100) +
+      caja("Fríos",     m.frios,     "var(--cold)", m.frios/total*100) +
+      caja("Citas",     m.citas||0,  "var(--gold)", (m.citas||0)/total*100) +
+      caja("Potencial en el embudo", fmtMXN(m.pipeline), null, 100);
   }
   // ---- Buscador y filtros ----
   let leadsTodos=[];
@@ -1257,23 +1310,48 @@ Object.assign(ICO,{
 
 
   /* ---------- Menú de celular ---------- */
-  function abrirMenu(){
-    document.querySelector(".sidebar").classList.add("abierto");
-    document.getElementById("capaMenu").classList.add("on");
-    document.body.style.overflow = "hidden";
-  }
-  function cerrarMenu(){
-    document.querySelector(".sidebar").classList.remove("abierto");
-    document.getElementById("capaMenu").classList.remove("on");
-    document.body.style.overflow = "";
-    cerrarMenuCta();
-  }
   // Al elegir una sección, el cajón se cierra solo
   document.addEventListener("click", (e) => {
     if (e.target.closest(".navitem") && window.innerWidth <= 820) setTimeout(cerrarMenu, 120);
   });
   // Si giras el teléfono o creces la ventana, se limpia
   window.addEventListener("resize", () => { if (window.innerWidth > 820) cerrarMenu(); });
+
+
+  /* ---------- Navegación de celular (barra de abajo) ---------- */
+  const MAS_SECCIONES = [
+    { v:"campanas", ico:"megaphone", txt:"Campañas", dueno:true },
+    { v:"agentes",  ico:"user",      txt:"Equipo",   dueno:true },
+    { v:"zonas",    ico:"pin",       txt:"Zonas",    dueno:true },
+  ];
+  function abrirMas(){
+    const g=document.getElementById("hojaGrid");
+    const esD = esDueno();
+    let h = MAS_SECCIONES.filter(x=>!x.dueno||esD)
+      .map(x=>`<button onclick="showView('${x.v}');cerrarMas()">${ico(x.ico)}<span>${x.txt}</span></button>`).join("");
+    h += `<button onclick="abrirNotis();cerrarMas()">${ico("bell")}<span>Avisos</span></button>`;
+    h += `<button onclick="toggleTema()">${ico(document.documentElement.classList.contains("dark")?"sun":"moon")}<span>Tema</span></button>`;
+    if(esD) h += `<button onclick="descargarRespaldo();cerrarMas()">${ico("download")}<span>Respaldo</span></button>`;
+    h += `<button class="ancho" onclick="cerrarSesion()">${ico("door")}<span>Cerrar sesión</span></button>`;
+    g.innerHTML = h;
+    document.getElementById("veloMas").classList.add("on");
+    document.getElementById("hojaMas").classList.add("on");
+    document.body.style.overflow="hidden";
+  }
+  function cerrarMas(){
+    document.getElementById("veloMas").classList.remove("on");
+    document.getElementById("hojaMas").classList.remove("on");
+    document.body.style.overflow="";
+  }
+  // Marca la pestaña activa y refresca los globitos
+  function pintarTabs(vista){
+    document.querySelectorAll("#tabbar .tb").forEach(t=>t.classList.toggle("on", t.dataset.view===vista));
+  }
+  function globitoTab(id, n){
+    const e=document.getElementById(id); if(!e)return;
+    e.textContent = n>9 ? "9+" : n;
+    e.classList.toggle("hidden", !n);
+  }
 
   /* ---------- Menú de cuenta (el resto de opciones, fuera de la vista) ---------- */
   function menuCuenta(ev){
@@ -1865,6 +1943,7 @@ pintarChat(l);
   /* ---------- ANÁLISIS DE VENTAS ---------- */
   async function cargarAnalisis(){
     try{
+      pintarMetricasEnAnalisis();
       const a=await(await fetch("/api/analytics",{headers:AH()})).json();
       document.getElementById("anaKpis").innerHTML=`
         <div class="kpi"><div class="l">Ingresos totales</div><div class="v">${fmtMXN(a.totales.ingresos)}</div>
@@ -1875,17 +1954,6 @@ pintarChat(l);
           <div class="d">Ingresos totales ÷ ${a.totales.ventas} venta${a.totales.ventas===1?"":"s"}</div></div>
         <div class="kpi"><div class="l">Conversión lead a venta</div><div class="v">${a.totales.conversion}%</div>
           <div class="d">De cada 100 leads, ${Math.round(a.totales.conversion)} terminaron en venta</div></div>`;
-      // Embudo
-      const e=a.embudo,max=Math.max(e.leads,1);
-      const steps=[["Leads",e.leads],["Calificados",e.calificados],["Con cita",e.citas],["Ventas",e.ventas]];
-      let prev=null,fh="";
-      steps.forEach(([nm,val])=>{
-        const w=Math.max(val/max*100,3);
-        const conv=prev!==null?`<div class="fconv">${prev>0?(val/prev*100).toFixed(0):0}% pasa del paso anterior</div>`:"";
-        fh+=`<div class="fstep"><div class="top"><span>${nm}</span><b>${val}</b></div><div class="fbar" style="width:${w}%">${val}</div>${conv}</div>`;
-        prev=val;
-      });
-      document.getElementById("anaFunnel").innerHTML=fh;
       // Por asesor
       const maxA=Math.max(...a.porAsesor.map(x=>x.ingresos),1);
       document.getElementById("anaAsesor").innerHTML=a.porAsesor.length?a.porAsesor.map(x=>`
@@ -1953,8 +2021,8 @@ pintarChat(l);
     });
     const hayFiltro=q||z||e||o;
     document.getElementById("count").textContent=hayFiltro
-      ?`Propiedades (${res.length} de ${propsList.length})`
-      :`Propiedades (${propsList.length})`;
+      ?`${res.length} de ${propsList.length} propiedades`
+      :`${propsList.length} propiedades`;
     pintarProps(res,hayFiltro);
   }
   function limpiarFiltrosProps(){
