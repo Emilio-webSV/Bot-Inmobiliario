@@ -566,6 +566,7 @@
         <div class="gtitle">Principal</div>
         <div class="navitem active" data-view="leads" onclick="showView('leads')"><span class="ic ii" data-ico="users"></span> Leads <span class="badge hidden" id="navLeadsBadge">0</span></div>
         <div class="navitem" data-view="analisis" onclick="showView('analisis')"><span class="ic ii" data-ico="trend"></span> Análisis</div>
+        <div class="navitem solo-dueno" data-view="anuncios" onclick="showView('anuncios')"><span class="ic ii" data-ico="megaphone"></span> Anuncios</div>
         <div class="navitem" data-view="agenda" onclick="showView('agenda')"><span class="ic ii" data-ico="calendar"></span> Agenda <span class="badge hidden" id="navAgendaBadge">0</span></div>
         <div class="navitem" data-view="props" onclick="showView('props')"><span class="ic ii" data-ico="home"></span> Propiedades</div>
       </div>
@@ -682,6 +683,12 @@
       </section>
 
       <!-- ANÁLISIS -->
+      <section id="view-anuncios" class="view hidden">
+        <div class="metrics" id="anMetrics"></div>
+        <p class="sub" style="font-size:13px;color:var(--muted);margin-bottom:16px">De dónde vienen tus clientes. Los que llegan por anuncio traen consigo qué anuncio los trajo, para que sepas cuál vale la pena y cuál solo gasta.</p>
+        <div id="anLista"></div>
+      </section>
+
       <section id="view-analisis" class="view hidden">
         <div class="metrics" id="anaMetrics"></div>
         <div id="anaKpis" class="kpis"></div>
@@ -1098,6 +1105,7 @@ Object.assign(ICO,{
     else if(name==='analisis')cargarAnalisis();
     else if(name==='agenda')cargarAgenda();
     else if(name==='props')cargarProps();
+    else if(name==='anuncios')cargarAnuncios();
     else if(name==='campanas'){ showView('leads'); return; }   // sección apagada
     else if(name==='agentes')cargarAgentes();
     else if(name==='zonas')cargarZonas();
@@ -1168,6 +1176,42 @@ Object.assign(ICO,{
       caja("Citas",     m.citas||0,  "var(--gold)", (m.citas||0)/total*100) +
       caja("Potencial en el embudo", fmtMXN(m.pipeline), null, 100);
   }
+
+  /* ---------- Anuncios: qué campaña trae clientes de verdad ---------- */
+  async function cargarAnuncios(){
+    const host=document.getElementById("anLista");
+    try{
+      const d=await(await fetch("/api/anuncios",{headers:AH()})).json();
+      document.getElementById("anMetrics").innerHTML=`
+        <div class="metric"><div class="label">Leads totales</div><div class="num">${d.totalLeads}</div></div>
+        <div class="metric"><div class="label"><i class="pto" style="background:var(--gold)"></i>Por anuncio</div><div class="num">${d.dePago}</div>
+          <div class="bar"><i style="width:${d.porcentajeDePago}%;background:var(--gold)"></i></div></div>
+        <div class="metric"><div class="label">Por su cuenta</div><div class="num">${d.organicos}</div></div>
+        <div class="metric"><div class="label">Citas de anuncios</div><div class="num">${d.citasDePago}</div></div>
+        <div class="metric"><div class="label">Ventas de anuncios</div><div class="num">${d.ventasDePago}</div></div>
+        <div class="metric"><div class="label">Vendido desde anuncios</div><div class="num small">${fmtMXN(d.montoDePago)}</div></div>`;
+      if(!d.anuncios.length){
+        host.innerHTML=`<div class="empty">Todavía no llega nadie por anuncios.<br><span style="font-size:12.5px">
+          Cuando lances un anuncio de <b>clic a WhatsApp</b> en Facebook o Instagram, aquí vas a ver cuántos clientes trajo cada uno.</span></div>`;
+        return;
+      }
+      host.innerHTML=d.anuncios.map(a=>`
+        <div class="agent">
+          <div class="ainfo">
+            <b>${escapeHtml(a.titulo||"Anuncio sin título")}</b>
+            <span class="pill">${escapeHtml(a.red)}</span>
+            <div class="meta">Desde el ${new Date(a.primero).toLocaleDateString("es-MX",{day:"numeric",month:"long"})} · id ${escapeHtml(a.id)}</div>
+          </div>
+          <div class="stats" style="display:flex;gap:22px">
+            <div class="st" style="text-align:center"><div class="n">${a.leads}</div><div class="l">leads</div></div>
+            <div class="st" style="text-align:center"><div class="n">${a.citas}</div><div class="l">citas</div></div>
+            <div class="st" style="text-align:center"><div class="n">${a.conversion}%</div><div class="l">convierte</div></div>
+            <div class="st" style="text-align:center"><div class="n">${a.ventas}</div><div class="l">ventas</div></div>
+          </div>
+        </div>`).join("");
+    }catch(e){ host.innerHTML='<div class="empty">No pude cargar los anuncios</div>'; }
+  }
+
   // ---- Buscador y filtros ----
   let leadsTodos=[];
   // ---- Roles: el dueño ve todo; el asesor solo lo suyo ----
@@ -1344,6 +1388,7 @@ Object.assign(ICO,{
 
   /* ---------- Navegación de celular (barra de abajo) ---------- */
   const MAS_SECCIONES = [
+    { v:"anuncios", ico:"megaphone", txt:"Anuncios", dueno:true },
     { v:"agentes",  ico:"user",      txt:"Equipo",   dueno:true },
     { v:"zonas",    ico:"pin",       txt:"Zonas",    dueno:true },
   ];

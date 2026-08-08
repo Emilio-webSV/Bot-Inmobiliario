@@ -29,6 +29,7 @@ import { alertarDev, instalarCazadorDeErrores, alertasActivas, destinoAlertas } 
 import { notificar, suscribir, desuscribir, llavePublica, guardarPrefs, misSuscripciones, AVISOS } from "./push.js";
 import { armar as armarMosaico, leer as leerMosaico, activo as mosaicoActivo } from "./mosaico.js";
 import { resumen as consumoDelMes, historico as consumoHistorico } from "./consumo.js";
+import { leerReferencia, registrarOrigen, sumarResultado, resumenAnuncios } from "./anuncios.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
@@ -278,6 +279,14 @@ app.post("/webhook", async (req, res) => {
       if (!mensaje) return;
       if (mensajeDuplicado(mensaje.id)) return; // ya lo procesamos, no repitas
       const nombre = value?.contacts?.[0]?.profile?.name || null;
+
+      // ¿Vino de un anuncio? Meta pega el bloque "referral" al primer mensaje.
+      // Lo guardamos para que la agencia sepa qué anuncio le trae clientes.
+      const refAnuncio = leerReferencia(mensaje);
+      if (refAnuncio) {
+        // El lead puede no existir todavía; lo registramos en cuanto se cree.
+        setTimeout(() => registrarOrigen(mensaje.from, refAnuncio), 1500);
+      }
       if (mensaje.type === "image") {
         // El cliente mandó una foto: la bajamos y el bot la "ve".
         const media = await descargarMediaWhatsApp(mensaje.image?.id);
@@ -750,6 +759,7 @@ async function procesarMensaje(telefono, texto, nombrePerfil, canal = "whatsapp"
       // (antes se repetía y confundía al dueño y al cliente).
       if (!esMismaCita) {
         upsertLead(telefono, { citaProgramada: cita.iso, seguimientos: { recordatorioCita: false } });
+        sumarResultado(telefono, "cita");   // si vino de anuncio, se le apunta
         const fechaTxt = new Date(cita.iso).toLocaleString("es-MX", { timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
         const link = gcalLink(cita.iso, `Cita: ${lead.nombre || telefono}`, `Visita agendada por el asistente. Cliente: ${lead.nombre || telefono} (${telefono}).`);
         const titulo = esReagenda ? "🔄 Cita REAGENDADA" : "📅 Cita agendada";
@@ -1039,6 +1049,7 @@ app.post("/api/leads/:telefono/venta", (req, res) => {
     estado: "cerrado",
     venta: { propiedadId, monto, fecha, agenteId },
   });
+  sumarResultado(req.params.telefono, "venta", monto);   // se le apunta al anuncio que lo trajo
   if (propiedadId) {
     updateProperty(propiedadId, {
       estado: "vendido",
@@ -1211,6 +1222,7 @@ app.post("/api/citas", (req, res) => {
     return res.status(409).json({ error: "No disponible", motivo: choque.motivo });
   }
   const patch = { citaProgramada: iso, seguimientos: { ...(lead.seguimientos || {}), recordatorioCita: false } };
+  sumarResultado(req.params.telefono, "cita");
   if (agenteId) patch.agenteAsignado = agenteId;
   if (b.notas) patch.notas = ((lead.notas || "") + "\n" + b.notas).trim();
   upsertLead(telefono, patch);
@@ -1228,6 +1240,7 @@ app.post("/api/leads/:telefono/cita", (req, res) => {
     iso = d.toISOString();
   }
   upsertLead(req.params.telefono, { citaProgramada: iso, seguimientos: { recordatorioCita: false } });
+  if (iso) sumarResultado(req.params.telefono, "cita");   // si vino de anuncio, se le apunta
   res.json({ ok: true });
 });
 
@@ -1832,6 +1845,12 @@ ${hist.length > 1 ? `<h2>Meses anteriores</h2><table>
 El precio del mensaje de servicio es el estimado; se ajusta con la variable PRECIO_MSG_SERVICIO cuando Meta publique el definitivo.</p>
 `}
 </div></body></html>`);
+});
+
+// Qué anuncio está trayendo clientes de verdad
+app.get("/api/anuncios", (req, res) => {
+  if (!soloDueno(req, res)) return;
+  res.json(resumenAnuncios());
 });
 
 app.get("/api/consumo", (req, res) => {
