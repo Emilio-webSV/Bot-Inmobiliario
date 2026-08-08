@@ -395,6 +395,12 @@ export async function generarRespuesta({ config, lead, propiedadesCtx }) {
 
         const data = await res.json();
         const texto = data?.choices?.[0]?.message?.content;
+        // Los tokens REALES que reporta el proveedor. Con esto el medidor de
+        // gasto no adivina nada: usa lo que de verdad se cobró.
+        import("./consumo.js").then((c) => c.contarIA({
+          entrada: data?.usage?.prompt_tokens || 0,
+          salida:  data?.usage?.completion_tokens || 0,
+        })).catch(() => {});
         if (cfg.nombre !== PRIMARY) {
           console.warn(`[ia] ⚠️ Respondí con el proveedor de RESPALDO (${cfg.nombre}) porque el principal (${PRIMARY}) no estaba disponible.`);
         }
@@ -409,6 +415,7 @@ export async function generarRespuesta({ config, lead, propiedadesCtx }) {
 
   // Si llegamos aquí, ningún proveedor pudo responder: el bot está mudo.
   console.error("[ia] Todos los proveedores fallaron.");
+  import("./consumo.js").then((c) => c.contarIA({ fallo: true })).catch(() => {});
   try {
     const { alertarDev } = await import("./alertas.js");
     alertarDev("ia_caida", "🔴 El bot se quedó sin cerebro",

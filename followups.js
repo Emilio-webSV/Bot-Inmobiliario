@@ -102,7 +102,11 @@ async function revisarCitas() {
   for (const lead of Object.values(db.leads)) {
     if (!lead.citaProgramada) continue;
     const h = (new Date(lead.citaProgramada).getTime() - Date.now()) / HORA;
-    if (h <= 24 && h > 23 && !lead.seguimientos.recordatorioCita) {
+    // Antes esto era `h <= 24 && h > 23`: una ventana de UNA hora. Si la cita se
+    // agendaba con menos de 23 h de anticipación, o si el servidor se reiniciaba
+    // justo en esa hora, el recordatorio no salía nunca. Ahora avisa en cuanto
+    // entra a las 24 h y hasta media hora antes; la bandera evita repetirlo.
+    if (h <= 24 && h > 0.5 && !lead.seguimientos.recordatorioCita) {
       const fecha = new Date(lead.citaProgramada).toLocaleString("es-MX", {
         timeZone: "America/Mexico_City", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
       });

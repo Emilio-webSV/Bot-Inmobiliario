@@ -155,8 +155,19 @@
   .pto{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:7px;vertical-align:middle}
   .chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;background:var(--card2);color:var(--muted);padding:3px 8px;border-radius:var(--r)}
   .citatag{display:inline-block;font-size:10.5px;font-weight:600;background:var(--green-bg);color:var(--green);padding:2px 8px;border-radius:99px;margin-top:5px}
-  .checkcol{width:40px;text-align:center}
-  .checkcol input{width:16px;height:16px;cursor:pointer;accent-color:var(--gold)}
+  /* Selección de leads: círculo con palomita, en vez del cuadrito blanco del navegador */
+  .checkcol{width:44px;text-align:center}
+  .checkcol input{appearance:none;-webkit-appearance:none;width:19px;height:19px;margin:0;border-radius:50%;
+    border:1.5px solid var(--line2);background:var(--card);cursor:pointer;position:relative;
+    transition:.15s;vertical-align:middle;flex-shrink:0}
+  .checkcol input:hover{border-color:var(--gold)}
+  .checkcol input:checked{background:var(--gold);border-color:var(--gold)}
+  .checkcol input:checked::after{content:"";position:absolute;left:5.5px;top:2.5px;width:5px;height:9px;
+    border:solid var(--card);border-width:0 2px 2px 0;transform:rotate(43deg)}
+  .checkcol input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  /* Y la fila entera se resalta cuando está elegida */
+  tr.elegida{background:var(--gold-soft)}
+  tr.elegida td{border-color:transparent}
   .empty{padding:50px 20px;text-align:center;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:var(--r2)}
   .empty p:first-child{font-size:16px;color:var(--ink-soft);margin-bottom:6px}
 
@@ -1106,7 +1117,9 @@ Object.assign(ICO,{
       document.getElementById("agencyName").textContent=data.config.nombreAgencia;
     }
     if(data.config?.brandColor) aplicarAcento(data.config.brandColor);
-    if(data.config?.logoUrl){const lg=document.getElementById("brandLogo");lg.src=data.config.logoUrl;lg.classList.remove("hidden");document.getElementById("brandDot").classList.add("hidden");}
+    // Por ahora arriba va NUESTRO isotipo. El nombre de la agencia sí es el suyo.
+    // Para mostrar su logo: quita el "false &&" de la siguiente línea.
+    if(false && data.config?.logoUrl){const lg=document.getElementById("brandLogo");lg.src=data.config.logoUrl;lg.classList.remove("hidden");document.getElementById("brandDot").classList.add("hidden");}
     pintarMetricas(data.metricas,data.leads);leadsTodos=data.leads||[];poblarZonasFiltro();aplicarFiltros();
     const urgentes=(data.leads||[]).filter(l=>l.escalado&&l.estado!=='en_atencion'&&l.estado!=='cerrado'&&l.estado!=='perdido').length;
     const b=document.getElementById("navLeadsBadge");b.textContent=urgentes;b.classList.toggle("hidden",!urgentes);
@@ -1777,7 +1790,7 @@ Object.assign(ICO,{
       const chips=(l.etiquetas&&l.etiquetas.length)?`<div class="chips">${l.etiquetas.slice(0,3).map(t=>`<span class="chip">${t}</span>`).join("")}</div>`:"";
       const citaTag=l.citaProgramada?`<div><span class="citatag">${ico("calendar","sm")} ${new Date(l.citaProgramada).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</span></div>`:"";
       return `<tr onclick='abrirModal("${l.telefono}")'>
-        <td class="checkcol"><input type="checkbox" class="lead-check" value="${l.telefono}" ${seleccion.has(l.telefono)?'checked':''} onclick="event.stopPropagation();toggleSel('${l.telefono}',this.checked)"></td>
+        <td class="checkcol"><input type="checkbox" class="lead-check" value="${l.telefono}" ${seleccion.has(l.telefono)?'checked':''} onclick="event.stopPropagation();toggleSel('${l.telefono}',this.checked);this.closest('tr').classList.toggle('elegida',this.checked)"></td>
         <td><div class="name">${l.nombre||"Sin nombre"}</div><div class="sub">${canalMini[l.canal||'whatsapp']} · ${l.telefono}</div>${chips}${citaTag}</td>
         <td><span class="estado ${ei.cls}">${ei.label}</span></td>
         <td><span class="temp ${l.temperatura}"><span class="pip"></span>${l.temperatura}</span></td>
@@ -1989,7 +2002,7 @@ pintarChat(l);
   async function devolverControl(tel){await fetch(`/api/leads/${tel}/devolver-control`,{method:"POST",headers:AH()});abrirModal(tel);cargarLeads()}
   function cerrarModal(){document.getElementById("leadOverlay").classList.remove("show")}
   function toggleSel(tel,c){if(c)seleccion.add(tel);else seleccion.delete(tel);actualizarBulkBar()}
-  function toggleAll(c){document.querySelectorAll(".lead-check").forEach(x=>{x.checked=c;toggleSel(x.value,c)})}
+  function toggleAll(c){document.querySelectorAll(".lead-check").forEach(x=>{x.checked=c;toggleSel(x.value,c);x.closest("tr").classList.toggle("elegida",c)})}
   function actualizarBulkBar(){document.getElementById("bulkcount").textContent=seleccion.size;document.getElementById("bulkbar").style.display=seleccion.size?"flex":"none"}
   async function bulk(accion){const tels=[...seleccion];if(!tels.length)return;if(accion==='borrar'&&!confirm(`¿Borrar ${tels.length} lead(s)? No se puede deshacer.`))return;await fetch('/api/leads/bulk',{method:'POST',headers:JH(),body:JSON.stringify({accion,telefonos:tels})});seleccion.clear();actualizarBulkBar();cargarLeads()}
 

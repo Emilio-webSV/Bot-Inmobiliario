@@ -28,6 +28,7 @@ import { enviarCorreo, plantillaHTML, extraerEmail, correoActivo } from "./email
 import { alertarDev, instalarCazadorDeErrores, alertasActivas, destinoAlertas } from "./alertas.js";
 import { notificar, suscribir, desuscribir, llavePublica, guardarPrefs, misSuscripciones, AVISOS } from "./push.js";
 import { armar as armarMosaico, leer as leerMosaico, activo as mosaicoActivo } from "./mosaico.js";
+import { resumen as consumoDelMes, historico as consumoHistorico } from "./consumo.js";
 import { extraerPerfil, calcularScore } from "./scoring.js";
 import { analizarFrustracion } from "./frustration.js";
 import { asignarAgente, seedAgentesDemo } from "./agents.js";
@@ -1747,6 +1748,103 @@ function resumenCampana(c) {
   };
 }
 
+// Cuánto lleva gastado esta agencia. Protegido con la contraseña del dueño.
+
+// Pantalla de gasto. La abre el dueño del negocio (tú), no la agencia:
+// va protegida con la contraseña de administrador en la propia liga.
+app.get("/consumo", (req, res) => {
+  const pass = String(req.query.pass || "");
+  if (pass !== (process.env.ADMIN_PASSWORD || "")) return res.status(401).send("Contraseña incorrecta");
+  const r = consumoDelMes();
+  const hist = consumoHistorico();
+  const n = (v) => "$" + Number(v || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const color = { ok: "#61987D", atencion: "#A28B6D", va_a_pasarse: "#A28B6D", critico: "#AF8389" };
+  const texto = { ok: "Todo tranquilo", atencion: "Ojo, va a la mitad", va_a_pasarse: "Al ritmo actual se pasa", critico: "Se está comiendo el margen" };
+  const vacio = !r || r.vacio;
+
+  res.set("Content-Type", "text/html; charset=utf-8").send(`<!DOCTYPE html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gasto · ${vacio ? "—" : r.agencia}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+ *{box-sizing:border-box;margin:0;padding:0}
+ body{font-family:'Inter',system-ui,sans-serif;background:#FAFAFA;color:#303540;line-height:1.6;
+   padding:32px 20px 60px;font-feature-settings:"tnum"}
+ .caja{max-width:820px;margin:0 auto}
+ h1{font-size:26px;font-weight:600;letter-spacing:-.02em}
+ .sub{font-size:13px;color:#6F7785;margin-bottom:26px}
+ .estado{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;
+   padding:7px 13px;border-radius:99px;margin-bottom:24px}
+ .estado i{width:7px;height:7px;border-radius:50%;display:block}
+ .grande{background:#fff;border:1px solid #E8EAED;border-radius:12px;padding:26px;margin-bottom:14px}
+ .grande .n{font-size:44px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
+ .grande .l{font-size:12.5px;color:#6F7785;margin-top:4px}
+ .fila{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+ .tarj{background:#fff;border:1px solid #E8EAED;border-radius:12px;padding:20px}
+ .tarj .n{font-size:26px;font-weight:600;letter-spacing:-.02em}
+ .tarj .l{font-size:12px;color:#6F7785;margin-top:2px}
+ table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #E8EAED;border-radius:12px;overflow:hidden}
+ th{text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+   color:#6F7785;padding:13px 18px;border-bottom:1px solid #E8EAED}
+ td{padding:12px 18px;font-size:14px;border-bottom:1px solid #F0F2F5}
+ tr:last-child td{border-bottom:none}
+ td.d{text-align:right;font-variant-numeric:tabular-nums}
+ .tot td{font-weight:600;background:#F8F9FB}
+ h2{font-size:15px;font-weight:600;margin:32px 0 12px}
+ .pie{font-size:11.5px;color:#9098A5;margin-top:26px;line-height:1.7}
+</style></head><body><div class="caja">
+${vacio ? `<h1>Sin consumo todavía</h1><p class="sub">Esta agencia aún no ha mandado ningún mensaje este mes.</p>` : `
+<h1>${r.agencia}</h1>
+<p class="sub">Gasto de ${r.mes} · dólar a $${r.tipoCambio}</p>
+<div class="estado" style="background:${color[r.alerta]}22;color:${color[r.alerta]}">
+  <i style="background:${color[r.alerta]}"></i>${texto[r.alerta]}</div>
+
+<div class="grande">
+  <div class="n">${n(r.costoMXN.total)}</div>
+  <div class="l">gastado en lo que va del mes · proyección a fin de mes ${n(r.proyeccionFinDeMesMXN)}</div>
+</div>
+
+<div class="fila">
+  <div class="tarj"><div class="n">${n(r.utilidadMXN)}</div><div class="l">te queda de los ${n(r.mensualidad)}</div></div>
+  <div class="tarj"><div class="n">${r.margenPct}%</div><div class="l">de margen</div></div>
+</div>
+<div class="fila">
+  <div class="tarj"><div class="n">${r.conversaciones}</div><div class="l">conversaciones atendidas</div></div>
+  <div class="tarj"><div class="n">${r.mensajes.total}</div><div class="l">mensajes enviados</div></div>
+</div>
+
+<h2>En qué se fue</h2>
+<table>
+ <tr><th>Concepto</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Costo</th></tr>
+ <tr><td>Servidor (Railway)</td><td class="d">—</td><td class="d">${n(r.costoMXN.railway)}</td></tr>
+ <tr><td>Mensajes de servicio</td><td class="d">${r.mensajes.servicio}</td><td class="d">${n(r.costoMXN.servicio)}</td></tr>
+ <tr><td>Plantillas de utilidad</td><td class="d">${r.mensajes.utilidad}</td><td class="d">${n(r.costoMXN.utilidad)}</td></tr>
+ <tr><td>Plantillas de marketing</td><td class="d">${r.mensajes.marketing}</td><td class="d">${n(r.costoMXN.marketing)}</td></tr>
+ <tr><td>Inteligencia artificial</td><td class="d">${r.ia.llamadas} respuestas</td><td class="d">${n(r.costoMXN.ia)}</td></tr>
+ <tr class="tot"><td>Total</td><td class="d"></td><td class="d">${n(r.costoMXN.total)}</td></tr>
+</table>
+${r.ia.fallos ? `<p class="pie">⚠️ La inteligencia artificial falló ${r.ia.fallos} ${r.ia.fallos === 1 ? "vez" : "veces"} este mes.</p>` : ""}
+${hist.length > 1 ? `<h2>Meses anteriores</h2><table>
+ <tr><th>Mes</th><th style="text-align:right">Conversaciones</th><th style="text-align:right">Costo</th><th style="text-align:right">Margen</th></tr>
+ ${hist.slice(1).map((h) => `<tr><td>${h.mes}</td><td class="d">${h.conversaciones}</td><td class="d">${n(h.costoMXN.total)}</td><td class="d">${h.margenPct}%</td></tr>`).join("")}
+</table>` : ""}
+<p class="pie">Los tokens de la inteligencia artificial son los que reporta el propio proveedor, no una estimación.<br>
+El precio del mensaje de servicio es el estimado; se ajusta con la variable PRECIO_MSG_SERVICIO cuando Meta publique el definitivo.</p>
+`}
+</div></body></html>`);
+});
+
+app.get("/api/consumo", (req, res) => {
+  if (!soloDueno(req, res)) return;
+  const r = consumoDelMes(req.query.mes);
+  if (!r) return res.json({ vacio: true, mensaje: "Todavía no hay consumo registrado este mes." });
+  res.json(r);
+});
+app.get("/api/consumo/historico", (req, res) => {
+  if (!soloDueno(req, res)) return;
+  res.json({ meses: consumoHistorico() });
+});
+
 app.get("/api/campanas/diagnostico", async (req, res) => {
   if (!soloDueno(req, res)) return;
   res.json(await plantillasAprobadas());
@@ -1901,16 +1999,17 @@ app.get("/dashboard", (req, res) => {
 // --- PWA: permite "instalar" el CRM como app en el celular o la compu ---
 app.get("/manifest.json", (req, res) => {
   const cfg = getConfig() || {};
-  const agencia = cfg.nombreAgencia || "CRM Inmobiliario";
+  const propio = process.env.ICONO_DEL_CLIENTE === "1";
+  const nombre = propio ? (cfg.nombreAgencia || "CRM Inmobiliario") : "Realtor Solutions AI";
   res.json({
-    name: agencia,
-    short_name: agencia.length > 12 ? agencia.slice(0, 12) : agencia,
+    name: nombre,
+    short_name: propio ? nombre.slice(0, 12) : "Realtor AI",
     start_url: "/dashboard",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: cfg.brandColor && /^#[0-9a-f]{6}$/i.test(cfg.brandColor) ? cfg.brandColor : "#282A47",
-    theme_color: cfg.brandColor && /^#[0-9a-f]{6}$/i.test(cfg.brandColor) ? cfg.brandColor : "#282A47",
+    background_color: "#282A47",
+    theme_color: "#282A47",
     icons: [
       { src: "/pwa-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
       { src: "/pwa-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
@@ -1975,11 +2074,14 @@ app.get("/favicon.svg", (req, res) => {
   res.set("Content-Type", "image/svg+xml").set("Cache-Control", "public, max-age=86400");
   res.send(`<svg viewBox="0 0 384 384" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#282A47" d="M 192 25.363281 L 19.207031 161.136719 L 62.257812 161.136719 L 192 59.191406 L 321.742188 161.136719 L 364.792969 161.136719 Z M 192 25.363281"/><path fill="#282A47" d="M 253.183594 43.214844 L 287.871094 43.214844 C 288.542969 43.214844 289.1875 43.480469 289.664062 43.957031 C 290.136719 44.433594 290.402344 45.078125 290.398438 45.75 L 290.398438 103.898438 L 250.65625 103.898438 L 250.65625 45.75 C 250.65625 45.078125 250.921875 44.433594 251.394531 43.957031 C 251.871094 43.480469 252.511719 43.214844 253.183594 43.214844 Z M 253.183594 43.214844"/><path fill="#282A47" d="M 163.433594 216.351562 C 163.433594 222.246094 158.652344 227.023438 152.761719 227.023438 C 146.867188 227.023438 142.085938 222.246094 142.085938 216.351562 C 142.085938 210.457031 146.867188 205.679688 152.761719 205.679688 C 158.652344 205.679688 163.433594 210.457031 163.433594 216.351562 Z M 163.433594 216.351562"/><path fill="#282A47" d="M 202.671875 216.351562 C 202.671875 222.246094 197.894531 227.023438 192 227.023438 C 186.105469 227.023438 181.328125 222.246094 181.328125 216.351562 C 181.328125 210.457031 186.105469 205.679688 192 205.679688 C 197.894531 205.679688 202.671875 210.457031 202.671875 216.351562 Z M 202.671875 216.351562"/><path fill="#282A47" d="M 241.914062 216.351562 C 241.914062 222.246094 237.132812 227.023438 231.238281 227.023438 C 225.347656 227.023438 220.566406 222.246094 220.566406 216.351562 C 220.566406 210.457031 225.347656 205.679688 231.238281 205.679688 C 237.132812 205.679688 241.914062 210.457031 241.914062 216.351562 Z M 241.914062 216.351562"/><path fill="none" stroke="#282A47" stroke-width="26.595" stroke-linejoin="miter" d="M 80.355469 132.210938 L 80.355469 272.28125 C 80.355469 278.179688 82.699219 283.835938 86.871094 288.007812 C 91.042969 292.179688 96.699219 294.523438 102.601562 294.523438 L 132.234375 294.523438 L 132.234375 333.660156 L 190.378906 294.523438 L 281.398438 294.523438 C 287.300781 294.523438 292.957031 292.179688 297.128906 288.007812 C 301.300781 283.835938 303.644531 278.179688 303.644531 272.28125 L 303.644531 132.210938"/><path fill="#00AEB4" d="M 203.503906 119.265625 C 203.503906 125.617188 198.355469 130.769531 192 130.769531 C 185.644531 130.769531 180.496094 125.617188 180.496094 119.265625 C 180.496094 112.910156 185.644531 107.761719 192 107.761719 C 198.355469 107.761719 203.503906 112.910156 203.503906 119.265625 Z M 203.503906 119.265625"/></svg>`);
 });
-// El ícono de la app instalada: si la agencia subió su logo, ese manda.
-// Así el asesor ve SU marca en la pantalla de inicio del celular, no la nuestra.
+// El ícono de la app instalada: por ahora SIEMPRE el nuestro.
+// Si algún día quieres que sea el de cada agencia, pon ICONO_DEL_CLIENTE=1
+// y usará su logoUrl cuando lo tenga configurado.
 app.get(["/pwa-icon-192.png", "/pwa-icon-512.png", "/apple-touch-icon.png"], (req, res) => {
-  const logo = getConfig()?.logoUrl;
-  if (logo && /^https?:\/\//i.test(logo)) return res.redirect(302, logo);
+  if (process.env.ICONO_DEL_CLIENTE === "1") {
+    const logo = getConfig()?.logoUrl;
+    if (logo && /^https?:\/\//i.test(logo)) return res.redirect(302, logo);
+  }
   const f = req.path.includes("512") ? "pwa-icon-512.png" : "pwa-icon-192.png";
   res.sendFile(path.join(__dirname, f));
 });

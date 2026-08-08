@@ -186,6 +186,9 @@ async function enviar(body, to) {
       } catch (e) { detalle = txt.slice(0, 160); }
       return { error: true, code, motivo: traducirErrorMeta(code, detalle), detalle };
     }
+    // Solo contamos lo que Meta ACEPTÓ. Un mensaje rechazado no se cobra, así
+    // que contarlo inflaría el gasto y nos haría tomar malas decisiones.
+    import("./consumo.js").then((c) => c.contarMensaje(body, to)).catch(() => {});
     return await res.json();
   } catch (err) {
     console.error("[whatsapp] Excepción:", err.message);
